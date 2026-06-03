@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>My Apps</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="My Apps" />
+<meta name="theme-color" content="#2E6BFF" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%23111315'/%3E%3Crect x='44' y='44' width='40' height='40' rx='10' fill='%232E6BFF'/%3E%3Crect x='96' y='44' width='40' height='40' rx='10' fill='%23F5A623'/%3E%3Crect x='44' y='96' width='40' height='40' rx='10' fill='%2327AE60'/%3E%3Crect x='96' y='96' width='40' height='40' rx='10' fill='%23E4E6EA'/%3E%3C/svg%3E" />
+<style>
+  :root{
+    --blue:#2E6BFF;--orange:#F5A623;--green:#27AE60;
+    --bg:#EFEFEF;--card:#FFFFFF;--ink:#111315;--muted:#6B7280;--line:#E4E6EA;
+    --shadow:0 1px 3px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:680px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top)) 20px 40px;}
+  h1{font-family:'Archivo';font-weight:900;font-size:34px;letter-spacing:-.02em;margin:0;}
+  .sub{color:var(--muted);font-size:15px;font-weight:500;margin:4px 0 28px;}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  @media(max-width:430px){.grid{grid-template-columns:1fr;}}
+  .app{
+    display:flex;flex-direction:column;gap:4px;text-decoration:none;color:var(--ink);
+    background:var(--card);border-radius:20px;box-shadow:var(--shadow);padding:20px;
+    transition:transform .12s ease;border:1.5px solid transparent;
+  }
+  .app:active{transform:scale(.98);}
+  .app .ic{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
+  .app .ic svg{width:28px;height:28px;}
+  .app .nm{font-family:'Archivo';font-weight:800;font-size:19px;letter-spacing:-.01em;}
+  .app .ds{font-size:13px;color:var(--muted);line-height:1.4;}
+  .add{
+    border:2px dashed #C7D2E8;background:#F7F9FF;box-shadow:none;align-items:flex-start;justify-content:center;
+    color:var(--blue);
+  }
+  .add .nm{color:var(--blue);font-size:17px;}
+  .add .ds{color:#7E93C4;}
+  .foot{margin-top:30px;font-size:12px;color:var(--muted);line-height:1.6;}
+  .foot code{background:#E4E6EA;padding:2px 6px;border-radius:6px;font-size:11px;}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>My Apps</h1>
+    <div class="sub">Personal projects & trackers — all on one site.</div>
+
+    <div class="grid">
+      <a class="app" href="golf/">
+        <div class="ic" style="background:var(--blue)">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7l-8-5z" fill="#fff"/><circle cx="12" cy="11" r="3" fill="#2E6BFF"/></svg>
+        </div>
+        <div class="nm">GolfOS</div>
+        <div class="ds">Golf practice accountability — drills, range, lessons & streaks.</div>
+      </a>
+
+      <div class="app add">
+        <div class="ic" style="background:#E7EEFF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2E6BFF" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="nm">Add a new app</div>
+        <div class="ds">Drop a new folder with its own index.html — it shows up at its own link.</div>
+      </div>
+    </div>
+
+    <div class="foot">
+      This is your personal hub at the root of the site. Each app lives in its own folder
+      (e.g. <code>golf/</code>) and gets its own link like <code>yoursite.github.io/golf/</code>.
+      To add one, create a new folder with an <code>index.html</code> inside, then add a matching
+      card above. Tip: give each app its own browser-storage key so their data never collides.
+    </div>
+  </div>
+</body>
+</html>
