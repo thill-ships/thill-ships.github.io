@@ -19,6 +19,9 @@
 <!-- App icon (golf-blue tile) as inline SVG data URI -->
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%232E6BFF'/%3E%3Ctext x='50%25' y='52%25' font-family='Arial Black,Arial' font-size='62' font-weight='900' fill='white' text-anchor='middle' dominant-baseline='middle'%3EGO%3C/text%3E%3Ccircle cx='90' cy='140' r='9' fill='white'/%3E%3C/svg%3E" />
 
+<!-- Supabase client (cloud sync) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
   :root{
     --blue:#2E6BFF;
@@ -252,6 +255,17 @@
     opacity:0;transition:.25s;pointer-events:none;
   }
   .toast.show{opacity:1;}
+
+  /* ---------- Coach (read-only) view ---------- */
+  .coachpill{font-size:11px;font-weight:800;letter-spacing:.03em;color:#B9760A;background:#FDF0DA;border:1px solid #F3DFAE;padding:7px 12px;border-radius:99px;white-space:nowrap;}
+  body.viewer #settingsBtn,
+  body.viewer #addLessonBtn,
+  body.viewer #addGoalBtn,
+  body.viewer .linkbtn,
+  body.viewer [data-act="editGoal"],
+  body.viewer [data-act="retireGoal"],
+  body.viewer [data-act="reviveGoal"]{display:none !important;}
+  body.viewer .tick{pointer-events:none;}
 </style>
 </head>
 <body>
@@ -342,6 +356,9 @@
 //=================== STATE ===================
 const KEY='golfos_v1';
 const CHECK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg>';
+// Coach view: open with ?share=<token> for a read-only view, no login required.
+const shareToken=new URLSearchParams(location.search).get('share');
+const VIEWER=!!shareToken;
 
 function uid(){return 'g'+Math.random().toString(36).slice(2,9);}
 
@@ -362,7 +379,114 @@ function load(){
   try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}
   return defaultState();
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){toast('⚠️ Storage full — try removing a photo');}}
+function cacheLocal(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){toast('⚠️ Storage full — try removing a photo');}}
+function save(){if(VIEWER)return;state.updatedAt=Date.now();cacheLocal();queuePush();}
+
+//=================== CLOUD SYNC (Supabase) ===================
+const SUPA_URL='https://zlmatjeilfwhlvxmgudo.supabase.co';
+const SUPA_KEY='sb_publishable_monMmSdt2uxcJThzZYC4cw_lSTFm2hP';
+let supa=null, sbUser=null, syncTimer=null, rtChan=null, syncStatus='off', sbShareId=null;
+function shareLink(){return sbShareId?(location.origin+location.pathname+'?share='+sbShareId):'';}
+async function fetchShareId(){
+  if(!sbUser)return;
+  try{const{data}=await supa.from('app_state').select('share_id').eq('user_id',sbUser.id).maybeSingle();
+    if(data&&data.share_id){sbShareId=data.share_id;const el=document.getElementById('shareUrl');if(el)el.value=shareLink();}}catch(e){}
+}
+
+function setSyncStatus(s){syncStatus=s;const el=document.getElementById('syncStatus');if(el)el.outerHTML=syncStatusHTML();}
+function syncStatusLabel(){
+  if(!window.supabase)return['#9AA3AF','Sync unavailable'];
+  if(syncStatus==='synced')return['#27AE60','Synced to cloud'];
+  if(syncStatus==='syncing')return['#F5A623','Syncing…'];
+  if(syncStatus==='error')return['#D64545','Sync error — tap to retry'];
+  return['#9AA3AF','Not signed in'];
+}
+function syncStatusHTML(){const[c,t]=syncStatusLabel();return `<span id="syncStatus" style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--muted)"><span style="width:9px;height:9px;border-radius:50%;background:${c};display:inline-block"></span>${t}</span>`;}
+
+function initSync(){
+  if(!window.supabase){syncStatus='off';return;}
+  try{supa=window.supabase.createClient(SUPA_URL,SUPA_KEY);}catch(e){console.warn('supa init',e);syncStatus='off';return;}
+  supa.auth.getSession().then(({data})=>{
+    if(data&&data.session){onSignedIn(data.session.user);}else{setSyncStatus('signed-out');}
+  });
+  supa.auth.onAuthStateChange((_e,session)=>{
+    if(session&&session.user){if(!sbUser||sbUser.id!==session.user.id)onSignedIn(session.user);}
+    else{sbUser=null;if(rtChan){supa.removeChannel(rtChan);rtChan=null;}setSyncStatus('signed-out');}
+  });
+}
+async function onSignedIn(user){
+  sbUser=user;setSyncStatus('syncing');
+  await pullAndMerge();
+  subscribeRealtime();
+}
+async function pullAndMerge(){
+  if(!sbUser)return;
+  try{
+    const{data,error}=await supa.from('app_state').select('data').eq('user_id',sbUser.id).maybeSingle();
+    if(error){console.warn('pull',error);setSyncStatus('error');return;}
+    const cloud=data&&data.data;
+    if(cloud&&Object.keys(cloud).length){
+      const cloudT=cloud.updatedAt||0, localT=state.updatedAt||0;
+      if(hasData()&&localT>cloudT){await pushNow();}      // local is newer & real -> keep it, push up
+      else{state=cloud;cacheLocal();initCal();renderAll();setSyncStatus('synced');} // adopt cloud
+    }else{
+      if(hasData())await pushNow(); else setSyncStatus('synced'); // nothing in cloud yet -> seed it
+    }
+    await fetchShareId();
+  }catch(e){console.warn(e);setSyncStatus('error');}
+}
+function queuePush(){if(!sbUser)return;clearTimeout(syncTimer);setSyncStatus('syncing');syncTimer=setTimeout(pushNow,1200);}
+async function pushNow(){
+  if(!sbUser)return;
+  try{
+    const{error}=await supa.from('app_state').upsert({user_id:sbUser.id,data:state,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    if(error){console.warn('push',error);setSyncStatus('error');}else setSyncStatus('synced');
+  }catch(e){console.warn(e);setSyncStatus('error');}
+}
+function subscribeRealtime(){
+  if(!sbUser)return;
+  if(rtChan){supa.removeChannel(rtChan);rtChan=null;}
+  rtChan=supa.channel('app_state_'+sbUser.id)
+    .on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'user_id=eq.'+sbUser.id},payload=>{
+      const cloud=payload.new&&payload.new.data;
+      if(cloud&&(cloud.updatedAt||0)>(state.updatedAt||0)){state=cloud;cacheLocal();initCal();renderAll();setSyncStatus('synced');}
+    }).subscribe();
+}
+// Auth actions used by Settings
+async function authSignIn(email,pw){
+  const{error}=await supa.auth.signInWithPassword({email,password:pw});
+  if(error){toast(error.message);return false;}
+  toast('Signed in ✓ syncing…');return true;
+}
+async function authSignUp(email,pw){
+  const{data,error}=await supa.auth.signUp({email,password:pw});
+  if(error){toast(error.message);return false;}
+  if(data&&data.session){toast('Account created ✓');return true;}
+  toast('Check your email to confirm, then log in');return false;
+}
+async function authSignOut(){await supa.auth.signOut();toast('Signed out');}
+
+// Coach (read-only) view — loads a shared plan by token, no login.
+function viewerMessage(msg){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  let m=document.getElementById('viewerMsg');
+  if(!m){m=document.createElement('div');m.id='viewerMsg';m.style.cssText='padding:70px 26px;text-align:center;color:var(--muted);font-size:16px;line-height:1.5;max-width:480px;margin:0 auto';document.body.appendChild(m);}
+  m.innerHTML=msg;m.style.display='block';
+}
+function hideViewerMessage(){const m=document.getElementById('viewerMsg');if(m)m.style.display='none';document.getElementById('view-today').classList.add('active');}
+async function enterViewer(token){
+  document.body.classList.add('viewer');
+  const tb=document.querySelector('.topbar');if(tb)tb.insertAdjacentHTML('beforeend','<span class="coachpill">👀 Coach View · read-only</span>');
+  viewerMessage('Loading…');
+  if(!window.supabase){viewerMessage('No internet connection. Try again when you\'re online.');return;}
+  try{
+    supa=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+    const{data,error}=await supa.rpc('get_shared_state',{token});
+    if(error){console.warn(error);viewerMessage('Couldn\'t load this plan. The link may be wrong.');return;}
+    if(!data||!data.goals){viewerMessage('This share link is invalid or was turned off.');return;}
+    state=data;initCal();renderAll();hideViewerMessage();
+  }catch(e){console.warn(e);viewerMessage('Couldn\'t load this plan right now.');}
+}
 
 //=================== DATE HELPERS ===================
 function todayStr(d){d=d||new Date();const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${da}`;}
@@ -381,20 +505,37 @@ function activeGoals(){return state.goals.filter(g=>g.active);}
 function dayLog(date){return state.log[date]||(state.log[date]={});}
 function goalDone(date,gid){const d=state.log[date];return d&&d[gid]&&d[gid].done;}
 
+// A "pass day" gives credit for EVERY goal that day, no matter what the goals are.
+// Triggered by a lesson, or by completing any driving-range goal (category 'range').
+function isPassDay(ds){
+  if(state.lessons.some(l=>l.date===ds))return true;
+  const dl=state.log[ds];
+  if(dl)for(const g of state.goals){if(g.category==='range'&&dl[g.id]&&dl[g.id].done)return true;}
+  return false;
+}
+// A goal counts as done on a day if it was actually checked off, OR that day is a pass day.
+function effectiveDone(ds,goal){
+  const dl=state.log[ds];
+  if(dl&&dl[goal.id]&&dl[goal.id].done)return true;
+  return isPassDay(ds);
+}
 function weekCount(gid){
-  const[ws,we]=weekRange(new Date());
-  let n=0;
-  for(const date in state.log){
-    if(date>=ws&&date<=we&&state.log[date][gid]&&state.log[date][gid].done)n++;
+  const goal=state.goals.find(g=>g.id===gid);
+  if(!goal)return 0;
+  const[ws]=weekRange(new Date());
+  let n=0,d=parseDate(ws);
+  for(let i=0;i<7;i++){
+    if(effectiveDone(todayStr(d),goal))n++;
+    d.setDate(d.getDate()+1);
   }
   return n;
 }
 
-// A day "counts" toward your streak if you did anything: any drill/range done, or a lesson.
+// A day "counts" toward your streak if you did anything: any goal done, or a pass day (lesson / range).
 function isActiveDay(ds){
   const dl=state.log[ds];
   if(dl)for(const g of state.goals){if(dl[g.id]&&dl[g.id].done)return true;}
-  return state.lessons.some(l=>l.date===ds);
+  return isPassDay(ds);
 }
 // "Show up" streak: counts active days back from today. Sundays are a free rest day —
 // they bridge the streak and never break it. Any other missed day ends it.
@@ -435,6 +576,7 @@ function renderStats(){
 
 function renderBackupReminder(){
   const wrap=document.getElementById('backupReminder');
+  if(VIEWER){wrap.innerHTML='';return;}
   const due=hasData()&&daysSince(state.lastBackup)>=14;
   wrap.innerHTML=due?`<div class="backup-rem">
     <span class="bi">🛟</span>
@@ -467,12 +609,21 @@ function goalCardHTML(g,date){
     <div class="body">
       <div class="title">${esc(g.label)} <span class="pill ${g.category}">${g.category}</span></div>`;
   if(g.type==='session'){
-    html+=`<div class="session ${done?'show':''}" data-sess="${g.id}">
-        <div class="row"><label class="fld">How'd it go?</label>
-          <textarea data-note="${g.id}" placeholder="What you worked on, how you felt, what clicked...">${esc(entry.note||'')}</textarea></div>
-        <div class="row" data-photo-slot="${g.id}">${entry.image?thumbHTML(g.id,entry.image):photoBtnHTML(g.id)}</div>
-        <button class="btn primary sm" data-act="saveSession" data-gid="${g.id}">Save Session</button>
-      </div>`;
+    if(VIEWER){
+      if(entry.note||entry.image){
+        html+=`<div class="session show">`;
+        if(entry.note)html+=`<div class="note">${esc(entry.note)}</div>`;
+        if(entry.image)html+=`<div class="thumb" style="margin-top:8px"><img src="${entry.image}"></div>`;
+        html+=`</div>`;
+      }
+    }else{
+      html+=`<div class="session ${done?'show':''}" data-sess="${g.id}">
+          <div class="row"><label class="fld">How'd it go?</label>
+            <textarea data-note="${g.id}" placeholder="What you worked on, how you felt, what clicked...">${esc(entry.note||'')}</textarea></div>
+          <div class="row" data-photo-slot="${g.id}">${entry.image?thumbHTML(g.id,entry.image):photoBtnHTML(g.id)}</div>
+          <button class="btn primary sm" data-act="saveSession" data-gid="${g.id}">Save Session</button>
+        </div>`;
+    }
   }
   html+=`</div></div>`;
   return html;
@@ -540,7 +691,8 @@ function renderDayDetail(){
   });
   if(!rows)rows=`<p class="hint">Nothing logged this day.</p>`;
   const verb=(rows.indexOf('Nothing logged')>-1)?'+ Log This Day':'Edit This Day';
-  wrap.innerHTML=`<div class="card daydetail"><h3 style="font-size:18px;font-weight:800;margin:0 0 8px;font-family:Archivo">${prettyDate(selDate)}</h3>${rows}<button class="btn ghost block" data-act="logDay" data-date="${selDate}" style="margin-top:14px">${verb}</button></div>`;
+  const btn=VIEWER?'':`<button class="btn ghost block" data-act="logDay" data-date="${selDate}" style="margin-top:14px">${verb}</button>`;
+  wrap.innerHTML=`<div class="card daydetail"><h3 style="font-size:18px;font-weight:800;margin:0 0 8px;font-family:Archivo">${prettyDate(selDate)}</h3>${rows}${btn}</div>`;
 }
 
 //=================== LESSONS ===================
@@ -604,6 +756,7 @@ document.body.addEventListener('click',async e=>{
 
   const el=e.target.closest('[data-act]');
   if(!el)return;
+  if(VIEWER)return; // coach view is read-only — block all edit actions
   const act=el.dataset.act, gid=el.dataset.gid, id=el.dataset.id;
 
   if(act==='toggle'){
@@ -773,21 +926,50 @@ function openGoalSheet(id){
 }
 
 //=================== SETTINGS ===================
-document.getElementById('settingsBtn').onclick=()=>{
+function syncSettingsHTML(){
+  if(!window.supabase)return `<p class="hint">Cloud sync needs an internet connection. ${syncStatusHTML()}</p>`;
+  if(sbUser)return `<div class="row">${syncStatusHTML()}</div>
+    <p class="hint" style="margin:0 2px 10px">Signed in as <b>${esc(sbUser.email||'you')}</b>. Your data syncs automatically across every device you sign in on.</p>
+    <div class="section-label" style="margin:18px 4px 8px">Share with your coach</div>
+    <p class="hint" style="margin:0 2px 10px">Send this link to your instructor — he just opens it, no login. It's <b>read-only</b>: he sees everything but can't change anything.</p>
+    <div class="row"><input type="text" id="shareUrl" readonly value="${shareLink()}" placeholder="Generating… reopen Settings in a moment"></div>
+    <button class="btn primary block" id="copyShareBtn" style="margin-bottom:14px">Copy Coach Link</button>
+    <button class="btn ghost block" id="signoutBtn">Sign Out</button>`;
+  return `<div class="row">${syncStatusHTML()}</div>
+    <p class="hint" style="margin:0 2px 12px">Sign in (same email + password on every device) to sync your data between phone & computer.</p>
+    <div class="row"><input type="email" id="syncEmail" placeholder="Email" autocomplete="username"></div>
+    <div class="row"><input type="password" id="syncPw" placeholder="Password (6+ characters)" autocomplete="current-password"></div>
+    <button class="btn primary block" id="loginBtn" style="margin-bottom:10px">Log In</button>
+    <button class="btn ghost block" id="signupBtn">Create Account</button>`;
+}
+function openSettings(){
   openSheet(`<h3>Settings</h3>
+    <div class="section-label" style="margin:6px 4px 12px">Cloud Sync</div>
+    ${syncSettingsHTML()}
+    <div class="section-label" style="margin:22px 4px 12px">Chappy-ism</div>
     <div class="row"><label class="fld">Chappy-ism #1 (shown on Today)</label>
       <textarea id="setChappy">${esc(state.chappyisms[0]||'')}</textarea></div>
-    <button class="btn primary block" id="setSaveChappy" style="margin-bottom:18px">Save Chappy-ism</button>
-    <div class="section-label" style="margin:6px 4px 10px">Your Data (stays on this phone)</div>
+    <button class="btn primary block" id="setSaveChappy">Save Chappy-ism</button>
+    <div class="section-label" style="margin:22px 4px 12px">Backup / Restore</div>
     <button class="btn ghost block" id="exportBtn" style="margin-bottom:10px">⬇︎ Export Backup (.json)</button>
     <label class="btn ghost block" style="margin-bottom:10px">⬆︎ Import Backup<input type="file" accept="application/json" id="importFile" style="display:none"></label>
     <button class="btn danger block" id="resetBtn">Reset Everything</button>
-    <p class="hint" style="margin-top:14px">Tip: Export a backup now and then — phone storage can be cleared by Safari. Add this page to your Home Screen for the full-screen app.</p>`);
-  document.getElementById('setSaveChappy').onclick=()=>{const v=document.getElementById('setChappy').value.trim();state.chappyisms[0]=v||'Control what you can control.';save();renderToday();toast('Saved');closeSheet();};
+    <p class="hint" style="margin-top:14px">With cloud sync on, your data is also backed up online. A local export is still handy as an extra copy.</p>`);
+  // sync wiring
+  const inEmail=()=>document.getElementById('syncEmail').value.trim();
+  const inPw=()=>document.getElementById('syncPw').value;
+  const lb=document.getElementById('loginBtn');if(lb)lb.onclick=async()=>{if(!inEmail()||!inPw()){toast('Enter email + password');return;}lb.textContent='…';if(await authSignIn(inEmail(),inPw()))openSettings();else openSettings();};
+  const sb=document.getElementById('signupBtn');if(sb)sb.onclick=async()=>{if(!inEmail()||inPw().length<6){toast('Email + 6+ char password');return;}if(await authSignUp(inEmail(),inPw()))openSettings();};
+  const so=document.getElementById('signoutBtn');if(so)so.onclick=async()=>{await authSignOut();openSettings();};
+  const cs=document.getElementById('copyShareBtn');if(cs)cs.onclick=()=>{const link=shareLink();if(!link){toast('Still generating — try again in a sec');return;}const i=document.getElementById('shareUrl');if(i){i.select();i.setSelectionRange(0,9999);}if(navigator.clipboard){navigator.clipboard.writeText(link).then(()=>toast('Coach link copied 📋')).catch(()=>toast('Select the link & copy'));}else{try{document.execCommand('copy');toast('Coach link copied 📋');}catch(e){toast('Select the link & copy');}}};
+  const ss=document.getElementById('syncStatus');if(ss)ss.style.cursor='pointer',ss.onclick=()=>{if(sbUser)pullAndMerge();};
+  // other settings
+  document.getElementById('setSaveChappy').onclick=()=>{const v=document.getElementById('setChappy').value.trim();state.chappyisms[0]=v||'Control what you can control.';save();renderToday();toast('Saved');};
   document.getElementById('exportBtn').onclick=exportData;
   document.getElementById('importFile').onchange=importData;
   document.getElementById('resetBtn').onclick=()=>{if(confirm('Erase ALL data and start over? This cannot be undone.')){state=defaultState();save();initCal();renderAll();closeSheet();toast('Reset complete');}};
-};
+}
+document.getElementById('settingsBtn').onclick=openSettings;
 function exportData(){
   state.lastBackup=todayStr();save();
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -808,7 +990,12 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 
 //=================== INIT ===================
 initCal();
-renderAll();
+if(VIEWER){
+  enterViewer(shareToken);
+}else{
+  renderAll();
+  initSync();
+}
 </script>
 </body>
 </html>
