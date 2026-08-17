@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Bentson's Wedding</title>
+
+<!-- iOS "Add to Home Screen" / PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Bentson's Wedding" />
+<meta name="theme-color" content="#2E6BFF" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- App icon (wedding rings tile) as inline SVG data URI -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%232E6BFF'/%3E%3Ccircle cx='76' cy='104' r='30' fill='none' stroke='white' stroke-width='9'/%3E%3Ccircle cx='108' cy='104' r='30' fill='none' stroke='%23F5A623' stroke-width='9'/%3E%3Cpath d='M92 44l10 18H82z' fill='%23F5A623'/%3E%3C/svg%3E" />
+
+<style>
+  :root{
+    --blue:#2E6BFF;
+    --blue-dark:#1E50D6;
+    --orange:#F5A623;
+    --green:#27AE60;
+    --bg:#EFEFEF;
+    --card:#FFFFFF;
+    --ink:#111315;
+    --muted:#6B7280;
+    --line:#E4E6EA;
+    --radius:22px;
+    --shadow:0 1px 3px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(90px + env(safe-area-inset-bottom));
+  }
+  h1,h2,h3,.display{font-family:'Archivo',sans-serif;letter-spacing:-.02em;}
+  a{color:var(--blue);}
+
+  /* ---------- Header ---------- */
+  .hero{
+    background:linear-gradient(160deg,var(--blue),var(--blue-dark));
+    color:#fff;
+    padding:calc(26px + env(safe-area-inset-top)) 20px 26px;
+    border-bottom-left-radius:28px;border-bottom-right-radius:28px;
+  }
+  .hero .eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.8;}
+  .hero h1{font-weight:900;font-size:32px;margin:6px 0 2px;line-height:1.05;}
+  .hero .when{font-size:14px;font-weight:500;opacity:.9;}
+  .count{display:flex;gap:10px;margin-top:18px;}
+  .count .box{background:rgba(255,255,255,.14);border-radius:14px;padding:10px 0;flex:1;text-align:center;backdrop-filter:blur(4px);}
+  .count .n{font-family:'Archivo';font-weight:800;font-size:24px;line-height:1;}
+  .count .l{font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.8;margin-top:4px;}
+
+  .wrap{max-width:680px;margin:0 auto;padding:18px 16px 30px;}
+
+  /* ---------- Tabs ---------- */
+  .tabbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);
+    display:flex;justify-content:space-around;
+    padding:8px 6px calc(8px + env(safe-area-inset-bottom));
+  }
+  .tabbar button{
+    border:0;background:none;font-family:inherit;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    color:var(--muted);font-size:10.5px;font-weight:600;padding:4px 8px;border-radius:12px;flex:1;
+  }
+  .tabbar button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;}
+  .tabbar button.active{color:var(--blue);}
+
+  section.tab{display:none;}
+  section.tab.active{display:block;animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  h2.sec{font-size:22px;font-weight:800;margin:6px 2px 14px;}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:14px;}
+  .card h3{font-size:16px;font-weight:800;margin:0 0 4px;}
+  .lede{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 14px;}
+
+  /* Schedule */
+  .dayhead{font-family:'Archivo';font-weight:800;font-size:15px;color:var(--blue);margin:20px 4px 8px;display:flex;align-items:center;gap:8px;}
+  .dayhead:first-child{margin-top:4px;}
+  .dayhead .date{color:var(--muted);font-weight:600;font-size:13px;}
+  .event{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:10px;display:flex;gap:14px;}
+  .event .time{font-family:'Archivo';font-weight:800;font-size:13px;color:var(--ink);min-width:64px;padding-top:1px;}
+  .event .body{flex:1;}
+  .event .body .t{font-weight:700;font-size:15px;}
+  .event .body .d{color:var(--muted);font-size:13px;line-height:1.45;margin-top:2px;}
+  .event .body .loc{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--blue);margin-top:6px;text-decoration:none;}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:20px;margin-left:8px;vertical-align:middle;}
+  .pill.key{background:#FFF3DC;color:#9A6B00;}
+
+  /* Dress code */
+  .dress-row{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line);}
+  .dress-row:last-child{border-bottom:0;}
+  .dress-row .ev{font-weight:800;font-size:14px;min-width:96px;}
+  .dress-row .desc{color:var(--muted);font-size:13.5px;line-height:1.5;flex:1;}
+  .swatches{display:flex;gap:8px;margin-top:10px;}
+  .swatch{width:34px;height:34px;border-radius:9px;border:1px solid rgba(0,0,0,.08);}
+
+  /* Options / bachelor */
+  .opt{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);}
+  .opt:last-child{border-bottom:0;}
+  .opt .em{font-size:26px;line-height:1;}
+  .opt .t{font-weight:700;font-size:15px;}
+  .opt .d{color:var(--muted);font-size:13px;line-height:1.45;margin-top:2px;}
+  .opt .cost{font-size:12px;font-weight:700;color:var(--green);margin-top:5px;}
+
+  /* Checklist */
+  .check{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;}
+  .check:last-child{border-bottom:0;}
+  .check input{appearance:none;-webkit-appearance:none;width:22px;height:22px;border:2px solid #C7D0DE;border-radius:7px;margin:1px 0 0;flex-shrink:0;position:relative;cursor:pointer;transition:.15s;}
+  .check input:checked{background:var(--green);border-color:var(--green);}
+  .check input:checked::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);}
+  .check .lbl{font-size:14.5px;line-height:1.4;}
+  .check.done .lbl{color:var(--muted);text-decoration:line-through;}
+  .check .lbl small{display:block;color:var(--muted);font-size:12px;font-weight:500;text-decoration:none;margin-top:1px;}
+
+  /* Contacts */
+  .contact{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);}
+  .contact:last-child{border-bottom:0;}
+  .contact .av{width:42px;height:42px;border-radius:50%;background:#E7EEFF;color:var(--blue);display:flex;align-items:center;justify-content:center;font-family:'Archivo';font-weight:800;font-size:16px;flex-shrink:0;}
+  .contact .info{flex:1;min-width:0;}
+  .contact .nm{font-weight:700;font-size:14.5px;}
+  .contact .role{color:var(--muted);font-size:12.5px;}
+  .contact .act{display:flex;gap:8px;}
+  .contact .act a{width:38px;height:38px;border-radius:11px;background:#F1F4F9;display:flex;align-items:center;justify-content:center;text-decoration:none;}
+  .contact .act a svg{width:18px;height:18px;stroke:var(--blue);fill:none;stroke-width:2;}
+
+  /* Money */
+  .money-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);}
+  .money-row:last-child{border-bottom:0;}
+  .money-row .t{font-weight:700;font-size:14.5px;}
+  .money-row .t small{display:block;color:var(--muted);font-weight:500;font-size:12px;}
+  .money-row .amt{font-family:'Archivo';font-weight:800;font-size:16px;}
+  .money-total{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:14px;border-top:2px solid var(--ink);}
+  .money-total .t{font-weight:800;font-size:15px;}
+  .money-total .amt{font-family:'Archivo';font-weight:900;font-size:22px;color:var(--blue);}
+
+  /* Notes */
+  textarea{width:100%;min-height:180px;border:1.5px solid var(--line);border-radius:16px;padding:14px;font-family:inherit;font-size:14.5px;line-height:1.55;resize:vertical;color:var(--ink);background:#fff;}
+  textarea:focus{outline:none;border-color:var(--blue);}
+  .saved{font-size:12px;color:var(--green);font-weight:600;margin-top:8px;height:14px;transition:.2s;}
+
+  .foot{color:var(--muted);font-size:12px;line-height:1.6;text-align:center;margin-top:22px;padding:0 10px;}
+  .foot a{color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- =====================================================================
+     EDIT YOUR CONTENT HERE  ▸  everything the app shows comes from DATA below.
+     Change dates, times, venues, names, links, costs — then save. Done.
+     ===================================================================== -->
+<script>
+const DATA = {
+  couple:      "Bentson & Abby",
+  weddingDate: "2026-09-26T16:00:00",   // ← ceremony date/time for the countdown (Sat assumed — update the time/date once confirmed)
+  location:    "Gilbert, AZ",
+
+  // ---- SCHEDULE: grouped by day. Add/remove events freely. ----
+  schedule: [
+    { day:"Friday",   date:"Sep 25", events:[
+      { time:"5:30 PM",  title:"Groom's dinner",  desc:"Dinner the night before. Dress code: western / denim attire.", loc:"7361 S Constellation Way, Gilbert, AZ", map:"https://maps.google.com/?q=7361+S+Constellation+Way+Gilbert+AZ", key:true },
+    ]},
+    { day:"Saturday", date:"Sep 26", events:[
+      { time:"TBD",      title:"Wedding day — schedule coming",  desc:"The day-of timeline (getting ready, ceremony, reception) will be added here once it's set.", loc:"", map:"", key:true },
+    ]},
+  ],
+
+  // ---- DRESS CODE ----
+  dress: [
+    { ev:"Groom's Dinner (Fri)", desc:"Western / denim attire — boots, denim, and your best western look for Friday night's dinner." },
+    { ev:"Ceremony & Reception", desc:"All black: black dress shoes, black pants, black belt, and a black tie — the tie will be supplied the day of, so you don't need to bring one." },
+  ],
+  dressSwatches: ["#000000","#111315","#1B1B1B"], // all-black palette (Saturday formal)
+  dressNotes: "Friday: western / denim. Saturday: bring the black shoes, pants, and belt — the black tie is provided day-of.",
+
+  // ---- BACHELOR PARTY OPTIONS ----
+  bachelor: [
+    { em:"🪂", title:"iFLY Scottsdale — Group Party Package",
+      desc:"2 indoor skydiving flights per person + a High Flight, private flight session, 1-hour private party room, pizza & drinks, plus all photos and videos. Fits up to 13; published price so cost is predictable.",
+      cost:"~$85–87 / person" },
+    { em:"🏎️", title:"Octane Raceway — Turbocharger Silver",
+      desc:"2 kart races per person, exclusive group races with an event host, choice of appetizer + chips & salsa, unlimited soft drinks, and a $30 arcade card each. Best for 10+; price is an estimate until Octane quotes it.",
+      cost:"~$90–110 / person" },
+  ],
+  bachelorNote: "Two options on the table. iFLY is a bit cheaper and locked-in on price; Octane is racing + arcade with a more casual vibe (price is an estimate until they quote us). Vote in the group chat.",
+
+  // ---- WHO'S WHO / CONTACTS ----
+  contacts: [
+    { nm:"Bentson Richardson", role:"The groom",       phone:"" },
+    { nm:"Abby Richardson",    role:"The bride",       phone:"" },
+    { nm:"Jake Turley",        role:"Groomsman",       phone:"" },
+    { nm:"Tyler Hill",         role:"Groomsman (you)", phone:"" },
+    { nm:"Caleb Richardson",   role:"Groomsman",       phone:"" },
+    { nm:"Austin Richardson",  role:"Groomsman",       phone:"" },
+    { nm:"Bryson Zimmerman",   role:"Groomsman",       phone:"" },
+    { nm:"Spencer Zimmerman",  role:"Groomsman",       phone:"" },
+    { nm:"Grant Zimmerman",    role:"Groomsman",       phone:"" },
+  ],
+
+  // ---- GROOMSMAN DUTIES (checkable, saved on your device) ----
+  duties: [
+    { t:"Get measured / order the suit", sub:"Deadline: [date]" },
+    { t:"Pay your bachelor party share" },
+    { t:"Chip in on the group gift" },
+    { t:"Book travel & hotel" },
+    { t:"Show up to the rehearsal on time" },
+    { t:"Learn your walk / who you're escorting" },
+    { t:"Have the rings ready (best man)" },
+    { t:"Toast prepared (if giving one)" },
+  ],
+
+  // ---- PACKING LIST (checkable, saved on your device) ----
+  packing: [
+    { t:"Suit / tux + garment bag" },
+    { t:"Dress shoes + dark socks" },
+    { t:"Belt, tie, cufflinks" },
+    { t:"Rehearsal dinner outfit" },
+    { t:"Brunch / travel clothes" },
+    { t:"Toiletries + grooming kit" },
+    { t:"Phone charger / battery pack" },
+    { t:"Cash for tips & the bar" },
+    { t:"Gift / card" },
+  ],
+
+  // ---- MONEY (rough shares — edit amounts) ----
+  money: [
+    { t:"Suit / tux rental",  sub:"Your outfit",           amt:"$0" },
+    { t:"Bachelor party",     sub:"Your share",            amt:"$0" },
+    { t:"Group gift",         sub:"Split among the party", amt:"$0" },
+    { t:"Travel & hotel",     sub:"Estimate",              amt:"$0" },
+  ],
+
+  registry: "Registry: [link or store names]. Group gift is being organized by [name] — see the money tab for your share.",
+};
+</script>
+
+<div class="hero">
+  <div class="eyebrow">Groomsman HQ</div>
+  <h1 id="coupleName">Bentson's Wedding</h1>
+  <div class="when" id="whenLine">Date & place</div>
+  <div class="count" id="countdown"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- SCHEDULE -->
+  <section class="tab active" id="tab-schedule">
+    <h2 class="sec">Weekend Schedule</h2>
+    <div id="scheduleList"></div>
+  </section>
+
+  <!-- DRESS -->
+  <section class="tab" id="tab-dress">
+    <h2 class="sec">Dress Code</h2>
+    <div class="card">
+      <div id="dressList"></div>
+      <div class="swatches" id="dressSwatches"></div>
+      <p class="lede" style="margin:14px 0 0" id="dressNotes"></p>
+    </div>
+  </section>
+
+  <!-- BACHELOR -->
+  <section class="tab" id="tab-bachelor">
+    <h2 class="sec">Bachelor Party</h2>
+    <div class="card">
+      <p class="lede" id="bachelorNote"></p>
+      <div id="bachelorList"></div>
+    </div>
+  </section>
+
+  <!-- INFO -->
+  <section class="tab" id="tab-info">
+    <h2 class="sec">Info</h2>
+
+    <div class="card">
+      <h3>Who's Who</h3>
+      <p class="lede">Tap to call or text. (Add numbers in the data block.)</p>
+      <div id="contactList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Groomsman Duties</h3>
+      <p class="lede">Your checklist — saved on this device.</p>
+      <div id="dutyList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Packing List</h3>
+      <p class="lede">Don't forget anything — saved on this device.</p>
+      <div id="packList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Money</h3>
+      <p class="lede">Rough shares so nothing's a surprise.</p>
+      <div id="moneyList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Gift & Registry</h3>
+      <p class="lede" id="registry" style="margin:0"></p>
+    </div>
+
+    <div class="card">
+      <h3>Toast / Notes</h3>
+      <p class="lede">A private scratchpad for speech ideas — saved on this device.</p>
+      <textarea id="notes" placeholder="Jot toast lines, reminders, anything…"></textarea>
+      <div class="saved" id="notesSaved"></div>
+    </div>
+
+    <div class="foot">
+      Built for Bentson's wedding. Personal checkboxes &amp; notes are saved only in your browser.<br>
+      <a href="../">← Back to My Apps</a>
+    </div>
+  </section>
+
+</div>
+
+<!-- TABBAR -->
+<nav class="tabbar" id="tabbar">
+  <button data-tab="schedule" class="active">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    Schedule
+  </button>
+  <button data-tab="dress">
+    <svg viewBox="0 0 24 24"><path d="M16 3l4 5-3 2v11H7V10L4 8l4-5 4 3z"/></svg>
+    Dress
+  </button>
+  <button data-tab="bachelor">
+    <svg viewBox="0 0 24 24"><path d="M6 3h12l-1 7a5 5 0 01-10 0zM12 15v5M8 21h8"/></svg>
+    Bachelor
+  </button>
+  <button data-tab="info">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+    Info
+  </button>
+</nav>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const STORE = "bentsonWedding.v1";
+
+  // ---- header ----
+  $("#coupleName").textContent = DATA.couple + "'s Wedding";
+  const wd = new Date(DATA.weddingDate);
+  const opts = { weekday:"long", month:"long", day:"numeric", year:"numeric" };
+  const dateStr = isNaN(wd) ? "Date TBD" : wd.toLocaleDateString(undefined, opts);
+  $("#whenLine").textContent = dateStr + " · " + DATA.location;
+
+  function renderCountdown(){
+    const box = $("#countdown");
+    if(isNaN(wd)){ box.style.display="none"; return; }
+    const now = new Date();
+    let diff = Math.max(0, wd - now);
+    const d = Math.floor(diff/864e5);
+    const h = Math.floor(diff%864e5/36e5);
+    const m = Math.floor(diff%36e5/6e4);
+    const parts = diff===0
+      ? [["🎉","today"]]
+      : [[d,"days"],[h,"hrs"],[m,"min"]];
+    box.innerHTML = parts.map(p=>`<div class="box"><div class="n">${p[0]}</div><div class="l">${p[1]}</div></div>`).join("");
+  }
+  renderCountdown();
+  setInterval(renderCountdown, 30000);
+
+  // ---- schedule ----
+  $("#scheduleList").innerHTML = DATA.schedule.map(day=>{
+    const evs = day.events.map(e=>{
+      const loc = e.loc ? `<a class="loc" ${e.map?`href="${esc(e.map)}" target="_blank" rel="noopener"`:``}>📍 ${esc(e.loc)}</a>` : "";
+      const key = e.key ? `<span class="pill key">Key</span>` : "";
+      return `<div class="event"><div class="time">${esc(e.time)}</div><div class="body"><div class="t">${esc(e.title)}${key}</div><div class="d">${esc(e.desc)}</div>${loc}</div></div>`;
+    }).join("");
+    return `<div class="dayhead">${esc(day.day)} <span class="date">${esc(day.date)}</span></div>${evs}`;
+  }).join("");
+
+  // ---- dress ----
+  $("#dressList").innerHTML = DATA.dress.map(d=>
+    `<div class="dress-row"><div class="ev">${esc(d.ev)}</div><div class="desc">${esc(d.desc)}</div></div>`
+  ).join("");
+  $("#dressSwatches").innerHTML = (DATA.dressSwatches||[]).map(c=>`<div class="swatch" style="background:${esc(c)}"></div>`).join("");
+  $("#dressNotes").textContent = DATA.dressNotes || "";
+
+  // ---- bachelor ----
+  $("#bachelorNote").textContent = DATA.bachelorNote || "";
+  $("#bachelorList").innerHTML = DATA.bachelor.map(b=>
+    `<div class="opt"><div class="em">${esc(b.em)}</div><div><div class="t">${esc(b.title)}</div><div class="d">${esc(b.desc)}</div><div class="cost">${esc(b.cost)}</div></div></div>`
+  ).join("");
+
+  // ---- contacts ----
+  $("#contactList").innerHTML = DATA.contacts.map(c=>{
+    const initials = c.nm.replace(/[^A-Za-z ]/g,"").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase() || "?";
+    const acts = c.phone ? `<div class="act">
+        <a href="tel:${esc(c.phone)}" aria-label="Call"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.3 1.8.6 2.6a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.5-1.1a2 2 0 012.1-.5c.8.3 1.7.5 2.6.6a2 2 0 011.7 2z"/></svg></a>
+        <a href="sms:${esc(c.phone)}" aria-label="Text"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></a>
+      </div>` : "";
+    return `<div class="contact"><div class="av">${esc(initials)}</div><div class="info"><div class="nm">${esc(c.nm)}</div><div class="role">${esc(c.role)}</div></div>${acts}</div>`;
+  }).join("");
+
+  // ---- money ----
+  $("#moneyList").innerHTML = DATA.money.map(m=>
+    `<div class="money-row"><div class="t">${esc(m.t)}<small>${esc(m.sub)}</small></div><div class="amt">${esc(m.amt)}</div></div>`
+  ).join("");
+  $("#registry").textContent = DATA.registry || "";
+
+  // ---- persisted state (checkboxes + notes) ----
+  let state = {};
+  try { state = JSON.parse(localStorage.getItem(STORE)) || {}; } catch(e){}
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e){} };
+
+  function renderChecks(el, items, keyPrefix){
+    el.innerHTML = items.map((it,i)=>{
+      const k = keyPrefix+i;
+      const on = !!state[k];
+      const sub = it.sub ? `<small>${esc(it.sub)}</small>` : "";
+      return `<label class="check ${on?'done':''}" data-k="${k}"><input type="checkbox" ${on?'checked':''}><span class="lbl">${esc(it.t)}${sub}</span></label>`;
+    }).join("");
+    el.querySelectorAll(".check input").forEach(inp=>{
+      inp.addEventListener("change",e=>{
+        const lab = e.target.closest(".check");
+        state[lab.dataset.k] = e.target.checked;
+        lab.classList.toggle("done", e.target.checked);
+        save();
+      });
+    });
+  }
+  renderChecks($("#dutyList"), DATA.duties, "duty");
+  renderChecks($("#packList"), DATA.packing, "pack");
+
+  // notes
+  const ta = $("#notes");
+  ta.value = state.notes || "";
+  let t;
+  ta.addEventListener("input", ()=>{
+    state.notes = ta.value; save();
+    $("#notesSaved").textContent = "Saved ✓";
+    clearTimeout(t); t = setTimeout(()=>$("#notesSaved").textContent="", 1200);
+  });
+
+  // ---- tabs ----
+  document.querySelectorAll("#tabbar button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const tab = btn.dataset.tab;
+      document.querySelectorAll("#tabbar button").forEach(b=>b.classList.toggle("active", b===btn));
+      document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("active", s.id==="tab-"+tab));
+      window.scrollTo({top:0, behavior:"instant"});
+    });
+  });
+})();
+</script>
+</body>
+</html>
