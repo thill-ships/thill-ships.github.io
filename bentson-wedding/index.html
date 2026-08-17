@@ -200,7 +200,7 @@ const DATA = {
   // ---- WHO'S WHO / CONTACTS ----
   contacts: [
     { nm:"Bentson Richardson", role:"The groom",       phone:"" },
-    { nm:"Abby Richardson",    role:"The bride",       phone:"" },
+    { nm:"Abby Zimmerman",     role:"The bride",       phone:"" },
     { nm:"Jake Turley",        role:"Groomsman",       phone:"" },
     { nm:"Tyler Hill",         role:"Groomsman (you)", phone:"" },
     { nm:"Caleb Richardson",   role:"Groomsman",       phone:"" },
@@ -212,38 +212,9 @@ const DATA = {
 
   // ---- GROOMSMAN DUTIES (checkable, saved on your device) ----
   duties: [
-    { t:"Get measured / order the suit", sub:"Deadline: [date]" },
-    { t:"Pay your bachelor party share" },
-    { t:"Chip in on the group gift" },
-    { t:"Book travel & hotel" },
-    { t:"Show up to the rehearsal on time" },
-    { t:"Learn your walk / who you're escorting" },
-    { t:"Have the rings ready (best man)" },
-    { t:"Toast prepared (if giving one)" },
+    { t:"Pay into the bachelor party pool" },
+    { t:"Help decorate the car" },
   ],
-
-  // ---- PACKING LIST (checkable, saved on your device) ----
-  packing: [
-    { t:"Suit / tux + garment bag" },
-    { t:"Dress shoes + dark socks" },
-    { t:"Belt, tie, cufflinks" },
-    { t:"Rehearsal dinner outfit" },
-    { t:"Brunch / travel clothes" },
-    { t:"Toiletries + grooming kit" },
-    { t:"Phone charger / battery pack" },
-    { t:"Cash for tips & the bar" },
-    { t:"Gift / card" },
-  ],
-
-  // ---- MONEY (rough shares — edit amounts) ----
-  money: [
-    { t:"Suit / tux rental",  sub:"Your outfit",           amt:"$0" },
-    { t:"Bachelor party",     sub:"Your share",            amt:"$0" },
-    { t:"Group gift",         sub:"Split among the party", amt:"$0" },
-    { t:"Travel & hotel",     sub:"Estimate",              amt:"$0" },
-  ],
-
-  registry: "Registry: [link or store names]. Group gift is being organized by [name] — see the money tab for your share.",
 };
 </script>
 
@@ -295,30 +266,6 @@ const DATA = {
       <h3>Groomsman Duties</h3>
       <p class="lede">Your checklist — saved on this device.</p>
       <div id="dutyList"></div>
-    </div>
-
-    <div class="card">
-      <h3>Packing List</h3>
-      <p class="lede">Don't forget anything — saved on this device.</p>
-      <div id="packList"></div>
-    </div>
-
-    <div class="card">
-      <h3>Money</h3>
-      <p class="lede">Rough shares so nothing's a surprise.</p>
-      <div id="moneyList"></div>
-    </div>
-
-    <div class="card">
-      <h3>Gift & Registry</h3>
-      <p class="lede" id="registry" style="margin:0"></p>
-    </div>
-
-    <div class="card">
-      <h3>Toast / Notes</h3>
-      <p class="lede">A private scratchpad for speech ideas — saved on this device.</p>
-      <textarea id="notes" placeholder="Jot toast lines, reminders, anything…"></textarea>
-      <div class="saved" id="notesSaved"></div>
     </div>
 
     <div class="foot">
@@ -411,13 +358,7 @@ const DATA = {
     return `<div class="contact"><div class="av">${esc(initials)}</div><div class="info"><div class="nm">${esc(c.nm)}</div><div class="role">${esc(c.role)}</div></div>${acts}</div>`;
   }).join("");
 
-  // ---- money ----
-  $("#moneyList").innerHTML = DATA.money.map(m=>
-    `<div class="money-row"><div class="t">${esc(m.t)}<small>${esc(m.sub)}</small></div><div class="amt">${esc(m.amt)}</div></div>`
-  ).join("");
-  $("#registry").textContent = DATA.registry || "";
-
-  // ---- persisted state (checkboxes + notes) ----
+  // ---- persisted state (checkboxes) ----
   let state = {};
   try { state = JSON.parse(localStorage.getItem(STORE)) || {}; } catch(e){}
   const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e){} };
@@ -439,17 +380,6 @@ const DATA = {
     });
   }
   renderChecks($("#dutyList"), DATA.duties, "duty");
-  renderChecks($("#packList"), DATA.packing, "pack");
-
-  // notes
-  const ta = $("#notes");
-  ta.value = state.notes || "";
-  let t;
-  ta.addEventListener("input", ()=>{
-    state.notes = ta.value; save();
-    $("#notesSaved").textContent = "Saved ✓";
-    clearTimeout(t); t = setTimeout(()=>$("#notesSaved").textContent="", 1200);
-  });
 
   // ---- tabs ----
   document.querySelectorAll("#tabbar button").forEach(btn=>{
