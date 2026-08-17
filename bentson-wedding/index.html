@@ -165,34 +165,26 @@
 <script>
 const DATA = {
   couple:      "Bentson & [Partner]",
-  weddingDate: "2026-09-19T16:00:00",   // ← ceremony date/time (used for the countdown)
-  location:    "[City, State]",
+  weddingDate: "2026-09-26T16:00:00",   // ← ceremony date/time for the countdown (Sat assumed — update the time/date once confirmed)
+  location:    "Gilbert, AZ",
 
   // ---- SCHEDULE: grouped by day. Add/remove events freely. ----
   schedule: [
-    { day:"Friday",   date:"Sep 18", events:[
-      { time:"4:00 PM",  title:"Groomsmen arrive & check in",  desc:"Drop bags at the hotel, then meet in the lobby.", loc:"[Hotel name]", map:"" },
-      { time:"6:30 PM",  title:"Rehearsal",                    desc:"Run-through at the ceremony site. Don't be late!", loc:"[Ceremony venue]", map:"", key:true },
-      { time:"8:00 PM",  title:"Rehearsal dinner",             desc:"Dinner with both families.", loc:"[Restaurant]", map:"" },
+    { day:"Friday",   date:"Sep 25", events:[
+      { time:"5:30 PM",  title:"Groom's dinner",  desc:"Dinner the night before. Dress code: western / denim attire.", loc:"7361 S Constellation Way, Gilbert, AZ", map:"https://maps.google.com/?q=7361+S+Constellation+Way+Gilbert+AZ", key:true },
     ]},
-    { day:"Saturday", date:"Sep 19", events:[
-      { time:"10:00 AM", title:"Groomsmen breakfast",          desc:"Fuel up. Casual.", loc:"[Spot]", map:"" },
-      { time:"1:00 PM",  title:"Get dressed / photos",         desc:"Suits on, first-look and party photos.", loc:"[Hotel suite]", map:"" },
-      { time:"4:00 PM",  title:"Ceremony",                     desc:"Line up 30 min early. This is the moment.", loc:"[Ceremony venue]", map:"", key:true },
-      { time:"5:00 PM",  title:"Cocktail hour",                desc:"Mingle while the couple does photos.", loc:"[Reception venue]", map:"" },
-      { time:"6:30 PM",  title:"Reception & dinner",           desc:"Dinner, toasts, dancing.", loc:"[Reception venue]", map:"", key:true },
-    ]},
-    { day:"Sunday",   date:"Sep 20", events:[
-      { time:"10:00 AM", title:"Farewell brunch",              desc:"Send-off before everyone heads out.", loc:"[Spot]", map:"" },
+    { day:"Saturday", date:"Sep 26", events:[
+      { time:"TBD",      title:"Wedding day — schedule coming",  desc:"The day-of timeline (getting ready, ceremony, reception) will be added here once it's set.", loc:"", map:"", key:true },
     ]},
   ],
 
   // ---- DRESS CODE ----
   dress: [
+    { ev:"Groom's Dinner (Fri)", desc:"Western / denim attire — boots, denim, and your best western look for Friday night's dinner." },
     { ev:"Ceremony & Reception", desc:"All black: black dress shoes, black pants, black belt, and a black tie — the tie will be supplied the day of, so you don't need to bring one." },
   ],
-  dressSwatches: ["#000000","#111315","#1B1B1B"], // all-black palette
-  dressNotes: "Bring the black shoes, pants, and belt. The black tie is provided day-of.",
+  dressSwatches: ["#000000","#111315","#1B1B1B"], // all-black palette (Saturday formal)
+  dressNotes: "Friday: western / denim. Saturday: bring the black shoes, pants, and belt — the black tie is provided day-of.",
 
   // ---- BACHELOR PARTY OPTIONS ----
   bachelor: [
