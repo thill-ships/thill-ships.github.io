@@ -103,6 +103,11 @@ def parse_event(event, fallback_week, season):
         rank_val = as_int(rank.get("current"))
         if rank_val is not None and rank_val > 25:   # 99 == unranked
             rank_val = None
+        records = c.get("records") or []
+        record = ""
+        for r in records:
+            if r.get("type") in ("total", "overall") or not record:
+                record = r.get("summary") or record
         return {
             "id": str(team.get("id") or ""),
             "name": team.get("shortDisplayName") or team.get("displayName") or "",
@@ -110,6 +115,7 @@ def parse_event(event, fallback_week, season):
             "logo": team.get("logo") or "",
             "rank": rank_val,
             "score": as_int(c.get("score")),
+            "record": record,
         }
 
     h, a = team_fields(home), team_fields(away)
@@ -125,8 +131,10 @@ def parse_event(event, fallback_week, season):
         "conference_game": bool(comp.get("conferenceCompetition")),
         "home_id": h["id"], "home_name": h["name"], "home_abbr": h["abbr"],
         "home_logo": h["logo"], "home_rank": h["rank"], "home_score": h["score"],
+        "home_record": h["record"],
         "away_id": a["id"], "away_name": a["name"], "away_abbr": a["abbr"],
         "away_logo": a["logo"], "away_rank": a["rank"], "away_score": a["score"],
+        "away_record": a["record"],
         "winner_id": winner_id,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }

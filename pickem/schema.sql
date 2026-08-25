@@ -31,9 +31,9 @@ create table if not exists pickem_games (
   neutral     boolean not null default false,
   conference_game boolean not null default false,
   home_id     text, home_name text, home_abbr text, home_logo text,
-  home_rank   int,  home_score int,
+  home_rank   int,  home_score int, home_record text,
   away_id     text, away_name text, away_abbr text, away_logo text,
-  away_rank   int,  away_score int,
+  away_rank   int,  away_score int, away_record text,
   winner_id   text,                        -- team id, set when the game goes final
   updated_at  timestamptz not null default now()
 );
