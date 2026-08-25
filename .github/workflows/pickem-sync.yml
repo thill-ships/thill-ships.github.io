@@ -1,0 +1,39 @@
+name: Pick'em — sync games
+
+# Keeps pickem_games current: new weeks appear on their own, and final
+# scores flow in so the leaderboard scores itself.
+on:
+  schedule:
+    - cron: '0 */2 * * *'      # every 2 hours (UTC)
+  workflow_dispatch:            # or run it by hand from the Actions tab
+    inputs:
+      season:
+        description: 'Season year (blank = current)'
+        required: false
+      weeks:
+        description: 'Week range, e.g. 1-16'
+        required: false
+        default: '1-16'
+
+concurrency:
+  group: pickem-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Sync Big 12 schedule and results
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SEASON: ${{ inputs.season }}
+          WEEKS: ${{ inputs.weeks || '1-16' }}
+        run: python .github/scripts/pickem_sync.py

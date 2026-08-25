@@ -1,0 +1,33 @@
+name: Pick'em — remind stragglers
+
+# Emails anyone with picks outstanding. The script decides whether to actually
+# send: only within 48h of the weekly lock, and at most twice per person.
+on:
+  schedule:
+    - cron: '0 15 * * *'       # 15:00 UTC = 9am Mountain (MDT)
+  workflow_dispatch:
+
+concurrency:
+  group: pickem-remind
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Send reminder emails
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          APP_URL: https://thill-ships.github.io/pickem/
+          LEAGUE_NAME: Big 12 Pick'em
+        run: python .github/scripts/pickem_remind.py

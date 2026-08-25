@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Big 12 Pick'em</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Pick'em" />
+<meta name="theme-color" content="#002E5D" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%23002E5D'/%3E%3Cellipse cx='90' cy='90' rx='46' ry='29' fill='%23fff'/%3E%3Cpath d='M72 90h36M84 80v20M96 80v20' stroke='%23002E5D' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --navy:#002E5D;--royal:#0062B8;--blue:#2E6BFF;--orange:#F5A623;
+    --green:#27AE60;--red:#D64545;
+    --bg:#EFEFEF;--card:#FFFFFF;--ink:#111315;--muted:#6B7280;--line:#E4E6EA;
+    --shadow:0 1px 3px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+       background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:680px;margin:0 auto;padding:calc(22px + env(safe-area-inset-top)) 18px 90px;}
+
+  /* ---------- header ---------- */
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px;}
+  h1{font-family:'Archivo';font-weight:900;font-size:30px;letter-spacing:-.025em;margin:0;line-height:1.05;}
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .whoami{flex:none;display:flex;align-items:center;gap:7px;background:var(--card);border:none;
+          border-radius:999px;padding:7px 9px 7px 12px;box-shadow:var(--shadow);cursor:pointer;
+          font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);}
+  .avatar{width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;display:grid;
+          place-items:center;font-size:11px;font-weight:800;}
+
+  /* ---------- tabs ---------- */
+  .tabs{display:flex;gap:6px;background:#E4E6EA;padding:4px;border-radius:14px;margin-bottom:18px;}
+  .tab{flex:1;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:700;
+       color:var(--muted);padding:9px 6px;border-radius:11px;cursor:pointer;transition:.12s;}
+  .tab.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.1);}
+  .view{display:none;} .view.on{display:block;}
+
+  /* ---------- week strip ---------- */
+  .weeks{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px;margin-bottom:4px;
+         scrollbar-width:none;-ms-overflow-style:none;}
+  .weeks::-webkit-scrollbar{display:none;}
+  .wk{flex:none;border:1.5px solid var(--line);background:var(--card);border-radius:11px;
+      padding:8px 13px;font-family:inherit;font-size:13px;font-weight:700;color:var(--muted);
+      cursor:pointer;white-space:nowrap;}
+  .wk.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .wk .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orange);margin-left:6px;vertical-align:middle;}
+
+  /* ---------- lock banner ---------- */
+  .lockbar{display:flex;align-items:center;gap:11px;background:var(--card);border-radius:16px;
+           padding:14px 16px;box-shadow:var(--shadow);margin:8px 0 16px;border-left:4px solid var(--orange);}
+  .lockbar.locked{border-left-color:var(--muted);}
+  .lockbar .lb-t{font-size:14px;font-weight:700;}
+  .lockbar .lb-s{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.4;}
+  .prog{margin-left:auto;flex:none;text-align:right;}
+  .prog b{font-family:'Archivo';font-size:20px;font-weight:800;letter-spacing:-.02em;}
+  .prog span{display:block;font-size:11px;color:var(--muted);font-weight:600;}
+
+  /* ---------- game card ---------- */
+  .game{background:var(--card);border-radius:18px;box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;}
+  .gmeta{display:flex;align-items:center;gap:8px;padding:10px 15px 0;font-size:11.5px;color:var(--muted);font-weight:600;}
+  .badge{background:#EEF3FA;color:var(--royal);border-radius:6px;padding:2px 7px;font-size:10px;
+         font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+  .badge.final{background:#ECECEC;color:var(--muted);}
+  .badge.live{background:#FDECEC;color:var(--red);}
+  .sides{display:flex;flex-direction:column;gap:1px;padding:9px;}
+  .side{display:flex;align-items:center;gap:11px;width:100%;border:2px solid transparent;background:#F7F8FA;
+        border-radius:13px;padding:11px 13px;cursor:pointer;font-family:inherit;text-align:left;transition:.12s;}
+  .side:disabled{cursor:default;}
+  .side img{width:28px;height:28px;object-fit:contain;flex:none;}
+  .side .nm{font-size:15px;font-weight:700;letter-spacing:-.01em;flex:1;min-width:0;
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .side .rk{font-size:11px;font-weight:800;color:var(--orange);margin-right:3px;}
+  .side .sc{font-family:'Archivo';font-size:18px;font-weight:800;color:var(--muted);flex:none;}
+  .side.picked{background:#E8F0F9;border-color:var(--navy);}
+  .side.picked .nm{color:var(--navy);}
+  .side.won{background:#EAF7EF;border-color:var(--green);}
+  .side.won .sc{color:var(--green);}
+  .side.picked.wrong{background:#FDEDED;border-color:var(--red);}
+  .mark{flex:none;font-size:13px;font-weight:800;}
+  .tally{padding:0 15px 12px;font-size:11.5px;color:var(--muted);font-weight:600;}
+
+  /* ---------- leaderboard ---------- */
+  .lb{background:var(--card);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;}
+  .row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);}
+  .row:last-child{border-bottom:none;}
+  .row.me{background:#F4F8FD;}
+  .rank{font-family:'Archivo';font-size:15px;font-weight:800;color:var(--muted);width:26px;flex:none;}
+  .rank.top{color:var(--navy);}
+  .row .nm{flex:1;font-size:15px;font-weight:700;letter-spacing:-.01em;min-width:0;
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .row .wk-n{font-size:12px;color:var(--muted);font-weight:600;flex:none;margin-right:2px;}
+  .score{font-family:'Archivo';font-size:19px;font-weight:800;letter-spacing:-.02em;flex:none;}
+  .score small{font-size:12px;color:var(--muted);font-weight:600;}
+
+  /* ---------- misc ---------- */
+  .card{background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:22px;}
+  .card h2{font-family:'Archivo';font-weight:800;font-size:19px;margin:0 0 6px;letter-spacing:-.015em;}
+  .card p{font-size:14px;color:var(--muted);line-height:1.55;margin:0 0 14px;}
+  label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 6px;
+        text-transform:uppercase;letter-spacing:.05em;}
+  input[type=email],input[type=text]{width:100%;font-family:inherit;font-size:16px;padding:13px 14px;
+        border:1.5px solid var(--line);border-radius:12px;background:#FAFBFC;color:var(--ink);margin-bottom:12px;}
+  input:focus{outline:none;border-color:var(--royal);background:#fff;}
+  .btn{width:100%;border:none;background:var(--navy);color:#fff;font-family:inherit;font-size:15px;
+       font-weight:700;padding:14px;border-radius:12px;cursor:pointer;transition:.12s;}
+  .btn:active{transform:scale(.99);} .btn:disabled{opacity:.55;cursor:default;}
+  .btn.ghost{background:#F0F2F5;color:var(--ink);}
+  .btn.danger{background:#FDEDED;color:var(--red);}
+  .empty{text-align:center;padding:44px 24px;color:var(--muted);font-size:14.5px;line-height:1.6;}
+  .empty b{display:block;font-family:'Archivo';font-size:17px;color:var(--ink);margin-bottom:6px;}
+  .rules li{font-size:14px;line-height:1.65;color:var(--ink);margin-bottom:9px;}
+  .rules li b{font-weight:700;}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));
+         background:#111315;color:#fff;font-size:14px;font-weight:600;padding:12px 18px;border-radius:12px;
+         box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.2s;z-index:60;max-width:88vw;}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(-4px);}
+  .sheet{position:fixed;inset:0;background:rgba(17,19,21,.45);display:none;align-items:flex-end;
+         justify-content:center;z-index:50;padding:0;}
+  .sheet.on{display:flex;}
+  .sheet .inner{background:var(--card);border-radius:22px 22px 0 0;padding:24px 20px calc(28px + env(safe-area-inset-bottom));
+                width:100%;max-width:680px;}
+  @media(min-width:520px){.sheet{align-items:center;padding:20px;}.sheet .inner{border-radius:22px;}}
+  .toggle{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);}
+  .toggle .tt{flex:1;font-size:14px;font-weight:600;}
+  .toggle .ts{font-size:12px;color:var(--muted);font-weight:500;margin-top:2px;}
+  .sw{width:48px;height:28px;border-radius:999px;background:#D6DAE0;border:none;position:relative;
+      cursor:pointer;flex:none;transition:.15s;}
+  .sw.on{background:var(--green);}
+  .sw::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;
+             background:#fff;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .sw.on::after{left:23px;}
+  .backlink{display:inline-block;margin-top:22px;font-size:13px;color:var(--muted);text-decoration:none;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <div class="kicker" id="kicker">Big 12 &middot; 2026</div>
+      <h1>Pick'em</h1>
+    </div>
+    <button class="whoami" id="whoami" style="display:none" onclick="openProfile()">
+      <span class="avatar" id="avatarLetter">?</span><span id="whoamiName">You</span>
+    </button>
+  </div>
+
+  <!-- ============ signed out ============ -->
+  <div id="gate" style="display:none">
+    <div class="card">
+      <h2>Sign in</h2>
+      <p>Enter your email and we'll send you a sign-in link &mdash; no password to
+         remember. Tap it once and this browser stays signed in all season.</p>
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+      <button class="btn" id="sendLink" onclick="sendMagicLink()">Email me a sign-in link</button>
+      <p id="gateMsg" style="margin:14px 0 0;display:none"></p>
+    </div>
+    <a class="backlink" href="../">&larr; All apps</a>
+  </div>
+
+  <!-- ============ signed in ============ -->
+  <div id="app" style="display:none">
+    <div class="tabs">
+      <button class="tab on" data-view="picks"  onclick="showView('picks')">Picks</button>
+      <button class="tab"    data-view="board"  onclick="showView('board')">Leaderboard</button>
+      <button class="tab"    data-view="rules"  onclick="showView('rules')">Rules</button>
+    </div>
+
+    <div class="view on" id="view-picks">
+      <div class="weeks" id="weekStrip"></div>
+      <div id="lockbar"></div>
+      <div id="gameList"></div>
+    </div>
+
+    <div class="view" id="view-board">
+      <div id="boardBody"></div>
+    </div>
+
+    <div class="view" id="view-rules">
+      <div class="card">
+        <h2>How it works</h2>
+        <ul class="rules" style="padding-left:19px;margin:0">
+          <li><b>Every Big 12 game, every week.</b> Conference games and non-conference
+              games alike &mdash; if a Big 12 team is playing, it's on the sheet.</li>
+          <li><b>Straight up, no spreads.</b> Just pick who wins.</li>
+          <li><b>Every game is worth exactly 1 point.</b> A blowout between two teams
+              nobody cares about counts the same as the Holy War.</li>
+          <li><b>Everything locks at the first kickoff of the week.</b> One deadline for
+              the whole slate &mdash; usually Thursday night. Miss it and those games are
+              zeroes, so get them in early.</li>
+          <li><b>Nobody sees your picks until the lock.</b> After that, everyone's picks
+              are public for the week.</li>
+          <li><b>Miss a game, take the zero.</b> No make-ups.</li>
+          <li><b>Most correct picks at the end of the season wins.</b> That's the whole thing.</li>
+        </ul>
+      </div>
+      <a class="backlink" href="../">&larr; All apps</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============ profile sheet ============ -->
+<div class="sheet" id="profileSheet" onclick="if(event.target===this)closeProfile()">
+  <div class="inner">
+    <h2 style="font-family:'Archivo';font-weight:800;font-size:20px;margin:0 0 16px">Your profile</h2>
+    <label for="nameInput">Display name</label>
+    <input type="text" id="nameInput" placeholder="How you show on the leaderboard" maxlength="28" />
+    <button class="btn" onclick="saveName()">Save name</button>
+    <div class="toggle">
+      <div>
+        <div class="tt">Reminder emails</div>
+        <div class="ts">A nudge when you still have picks to make</div>
+      </div>
+      <button class="sw" id="notifySw" onclick="toggleNotify()"></button>
+    </div>
+    <button class="btn ghost" style="margin-top:6px" onclick="closeProfile()">Done</button>
+    <button class="btn danger" style="margin-top:8px" onclick="signOut()">Sign out</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==========================================================================
+   CONFIG — fill these in after creating your Supabase project.
+   Settings > API:  Project URL, and the "publishable" (anon) key.
+   The publishable key is safe in public code; Row Level Security is what
+   actually protects the data.
+   ========================================================================== */
+const CFG = {
+  url: 'PASTE_YOUR_SUPABASE_URL_HERE',
+  key: 'PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE'
+};
+
+/* ========================== state ========================== */
+let supa = null, user = null, player = null;
+let weeks = [], games = [], picks = {}, allPicks = [], standings = [];
+let season = null, week = null, lockAt = null, tick = null;
+
+const $ = id => document.getElementById(id);
+const configured = () => CFG.url.startsWith('http') && CFG.key.length > 20;
+
+function toast(msg, ms = 2600){
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), ms);
+}
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* ========================== boot ========================== */
+(function boot(){
+  if(!configured()){
+    $('gate').style.display = '';
+    $('gate').innerHTML =
+      '<div class="card"><h2>Almost there</h2><p>This app still needs its Supabase keys. ' +
+      'Open <code>pickem/index.html</code>, find the <code>CFG</code> block near the bottom, ' +
+      'and paste in your project URL and publishable key. ' +
+      'Full walkthrough is in <code>pickem/SETUP.md</code>.</p></div>';
+    return;
+  }
+  supa = window.supabase.createClient(CFG.url, CFG.key);
+
+  supa.auth.getSession().then(({ data }) => {
+    if(data && data.session) onSignedIn(data.session.user);
+    else showGate();
+  });
+  supa.auth.onAuthStateChange((_e, session) => {
+    if(session && session.user){
+      if(!user || user.id !== session.user.id) onSignedIn(session.user);
+    } else { user = null; showGate(); }
+  });
+})();
+
+function showGate(){ $('gate').style.display=''; $('app').style.display='none'; $('whoami').style.display='none'; }
+
+async function sendMagicLink(){
+  const email = ($('email').value || '').trim();
+  if(!email || !email.includes('@')) return toast('Enter a valid email');
+  const btn = $('sendLink'); btn.disabled = true; btn.textContent = 'Sending…';
+  const { error } = await supa.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: location.origin + location.pathname }
+  });
+  btn.disabled = false; btn.textContent = 'Email me a sign-in link';
+  const msg = $('gateMsg'); msg.style.display = '';
+  if(error){ msg.textContent = error.message; msg.style.color = 'var(--red)'; return; }
+  msg.innerHTML = '<b>Check your email.</b> Tap the link and you\'re in. ' +
+                  'It can take a minute, and it might land in spam the first time.';
+  msg.style.color = 'var(--muted)';
+}
+
+async function onSignedIn(u){
+  user = u;
+  history.replaceState(null, '', location.pathname);   // strip the auth hash
+  $('gate').style.display = 'none';
+  $('app').style.display = '';
+  $('whoami').style.display = '';
+  await ensurePlayer();
+  await loadAll();
+  subscribeRealtime();
+}
+
+async function ensurePlayer(){
+  const { data } = await supa.from('pickem_players')
+    .select('*').eq('user_id', user.id).maybeSingle();
+  if(data){ player = data; }
+  else {
+    const guess = (user.email || '').split('@')[0].replace(/[._-]+/g,' ')
+      .replace(/\b\w/g, c => c.toUpperCase()).slice(0,28);
+    const row = { user_id:user.id, display_name:guess || 'New player', email:user.email, notify:true };
+    await supa.from('pickem_players').insert(row);
+    player = row;
+    setTimeout(() => { openProfile(); toast('Set your name for the leaderboard'); }, 600);
+  }
+  paintWhoami();
+}
+
+function paintWhoami(){
+  const n = (player && player.display_name) || 'You';
+  $('whoamiName').textContent = n.split(' ')[0];
+  $('avatarLetter').textContent = n.trim().charAt(0).toUpperCase() || '?';
+}
+
+/* ========================== data ========================== */
+async function loadAll(){
+  const { data: wk } = await supa.from('pickem_weeks').select('*');
+  weeks = (wk || []).sort((a,b) => (a.season - b.season) || (a.week - b.week));
+  if(!weeks.length){ renderEmpty(); return; }
+
+  season = Math.max(...weeks.map(w => w.season));
+  weeks = weeks.filter(w => w.season === season);
+  $('kicker').textContent = 'Big 12 · ' + season;
+
+  if(week == null || !weeks.some(w => w.week === week)){
+    const now = Date.now();
+    const next = weeks.find(w => w.lock_at && new Date(w.lock_at).getTime() > now);
+    week = next ? next.week : weeks[weeks.length - 1].week;
+  }
+  await loadWeek();
+  await loadStandings();
+}
+
+async function loadWeek(){
+  const meta = weeks.find(w => w.week === week);
+  lockAt = meta && meta.lock_at ? new Date(meta.lock_at) : null;
+
+  const { data: g } = await supa.from('pickem_games')
+    .select('*').eq('season', season).eq('week', week).order('kickoff', { ascending: true });
+  games = g || [];
+
+  allPicks = [];
+  if(games.length){
+    const { data: p } = await supa.from('pickem_picks')
+      .select('*').in('game_id', games.map(x => x.id));
+    allPicks = p || [];
+  }
+  picks = {};
+  allPicks.filter(p => p.user_id === user.id).forEach(p => { picks[p.game_id] = p.team_id; });
+
+  renderWeeks(); renderLockbar(); renderGames();
+  clearInterval(tick); tick = setInterval(renderLockbar, 1000);
+}
+
+async function loadStandings(){
+  const { data } = await supa.from('pickem_standings').select('*');
+  standings = data || [];
+  renderBoard();
+}
+
+const isLocked = () => !lockAt || Date.now() >= lockAt.getTime();
+
+/* ========================== picking ========================== */
+async function setPick(gameId, teamId){
+  if(isLocked()) return toast('This week is locked');
+  const prev = picks[gameId];
+  picks[gameId] = teamId;                 // optimistic
+  renderGames(); renderLockbar();
+
+  const { error } = await supa.from('pickem_picks').upsert(
+    { user_id:user.id, game_id:gameId, team_id:teamId, updated_at:new Date().toISOString() },
+    { onConflict:'user_id,game_id' }
+  );
+  if(error){
+    if(prev) picks[gameId] = prev; else delete picks[gameId];
+    renderGames(); renderLockbar();
+    toast(/row-level|policy/i.test(error.message)
+      ? 'Too late — this week just locked' : 'Could not save that pick');
+  }
+}
+
+/* ========================== rendering ========================== */
+function renderEmpty(){
+  $('gameList').innerHTML =
+    '<div class="card"><div class="empty"><b>No games yet</b>' +
+    'The schedule syncs automatically from ESPN. If this is your first run, ' +
+    'go to the repo\'s Actions tab and run <b>Pick\'em — sync games</b> once by hand.</div></div>';
+  $('weekStrip').innerHTML = ''; $('lockbar').innerHTML = '';
+}
+
+function renderWeeks(){
+  $('weekStrip').innerHTML = weeks.map(w => {
+    const done = countPicksFor(w.week);
+    const open = w.lock_at && new Date(w.lock_at).getTime() > Date.now();
+    const needsYou = open && w.week === week && done < w.games;
+    return '<button class="wk' + (w.week === week ? ' on' : '') + '" onclick="gotoWeek(' + w.week + ')">' +
+      'Week ' + w.week + (needsYou ? '<span class="dot"></span>' : '') + '</button>';
+  }).join('');
+  const on = document.querySelector('.wk.on');
+  if(on) on.scrollIntoView({ block:'nearest', inline:'center' });
+}
+
+function countPicksFor(wkNo){
+  if(wkNo !== week) return 0;
+  return games.filter(g => picks[g.id]).length;
+}
+
+async function gotoWeek(w){ week = w; await loadWeek(); }
+
+function renderLockbar(){
+  if(!games.length){ $('lockbar').innerHTML = ''; return; }
+  const made = games.filter(g => picks[g.id]).length;
+  const locked = isLocked();
+  let title, sub;
+
+  if(locked){
+    title = 'Picks are locked';
+    const finals = games.filter(g => g.status === 'final').length;
+    sub = finals === games.length
+      ? 'All ' + games.length + ' games final.'
+      : finals + ' of ' + games.length + ' games final.';
+  } else {
+    const ms = lockAt.getTime() - Date.now();
+    const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5),
+          m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1000);
+    title = 'Locks in ' + (d ? d + 'd ' + h + 'h ' + m + 'm' : h ? h + 'h ' + m + 'm ' + s + 's' : m + 'm ' + s + 's');
+    sub = lockAt.toLocaleString([], { weekday:'long', month:'short', day:'numeric',
+                                      hour:'numeric', minute:'2-digit' }) +
+          ' — first kickoff of the week.';
+  }
+  $('lockbar').innerHTML =
+    '<div class="lockbar' + (locked ? ' locked' : '') + '"><div>' +
+      '<div class="lb-t">' + title + '</div><div class="lb-s">' + sub + '</div>' +
+    '</div><div class="prog"><b>' + made + '/' + games.length + '</b><span>picked</span></div></div>';
+}
+
+function renderGames(){
+  if(!games.length) return renderEmpty();
+  const locked = isLocked();
+  const nameOf = {};
+  standings.forEach(s => { nameOf[s.user_id] = s.display_name; });
+
+  $('gameList').innerHTML = games.map(g => {
+    const mine = picks[g.id];
+    const final = g.status === 'final';
+    const live = g.status === 'in';
+
+    const when = new Date(g.kickoff).toLocaleString([], {
+      weekday:'short', hour:'numeric', minute:'2-digit' });
+    const badge = final ? '<span class="badge final">Final</span>'
+                : live  ? '<span class="badge live">Live</span>'
+                : g.conference_game ? '<span class="badge">Big 12</span>' : '';
+
+    const sideHtml = (which) => {
+      const id    = g[which + '_id'],   nm  = g[which + '_name'] || g[which + '_abbr'] || 'TBD';
+      const logo  = g[which + '_logo'], rk  = g[which + '_rank'], sc = g[which + '_score'];
+      const isMine = mine === id;
+      const won    = final && g.winner_id === id;
+      let cls = 'side';
+      if(isMine) cls += ' picked';
+      if(won) cls += ' won';
+      if(isMine && final && !won) cls += ' wrong';
+
+      let mark = '';
+      if(isMine && final) mark = won
+        ? '<span class="mark" style="color:var(--green)">&#10003;</span>'
+        : '<span class="mark" style="color:var(--red)">&#10007;</span>';
+      else if(isMine) mark = '<span class="mark" style="color:var(--navy)">&#10003;</span>';
+
+      return '<button class="' + cls + '"' + (locked ? ' disabled' : '') +
+        ' onclick="setPick(\'' + g.id + '\',\'' + id + '\')">' +
+        (logo ? '<img src="' + esc(logo) + '" alt="" loading="lazy" />'
+              : '<span style="width:28px"></span>') +
+        '<span class="nm">' + (rk ? '<span class="rk">#' + rk + '</span>' : '') + esc(nm) + '</span>' +
+        ((sc != null && (final || live)) ? '<span class="sc">' + sc + '</span>' : '') +
+        mark + '</button>';
+    };
+
+    // Once locked, show how the family split on this game.
+    let tally = '';
+    if(locked){
+      const forGame = allPicks.filter(p => p.game_id === g.id);
+      if(forGame.length){
+        const byTeam = {};
+        forGame.forEach(p => { (byTeam[p.team_id] = byTeam[p.team_id] || []).push(nameOf[p.user_id] || '?'); });
+        tally = '<div class="tally">' + Object.keys(byTeam).map(tid => {
+          const label = tid === g.home_id ? (g.home_abbr || 'Home') : (g.away_abbr || 'Away');
+          return '<b>' + esc(label) + '</b> — ' + byTeam[tid].map(esc).join(', ');
+        }).join(' &nbsp;·&nbsp; ') + '</div>';
+      }
+    }
+
+    return '<div class="game">' +
+      '<div class="gmeta">' + badge + '<span>' + when + '</span>' +
+      (g.neutral ? '<span>· neutral site</span>' : '') + '</div>' +
+      '<div class="sides">' + sideHtml('away') + sideHtml('home') + '</div>' +
+      tally + '</div>';
+  }).join('');
+}
+
+function renderBoard(){
+  if(!standings.length){
+    $('boardBody').innerHTML = '<div class="card"><div class="empty"><b>Nobody yet</b>' +
+      'The leaderboard fills in once games go final.</div></div>';
+    return;
+  }
+  // This week's totals, computed from what we already have loaded.
+  const weekly = {};
+  const finals = games.filter(g => g.status === 'final');
+  allPicks.forEach(p => {
+    const g = finals.find(x => x.id === p.game_id);
+    if(g && g.winner_id === p.team_id) weekly[p.user_id] = (weekly[p.user_id] || 0) + 1;
+  });
+
+  const sorted = standings.slice().sort((a,b) =>
+    (b.correct - a.correct) || a.display_name.localeCompare(b.display_name));
+
+  const rows = sorted.map((s, i) => {
+    const tie = i > 0 && sorted[i-1].correct === s.correct;
+    const rank = tie ? '' : (i + 1);
+    const pct = s.decided ? Math.round(s.correct / s.decided * 100) + '%' : '—';
+    return '<div class="row' + (s.user_id === user.id ? ' me' : '') + '">' +
+      '<div class="rank' + (i === 0 ? ' top' : '') + '">' + rank + '</div>' +
+      '<div class="nm">' + esc(s.display_name) + '</div>' +
+      '<div class="wk-n">' + (weekly[s.user_id] || 0) + ' this wk</div>' +
+      '<div class="score">' + s.correct + '<small>/' + s.decided + ' · ' + pct + '</small></div>' +
+    '</div>';
+  }).join('');
+
+  $('boardBody').innerHTML =
+    '<div class="lb">' + rows + '</div>' +
+    '<p style="font-size:12.5px;color:var(--muted);margin:14px 4px;line-height:1.55">' +
+    'Season standings. Every game is worth 1 point. ' +
+    '&ldquo;This wk&rdquo; counts only games that have gone final in Week ' + week + '.</p>';
+}
+
+function showView(v){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
+  document.querySelectorAll('.view').forEach(el => el.classList.toggle('on', el.id === 'view-' + v));
+  if(v === 'board') loadStandings();
+}
+
+/* ========================== profile ========================== */
+function openProfile(){
+  $('nameInput').value = (player && player.display_name) || '';
+  $('notifySw').classList.toggle('on', !player || player.notify !== false);
+  $('profileSheet').classList.add('on');
+}
+function closeProfile(){ $('profileSheet').classList.remove('on'); }
+
+async function saveName(){
+  const name = ($('nameInput').value || '').trim();
+  if(!name) return toast('Give yourself a name');
+  const { error } = await supa.from('pickem_players')
+    .update({ display_name:name }).eq('user_id', user.id);
+  if(error) return toast('Could not save');
+  player.display_name = name; paintWhoami(); loadStandings();
+  toast('Saved'); closeProfile();
+}
+
+async function toggleNotify(){
+  const next = !$('notifySw').classList.contains('on');
+  $('notifySw').classList.toggle('on', next);
+  const { error } = await supa.from('pickem_players')
+    .update({ notify:next }).eq('user_id', user.id);
+  if(error){ $('notifySw').classList.toggle('on', !next); return toast('Could not save'); }
+  player.notify = next;
+  toast(next ? 'Reminders on' : 'Reminders off');
+}
+
+async function signOut(){ await supa.auth.signOut(); location.reload(); }
+
+/* ========================== realtime ========================== */
+function subscribeRealtime(){
+  supa.channel('pickem')
+    .on('postgres_changes', { event:'*', schema:'public', table:'pickem_games' }, () => {
+      loadWeek(); loadStandings();
+    })
+    .on('postgres_changes', { event:'*', schema:'public', table:'pickem_picks' }, () => {
+      if(isLocked()) loadWeek();
+    })
+    .subscribe();
+}
+</script>
+</body>
+</html>
