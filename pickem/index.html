@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Big 12 Pick'em</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Pick'em" />
+<meta name="theme-color" content="#FFFFFF" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%23002E5D'/%3E%3Cellipse cx='90' cy='88' rx='58' ry='38' fill='%23fff'/%3E%3Cpath d='M62 66h15l13 18 13-18h15l-21 28v16H83V94L62 66z' fill='%23002E5D'/%3E%3C/svg%3E" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#F1F3F7; --card:#FFFFFF;
+    --panel:#F4F6FA; --panel-on:#E8F0FA; --panel-dim:#F0F1F4;
+    --ink:#14181F; --muted:#78818F; --faint:#A6AEBA; --line:#EDEFF3;
+    --navy:#002E5D; --green:#1B7F4B; --red:#C4362C; --amber:#9A6414;
+    --lift:0 1px 3px rgba(16,24,40,.05), 0 8px 20px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding-bottom:40px;}
+
+  /* ---------------- header ---------------- */
+  .hd{background:var(--card);padding:calc(20px + env(safe-area-inset-top)) 18px 0;}
+  .hd-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .hd-k{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8A93A1;margin-bottom:4px;}
+  .hd-t{font-size:25px;font-weight:800;letter-spacing:-.025em;line-height:1.1;}
+  .me-btn{flex:none;display:flex;align-items:center;gap:7px;background:var(--bg);border:none;border-radius:999px;
+    padding:6px 12px 6px 7px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--ink);}
+  .av{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;
+    font-size:11px;font-weight:800;}
+  .tabs{display:flex;gap:22px;padding:16px 18px 0;}
+  .tab{border:none;background:none;font:inherit;font-size:14.5px;font-weight:700;color:var(--faint);
+    padding:0 0 12px;cursor:pointer;border-bottom:3px solid transparent;}
+  .tab.on{color:var(--ink);border-bottom-color:var(--navy);}
+  .wks{display:flex;gap:7px;overflow-x:auto;padding:14px 18px 16px;background:var(--card);
+    scrollbar-width:none;-ms-overflow-style:none;}
+  .wks::-webkit-scrollbar{display:none;}
+  .wk{flex:none;border:none;font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);
+    background:var(--bg);padding:7px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;}
+  .wk.on{background:var(--navy);color:#fff;}
+  .wk .pip{display:inline-block;width:5px;height:5px;border-radius:50%;background:#E8A33D;margin-left:6px;vertical-align:middle;}
+
+  .view{display:none;} .view.on{display:block;}
+
+  /* ---------------- lock bar ---------------- */
+  .lock{margin:14px 15px 0;background:var(--card);border-radius:18px;padding:15px 17px;
+    display:flex;align-items:center;gap:13px;box-shadow:var(--lift);}
+  .lock-t{font-size:15.5px;font-weight:800;letter-spacing:-.015em;}
+  .lock-s{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4;}
+  .ring{margin-left:auto;flex:none;width:50px;height:50px;border-radius:50%;display:grid;place-items:center;}
+  .ring i{width:39px;height:39px;border-radius:50%;background:var(--card);display:grid;place-items:center;
+    font-style:normal;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--navy);}
+
+  /* ---------------- matchup module ---------------- */
+  .mu{margin:13px 15px 0;padding:12px 12px 13px;border-radius:22px;background:var(--card);box-shadow:var(--lift);}
+  .mu-hd{display:flex;align-items:center;gap:8px;padding:0 4px 10px;}
+  .mu-when{font-size:11.5px;font-weight:700;color:#69727F;}
+  .mu-flag{margin-left:auto;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    padding:3px 8px;border-radius:999px;background:#E7EAF0;color:var(--muted);}
+  .mu-flag.todo{background:#FFF1DC;color:var(--amber);}
+  .mu-flag.in{background:#E4EDF7;color:#00437F;}
+  .pair{display:grid;grid-template-columns:1fr 20px 1fr;align-items:stretch;}
+  .at{display:grid;place-items:center;font-size:9px;font-weight:800;letter-spacing:.09em;
+    color:var(--faint);text-transform:uppercase;}
+
+  .pk{position:relative;border:2px solid transparent;border-radius:16px;padding:15px 10px 14px;
+    display:flex;flex-direction:column;align-items:center;cursor:pointer;font:inherit;color:inherit;
+    text-align:center;background:var(--panel);transition:background .14s,border-color .14s;}
+  .pk:disabled{cursor:default;}
+  .pk:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
+  .pk.on{background:var(--panel-on);border-color:var(--navy);}
+  .pk.dim{background:var(--panel-dim);}
+  .side{display:block;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:9px;}
+  .logo{display:grid;place-items:center;height:54px;width:100%;}
+  .logo img{max-height:54px;max-width:72px;object-fit:contain;}
+  .logo .fallback{font-size:21px;font-weight:800;letter-spacing:-.02em;color:var(--muted);}
+  .nm{display:block;font-size:15.5px;font-weight:800;letter-spacing:-.015em;margin-top:11px;line-height:1.2;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sub{display:block;font-size:11.5px;color:var(--muted);font-weight:500;margin-top:3px;font-variant-numeric:tabular-nums;}
+  .sc{display:block;font-size:27px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+    margin-top:4px;line-height:1.1;}
+  .pk.dim .logo,.pk.dim .nm{opacity:.42;}
+  .pk.dim .sc{color:var(--faint);}
+  .fav{position:absolute;top:9px;right:9px;width:23px;height:23px;border-radius:50%;display:grid;place-items:center;
+    font-size:11px;font-weight:800;background:#E4E8EF;color:#BFC6D1;}
+  .pk.on .fav{background:var(--navy);color:#fff;}
+  .pk .fav.hit{background:var(--green);color:#fff;}
+  .pk .fav.miss{background:var(--red);color:#fff;}
+  .tally{padding:11px 5px 1px;margin-top:10px;border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--muted);line-height:1.55;}
+  .tally b{color:var(--ink);font-weight:700;}
+
+  /* ---------------- leaderboard ---------------- */
+  .board{margin:14px 15px 0;background:var(--card);border-radius:20px;overflow:hidden;box-shadow:var(--lift);}
+  .bh{padding:15px 17px 11px;font-size:15px;font-weight:800;letter-spacing:-.015em;}
+  .br{display:flex;align-items:center;gap:12px;padding:12px 17px;border-top:1px solid var(--line);}
+  .br.me{background:#F4F8FD;}
+  .bp{font-size:13px;font-weight:800;color:var(--faint);width:16px;font-variant-numeric:tabular-nums;}
+  .br.me .bp{color:var(--navy);}
+  .bn{flex:1;font-size:14px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bw{font-size:11.5px;color:var(--muted);font-weight:600;flex:none;}
+  .bs{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;flex:none;}
+  .bs small{font-size:11px;color:var(--muted);font-weight:600;}
+
+  /* ---------------- generic ---------------- */
+  .card{margin:14px 15px 0;background:var(--card);border-radius:20px;padding:22px;box-shadow:var(--lift);}
+  .card h2{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:0 0 8px;}
+  .card p{font-size:14px;color:var(--muted);line-height:1.6;margin:0 0 14px;}
+  .rules{margin:0;padding-left:20px;}
+  .rules li{font-size:14px;line-height:1.65;margin-bottom:10px;}
+  .rules b{font-weight:700;}
+  label{display:block;font-size:11px;font-weight:800;color:var(--muted);margin:0 0 7px;
+    text-transform:uppercase;letter-spacing:.09em;}
+  input{width:100%;font:inherit;font-size:16px;padding:13px 14px;border:1.5px solid #E1E5EC;
+    border-radius:13px;background:#FAFBFC;color:var(--ink);margin-bottom:12px;}
+  input:focus{outline:none;border-color:var(--navy);background:#fff;}
+  .btn{width:100%;border:none;background:var(--navy);color:#fff;font:inherit;font-size:15px;font-weight:700;
+    padding:14px;border-radius:13px;cursor:pointer;}
+  .btn:active{transform:scale(.99);} .btn:disabled{opacity:.55;cursor:default;}
+  .btn.ghost{background:#EFF1F5;color:var(--ink);}
+  .btn.danger{background:#FDEDED;color:var(--red);}
+  .empty{text-align:center;padding:40px 22px;color:var(--muted);font-size:14px;line-height:1.65;}
+  .empty b{display:block;font-size:16.5px;color:var(--ink);margin-bottom:7px;font-weight:800;}
+  .back{display:inline-block;margin:20px 19px 0;font-size:13px;color:var(--muted);text-decoration:none;font-weight:600;}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom));
+    background:#14181F;color:#fff;font-size:14px;font-weight:600;padding:12px 18px;border-radius:13px;
+    box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.2s;z-index:60;max-width:88vw;}
+  .toast.on{opacity:1;}
+  .sheet{position:fixed;inset:0;background:rgba(17,19,21,.42);display:none;align-items:flex-end;justify-content:center;z-index:50;}
+  .sheet.on{display:flex;}
+  .sheet .in{background:var(--card);border-radius:24px 24px 0 0;width:100%;max-width:520px;
+    padding:24px 20px calc(26px + env(safe-area-inset-bottom));}
+  @media(min-width:540px){.sheet{align-items:center;padding:20px;} .sheet .in{border-radius:24px;}}
+  .sw-row{display:flex;align-items:center;gap:12px;padding:15px 0;border-top:1px solid var(--line);}
+  .sw-row .t{flex:1;font-size:14px;font-weight:700;}
+  .sw-row .s{font-size:12px;color:var(--muted);font-weight:500;margin-top:2px;}
+  .sw{width:48px;height:28px;border-radius:999px;background:#D6DAE0;border:none;position:relative;cursor:pointer;flex:none;transition:.15s;}
+  .sw.on{background:var(--green);}
+  .sw::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;
+    background:#fff;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .sw.on::after{left:23px;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hd">
+    <div class="hd-row">
+      <div>
+        <div class="hd-k" id="kicker">Big 12</div>
+        <div class="hd-t">Family Pick'em</div>
+      </div>
+      <button class="me-btn" id="meBtn" style="display:none" onclick="openProfile()">
+        <span class="av" id="avLetter">?</span><span id="meName">You</span>
+      </button>
+    </div>
+    <div class="tabs" id="tabs" style="display:none">
+      <button class="tab on" data-v="picks" onclick="showView('picks')">Picks</button>
+      <button class="tab" data-v="board" onclick="showView('board')">Leaderboard</button>
+      <button class="tab" data-v="rules" onclick="showView('rules')">Rules</button>
+    </div>
+  </div>
+
+  <!-- ===== signed out ===== -->
+  <div id="gate" style="display:none">
+    <div class="card">
+      <h2>Sign in</h2>
+      <p>Enter your email and we'll send you a link. Tap it once and this browser stays
+         signed in all season &mdash; no password to remember.</p>
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+      <button class="btn" id="sendBtn" onclick="sendLink()">Email me a sign-in link</button>
+      <p id="gateMsg" style="margin:14px 0 0;display:none"></p>
+    </div>
+    <a class="back" href="../">&larr; All apps</a>
+  </div>
+
+  <!-- ===== signed in ===== -->
+  <div id="app" style="display:none">
+    <div class="view on" id="v-picks">
+      <div class="wks" id="wks"></div>
+      <div id="lockBar"></div>
+      <div id="games"></div>
+    </div>
+
+    <div class="view" id="v-board"><div id="boardBody"></div></div>
+
+    <div class="view" id="v-rules">
+      <div class="card">
+        <h2>How it works</h2>
+        <ul class="rules">
+          <li><b>Every Big 12 game, every week.</b> If a Big 12 team is playing, it's on the sheet.</li>
+          <li><b>Straight up.</b> No spreads &mdash; just pick who wins.</li>
+          <li><b>Every game is worth 1 point.</b> A blowout counts the same as the Holy War.</li>
+          <li><b>Everything locks at the first kickoff of the week.</b> One deadline for the whole
+              slate, usually Thursday night. Get them in early.</li>
+          <li><b>Nobody sees your picks until the lock.</b> After that the whole week is public.</li>
+          <li><b>Miss a game, take the zero.</b> No make-ups.</li>
+          <li><b>Most correct picks at the end of the season wins.</b> That's the whole thing.</li>
+        </ul>
+      </div>
+      <a class="back" href="../">&larr; All apps</a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== profile ===== -->
+<div class="sheet" id="sheet" onclick="if(event.target===this)closeProfile()">
+  <div class="in">
+    <h2 style="font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0 0 16px">Your profile</h2>
+    <label for="nameIn">Display name</label>
+    <input type="text" id="nameIn" placeholder="How you show on the leaderboard" maxlength="28" />
+    <button class="btn" onclick="saveName()">Save name</button>
+    <div class="sw-row">
+      <div>
+        <div class="t">Reminder emails</div>
+        <div class="s">A nudge when you still have picks to make</div>
+      </div>
+      <button class="sw" id="notifySw" onclick="toggleNotify()" aria-label="Reminder emails"></button>
+    </div>
+    <button class="btn ghost" style="margin-top:4px" onclick="closeProfile()">Done</button>
+    <button class="btn danger" style="margin-top:8px" onclick="signOut()">Sign out</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==========================================================================
+   CONFIG — see SETUP.md. Supabase → Settings → API.
+   The publishable key belongs in public code; Row Level Security protects data.
+   ========================================================================== */
+const CFG = {
+  url: 'PASTE_YOUR_SUPABASE_URL_HERE',
+  key: 'PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE'
+};
+
+let supa=null, user=null, player=null;
+let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
+let season=null, week=null, lockAt=null, ticker=null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const ready = () => CFG.url.startsWith('http') && CFG.key.length > 20;
+const locked = () => !lockAt || Date.now() >= lockAt.getTime();
+
+function toast(m, ms=2600){
+  const t=$('toast'); t.textContent=m; t.classList.add('on');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms);
+}
+
+/* ========================= boot ========================= */
+(function(){
+  if(!ready()){
+    $('gate').style.display='';
+    $('gate').innerHTML='<div class="card"><h2>Almost there</h2><p>This app still needs its '+
+      'Supabase keys. Open <code>pickem/index.html</code>, find the <code>CFG</code> block in the '+
+      'script, and paste in your project URL and publishable key. Full walkthrough in '+
+      '<code>pickem/SETUP.md</code>.</p></div>';
+    return;
+  }
+  supa = window.supabase.createClient(CFG.url, CFG.key);
+
+  // Surface a bad/expired magic link instead of silently doing nothing.
+  const h = new URLSearchParams(location.hash.replace(/^#/,''));
+  if(h.get('error_description')) setTimeout(()=>toast(h.get('error_description'),5000),400);
+
+  supa.auth.getSession().then(({data})=>{
+    if(data && data.session) signedIn(data.session.user); else showGate();
+  });
+  supa.auth.onAuthStateChange((_e,s)=>{
+    if(s && s.user){ if(!user || user.id!==s.user.id) signedIn(s.user); }
+    else { user=null; showGate(); }
+  });
+})();
+
+function showGate(){
+  $('gate').style.display=''; $('app').style.display='none';
+  $('meBtn').style.display='none'; $('tabs').style.display='none';
+}
+
+async function sendLink(){
+  const email = ($('email').value||'').trim();
+  if(!email.includes('@')) return toast('Enter a valid email');
+  const b=$('sendBtn'); b.disabled=true; b.textContent='Sending…';
+  const { error } = await supa.auth.signInWithOtp({
+    email, options:{ emailRedirectTo: location.origin + location.pathname }
+  });
+  b.disabled=false; b.textContent='Email me a sign-in link';
+  const m=$('gateMsg'); m.style.display='';
+  if(error){ m.textContent=error.message; m.style.color='var(--red)'; return; }
+  m.innerHTML='<b>Check your email.</b> Tap the link and you\'re in. It can take a minute, '+
+              'and the first one sometimes lands in spam.';
+  m.style.color='var(--muted)';
+}
+
+async function signedIn(u){
+  user=u;
+  history.replaceState(null,'',location.pathname);
+  $('gate').style.display='none'; $('app').style.display='';
+  $('meBtn').style.display=''; $('tabs').style.display='';
+  await ensurePlayer();
+  await loadAll();
+  realtime();
+}
+
+async function ensurePlayer(){
+  const { data } = await supa.from('pickem_players').select('*').eq('user_id',user.id).maybeSingle();
+  if(data){ player=data; }
+  else{
+    const guess=(user.email||'').split('@')[0].replace(/[._-]+/g,' ')
+      .replace(/\b\w/g,c=>c.toUpperCase()).slice(0,28);
+    player={ user_id:user.id, display_name:guess||'New player', email:user.email, notify:true };
+    await supa.from('pickem_players').insert(player);
+    setTimeout(()=>{ openProfile(); toast('Set your name for the leaderboard'); },700);
+  }
+  paintMe();
+}
+function paintMe(){
+  const n=(player&&player.display_name)||'You';
+  $('meName').textContent=n.split(' ')[0];
+  $('avLetter').textContent=n.trim().charAt(0).toUpperCase()||'?';
+}
+
+/* ========================= data ========================= */
+async function loadAll(){
+  const { data:wk } = await supa.from('pickem_weeks').select('*');
+  weeks=(wk||[]).sort((a,b)=>(a.season-b.season)||(a.week-b.week));
+  if(!weeks.length){ renderNoGames(); return; }
+
+  season=Math.max(...weeks.map(w=>w.season));
+  weeks=weeks.filter(w=>w.season===season);
+  $('kicker').textContent='Big 12 · '+season;
+
+  if(week==null || !weeks.some(w=>w.week===week)){
+    const now=Date.now();
+    const next=weeks.find(w=>w.lock_at && new Date(w.lock_at).getTime()>now);
+    week = next ? next.week : weeks[weeks.length-1].week;
+  }
+  await loadStandings();
+  await loadWeek();
+}
+
+async function loadWeek(){
+  const meta=weeks.find(w=>w.week===week);
+  lockAt = meta && meta.lock_at ? new Date(meta.lock_at) : null;
+
+  const { data:g } = await supa.from('pickem_games').select('*')
+    .eq('season',season).eq('week',week).order('kickoff',{ascending:true});
+  games=g||[];
+
+  allPicks=[];
+  if(games.length){
+    const { data:p } = await supa.from('pickem_picks').select('*').in('game_id',games.map(x=>x.id));
+    allPicks=p||[];
+  }
+  picks={};
+  allPicks.filter(p=>p.user_id===user.id).forEach(p=>{ picks[p.game_id]=p.team_id; });
+
+  renderWeeks(); renderLock(); renderGames();
+  clearInterval(ticker); ticker=setInterval(renderLock,1000);
+}
+
+async function loadStandings(){
+  const { data } = await supa.from('pickem_standings').select('*');
+  standings=data||[];
+  names={}; standings.forEach(s=>{ names[s.user_id]=s.display_name; });
+  renderBoard();
+}
+
+/* ========================= picking ========================= */
+async function setPick(gameId, teamId){
+  if(locked()) return toast('This week is locked');
+  const prev=picks[gameId];
+  picks[gameId]=teamId;
+  renderGames(); renderLock(); renderWeeks();
+
+  const { error } = await supa.from('pickem_picks').upsert(
+    { user_id:user.id, game_id:gameId, team_id:teamId, updated_at:new Date().toISOString() },
+    { onConflict:'user_id,game_id' });
+  if(error){
+    if(prev) picks[gameId]=prev; else delete picks[gameId];
+    renderGames(); renderLock(); renderWeeks();
+    toast(/row-level|policy/i.test(error.message) ? 'Too late — the week just locked'
+                                                  : 'Could not save that pick');
+  }
+}
+
+/* ========================= render ========================= */
+function renderNoGames(){
+  $('wks').innerHTML=''; $('lockBar').innerHTML='';
+  $('games').innerHTML='<div class="card"><div class="empty"><b>No games yet</b>'+
+    'The schedule syncs from ESPN on its own. If this is the first run, open the repo\'s '+
+    'Actions tab and run <b>Pick\'em — sync games</b> once by hand.</div></div>';
+}
+
+function renderWeeks(){
+  $('wks').innerHTML = weeks.map(w=>{
+    const open = w.lock_at && new Date(w.lock_at).getTime()>Date.now();
+    const short = w.week===week && open && games.filter(g=>picks[g.id]).length < games.length;
+    return '<button class="wk'+(w.week===week?' on':'')+'" onclick="goWeek('+w.week+')">Week '+
+      w.week+(short?'<span class="pip"></span>':'')+'</button>';
+  }).join('');
+  const on=document.querySelector('.wk.on');
+  if(on) on.scrollIntoView({block:'nearest',inline:'center'});
+}
+async function goWeek(w){ week=w; await loadWeek(); }
+
+function renderLock(){
+  if(!games.length){ $('lockBar').innerHTML=''; return; }
+  const made=games.filter(g=>picks[g.id]).length;
+  const pct=Math.round(made/games.length*100);
+  let t,s;
+
+  if(locked()){
+    const fin=games.filter(g=>g.status==='final').length;
+    t='Picks are locked';
+    s = fin===games.length ? 'All '+games.length+' games final.'
+                           : fin+' of '+games.length+' games final.';
+  }else{
+    const ms=lockAt.getTime()-Date.now();
+    const d=Math.floor(ms/864e5), h=Math.floor(ms%864e5/36e5),
+          m=Math.floor(ms%36e5/6e4), sec=Math.floor(ms%6e4/1000);
+    t='Locks in '+(d? d+'d '+h+'h' : h? h+'h '+m+'m' : m+'m '+sec+'s');
+    s=lockAt.toLocaleString([],{weekday:'long',hour:'numeric',minute:'2-digit'})+' — first kickoff';
+  }
+  $('lockBar').innerHTML=
+    '<div class="lock"><div><div class="lock-t">'+t+'</div><div class="lock-s">'+s+'</div></div>'+
+    '<div class="ring" style="background:conic-gradient(var(--navy) 0 '+pct+'%,#E4E8EE '+pct+'%)">'+
+    '<i>'+made+'/'+games.length+'</i></div></div>';
+}
+
+function renderGames(){
+  if(!games.length) return renderNoGames();
+  const lk=locked();
+
+  $('games').innerHTML = games.map(g=>{
+    const mine=picks[g.id], final=g.status==='final', live=g.status==='in';
+
+    const when = new Date(g.kickoff)
+      .toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+
+    let flag, cls;
+    if(final){ flag='Final'; cls=''; }
+    else if(live){ flag='Live'; cls='in'; }
+    else if(lk){ flag='Locked'; cls=''; }
+    else if(mine){ flag='Picked'; cls='in'; }
+    else { flag='Needs you'; cls='todo'; }
+
+    const box = side => {
+      const id=g[side+'_id'], nm=g[side+'_name']||g[side+'_abbr']||'TBD';
+      const logo=g[side+'_logo'], rank=g[side+'_rank'], rec=g[side+'_record'];
+      const sc=g[side+'_score'];
+      const isMine=mine===id, won=final && g.winner_id===id;
+
+      let c='pk';
+      if(isMine) c+=' on';
+      if(final && !won) c+=' dim';
+
+      let badge='';
+      if(isMine && final) badge='<span class="fav '+(won?'hit':'miss')+'">'+(won?'&#10003;':'&#10007;')+'</span>';
+      else if(isMine)     badge='<span class="fav">&#10003;</span>';
+      else if(!lk)        badge='<span class="fav">&#10003;</span>';
+
+      const meta = [rank?'#'+rank:'', rec||''].filter(Boolean).join(' · ');
+      const bottom = (final||live) && sc!=null
+        ? '<span class="sc">'+sc+'</span>'
+        : (meta ? '<span class="sub">'+esc(meta)+'</span>' : '<span class="sub">&nbsp;</span>');
+
+      return '<button class="'+c+'"'+(lk?' disabled':'')+
+        ' onclick="setPick(\''+g.id+'\',\''+id+'\')">'+badge+
+        '<span class="side">'+(side==='away'?'Away':'Home')+'</span>'+
+        '<span class="logo">'+(logo
+          ? '<img src="'+esc(logo)+'" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'fallback\',textContent:\''+esc(g[side+'_abbr']||'')+'\'}))" />'
+          : '<span class="fallback">'+esc(g[side+'_abbr']||'')+'</span>')+'</span>'+
+        '<span class="nm">'+esc(nm)+'</span>'+bottom+'</button>';
+    };
+
+    // Once locked, show how the family split.
+    let tally='';
+    if(lk){
+      const forGame=allPicks.filter(p=>p.game_id===g.id);
+      if(forGame.length){
+        const by={};
+        forGame.forEach(p=>{ (by[p.team_id]=by[p.team_id]||[]).push(names[p.user_id]||'?'); });
+        tally='<div class="tally">'+Object.keys(by).map(tid=>{
+          const label = tid===g.home_id ? (g.home_abbr||'Home') : (g.away_abbr||'Away');
+          return '<b>'+esc(label)+'</b> '+by[tid].map(esc).join(', ');
+        }).join('<br>')+'</div>';
+      }
+    }
+
+    return '<div class="mu"><div class="mu-hd"><span class="mu-when">'+esc(when)+'</span>'+
+      '<span class="mu-flag '+cls+'">'+flag+'</span></div>'+
+      '<div class="pair">'+box('away')+'<span class="at">at</span>'+box('home')+'</div>'+
+      tally+'</div>';
+  }).join('');
+}
+
+function renderBoard(){
+  if(!standings.length){
+    $('boardBody').innerHTML='<div class="card"><div class="empty"><b>Nobody yet</b>'+
+      'The leaderboard fills in once games start going final.</div></div>';
+    return;
+  }
+  const weekly={};
+  const finals=games.filter(g=>g.status==='final');
+  allPicks.forEach(p=>{
+    const g=finals.find(x=>x.id===p.game_id);
+    if(g && g.winner_id===p.team_id) weekly[p.user_id]=(weekly[p.user_id]||0)+1;
+  });
+
+  const sorted=standings.slice().sort((a,b)=>
+    (b.correct-a.correct) || a.display_name.localeCompare(b.display_name));
+
+  const rows=sorted.map((s,i)=>{
+    const tie = i>0 && sorted[i-1].correct===s.correct;
+    const pct = s.decided ? Math.round(s.correct/s.decided*100)+'%' : '—';
+    return '<div class="br'+(s.user_id===user.id?' me':'')+'">'+
+      '<span class="bp">'+(tie?'':(i+1))+'</span>'+
+      '<span class="bn">'+esc(s.display_name)+'</span>'+
+      '<span class="bw">'+(weekly[s.user_id]||0)+' this wk</span>'+
+      '<span class="bs">'+s.correct+'<small>/'+s.decided+' · '+pct+'</small></span></div>';
+  }).join('');
+
+  $('boardBody').innerHTML='<div class="board"><div class="bh">Season standings</div>'+rows+'</div>'+
+    '<p style="font-size:12.5px;color:var(--muted);margin:14px 19px;line-height:1.6">'+
+    'Every game is worth 1 point. &ldquo;This wk&rdquo; counts only games already final in Week '+week+'.</p>';
+}
+
+function showView(v){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
+  document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
+  $('wks').style.display = v==='picks' ? '' : 'none';
+  if(v==='board') loadStandings();
+}
+
+/* ========================= profile ========================= */
+function openProfile(){
+  $('nameIn').value=(player&&player.display_name)||'';
+  $('notifySw').classList.toggle('on', !player || player.notify!==false);
+  $('sheet').classList.add('on');
+}
+function closeProfile(){ $('sheet').classList.remove('on'); }
+
+async function saveName(){
+  const n=($('nameIn').value||'').trim();
+  if(!n) return toast('Give yourself a name');
+  const { error }=await supa.from('pickem_players').update({display_name:n}).eq('user_id',user.id);
+  if(error) return toast('Could not save');
+  player.display_name=n; paintMe(); loadStandings(); toast('Saved'); closeProfile();
+}
+
+async function toggleNotify(){
+  const next=!$('notifySw').classList.contains('on');
+  $('notifySw').classList.toggle('on',next);
+  const { error }=await supa.from('pickem_players').update({notify:next}).eq('user_id',user.id);
+  if(error){ $('notifySw').classList.toggle('on',!next); return toast('Could not save'); }
+  player.notify=next;
+  toast(next?'Reminders on':'Reminders off');
+}
+
+async function signOut(){ await supa.auth.signOut(); location.reload(); }
+
+/* ========================= realtime ========================= */
+function realtime(){
+  supa.channel('pickem')
+    .on('postgres_changes',{event:'*',schema:'public',table:'pickem_games'},()=>{
+      loadWeek(); loadStandings();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'pickem_picks'},()=>{
+      if(locked()) loadWeek();
+    })
+    .subscribe();
+}
+</script>
+</body>
+</html>
