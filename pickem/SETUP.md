@@ -54,19 +54,52 @@ In Supabase → **Authentication**:
    Sign-in links won't work without that second one.
 
 > **Do this part or sign-in will break on day one.** Supabase's built-in email sender is
-> rate limited to a handful of messages per hour — fine for you testing, useless when
-> eight relatives all sign up during the same commercial break. Go to
-> **Project Settings → Authentication → SMTP Settings**, turn on **Enable Custom SMTP**,
-> and enter the same Gmail credentials you set up in step 4:
+> heavily rate limited and documented as development-only — fine while you test, useless
+> when eight relatives sign up during the same commercial break. Go to
+> **Project Settings → Authentication → SMTP Settings**, enable **Custom SMTP**, and enter
+> the Gmail credentials from step 4:
 >
 > | Field | Value |
 > |---|---|
 > | Host | `smtp.gmail.com` |
-> | Port | `465` |
-> | Username | your Gmail address |
+> | Port | `465` (or `587`) |
+> | Username | your full Gmail address |
 > | Password | the app password from step 4 |
-> | Sender email | your Gmail address |
+> | Sender email | **the same Gmail address** — Gmail refuses to send as anyone else |
 > | Sender name | `Big 12 Pick'em` |
+
+### Known risk with Gmail, and how to test for it
+
+Supabase has open issues where custom SMTP sometimes uses **the signing-up user's email**
+as the From address instead of your configured sender
+([supabase/auth#1980](https://github.com/supabase/auth/issues/1980),
+[#1957](https://github.com/supabase/auth/issues/1957)). Gmail rejects that outright:
+
+```
+gomail: could not send email 1: 554 Message rejected: Email address is not verified.
+```
+
+**Test with an address that is not your own.** If you request a magic link for your own
+Gmail, the buggy From happens to match your authenticated account and the mail sends —
+so the bug stays hidden until a relative tries to sign in. Use a family member's address,
+or any non-Gmail address you control, as the very first test.
+
+Where to look when it fails: **Supabase → Logs → Auth Logs**, filtered around the moment
+you requested the link. A 554 there is this bug, not a typo in your password.
+
+If it does bite, three ways out, cheapest first:
+
+1. **Switch to email + password** and turn *Confirm email* off. Sign-in stops depending on
+   email entirely. This is what GolfOS already does on this site.
+2. **Register a domain** (~$10/year) and use Resend or similar with DKIM. Most reliable
+   magic links, best deliverability, one DNS step.
+3. **Keep magic links but onboard people yourself** — invite users from the Supabase
+   dashboard one at a time, which sidesteps the self-signup path.
+
+Two smaller things worth knowing: free Gmail caps at roughly 500 recipients a day, which is
+far more than this league will use; and mail sent *from* a `@gmail.com` address to other
+Gmail accounts has weaker deliverability since Google and Yahoo tightened sender rules, so
+tell everyone to check spam on the first link and mark it "not spam."
 
 ## 4. Create a Gmail app password
 
