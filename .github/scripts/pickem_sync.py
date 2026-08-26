@@ -21,15 +21,59 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 ESPN = ("https://site.api.espn.com/apis/site/v2/sports/football/"
         "college-football/scoreboard")
+LOCAL_TZ = ZoneInfo("America/Denver")
 BIG12_GROUP = 4          # ESPN's conference id for the Big 12
 REGULAR_SEASON = 2       # seasontype: 1=pre, 2=regular, 3=post
 
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
+
+
+def window_opens(first_kickoff):
+    """Sunday 06:00 Mountain preceding a week's first kickoff.
+
+    Lines freeze at this moment, which is also when picking opens. Freezing at
+    kickoff instead would quietly reward waiting until Thursday, when the line
+    is sharpest -- the opposite of the point.
+
+    timedelta arithmetic on an aware datetime is wall-clock, not absolute, so
+    stepping back whole days stays correct across the November clock change.
+    """
+    local = first_kickoff.astimezone(LOCAL_TZ)
+    midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
+    # weekday(): Monday is 0, Sunday is 6. Step back to the most recent Sunday.
+    sunday = midnight - timedelta(days=(midnight.weekday() + 1) % 7)
+    opens = sunday.replace(hour=6)
+    # A game starting before 6am Sunday would otherwise open its own window
+    # after kickoff, leaving nobody able to pick it at all.
+    return opens - timedelta(days=7) if opens >= local else opens
+
+
+def parse_ts(value):
+    """ESPN timestamps look like 2026-09-04T00:00Z."""
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    dt = datetime.fromisoformat(value)
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def existing_spreads(season):
+    """Which games already have a line recorded, so we never move one."""
+    url = (f"{SUPABASE_URL}/rest/v1/pickem_games"
+           f"?select=id,home_spread&season=eq.{season}&home_spread=not.is.null")
+    req = urllib.request.Request(url, headers={
+        "apikey": SERVICE_KEY, "Authorization": f"Bearer {SERVICE_KEY}"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return {r["id"] for r in json.loads(resp.read().decode("utf-8"))}
+    except Exception as exc:                                   # noqa: BLE001
+        print(f"  could not read existing lines ({exc}); treating all as unset")
+        return set()
 
 
 def football_season(now=None):
@@ -247,12 +291,25 @@ def main():
         print("!! No games parsed. ESPN may have changed its response shape.")
         sys.exit(1)
 
-    # The line you were shown when you picked is the line you are scored on, so
-    # once a game starts we stop touching its spread. Dropping those keys leaves
-    # whatever is already stored untouched.
+    # Lines are frozen when the pick window opens: Sunday 00:00 Mountain. Before
+    # that the market can move freely. After it, a game's number never changes --
+    # except that a game with no line yet can still receive its first one, which
+    # only ever turns "unknown" into a value rather than moving an existing one.
+    now_utc = datetime.now(timezone.utc)
+    first_kick = {}
+    for r in all_rows:
+        k = parse_ts(r["kickoff"])
+        wk = r["week"]
+        if wk not in first_kick or k < first_kick[wk]:
+            first_kick[wk] = k
+    opens = {wk: window_opens(k) for wk, k in first_kick.items()}
+    already = existing_spreads(season)
+
     live, frozen = [], []
     for r in all_rows:
-        if r["status"] == "scheduled":
+        open_at = opens.get(r["week"])
+        may_write = (open_at is not None and now_utc < open_at) or r["id"] not in already
+        if may_write:
             live.append(r)
         else:
             r = dict(r)
@@ -264,14 +321,19 @@ def main():
         for i in range(0, len(batch), 100):
             upsert(batch[i:i + 100])
 
-    with_line = sum(1 for r in live if r.get("home_spread") is not None)
     total_finals = sum(1 for r in all_rows if r["status"] == "final")
+    with_line = len(already) + sum(
+        1 for r in live if r.get("home_spread") is not None and r["id"] not in already)
     print(f"\nUpserted {len(all_rows)} games ({total_finals} final).")
-    print(f"Odds: {with_line} of {len(live)} upcoming games have a line "
-          f"({len(frozen)} already started, lines frozen).")
-    if live and with_line == 0:
-        print("!! No lines found on any upcoming game. Every pick will be worth "
-              "1 point until this resolves -- check ESPN's odds field.")
+    print(f"Odds: {with_line} of {len(all_rows)} games have a line; "
+          f"{len(frozen)} frozen, {len(live)} still open to change.")
+    for wk in sorted(opens):
+        state = "open" if now_utc >= opens[wk] else "not yet open"
+        print(f"  week {wk:>2}: picks {state}, "
+              f"opened {opens[wk].astimezone(LOCAL_TZ):%a %b %d %H:%M} MT")
+    if with_line == 0:
+        print("!! No lines on any game. Every pick is worth 1 point until this "
+              "resolves -- check ESPN's odds field.")
 
 
 if __name__ == "__main__":

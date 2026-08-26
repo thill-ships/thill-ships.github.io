@@ -104,6 +104,32 @@ language sql immutable as $$
   end;
 $$;
 
+-- The pick window opens Sunday 06:00 Mountain and runs to the first kickoff.
+-- Lines are frozen at this same moment, so the number you see when picks open is
+-- the number everyone is scored on. date_trunc('week') lands on Monday, hence the
+-- shift either side of it to land on the preceding Sunday.
+-- All the date arithmetic happens on a naive local timestamp and is converted back
+-- afterwards, which keeps it correct across the November clock change.
+create or replace function pickem_open_at(p_season int, p_week int)
+returns timestamptz
+language sql stable security definer set search_path = public as $$
+  select case
+           when k is null then null
+           -- A game starting before 6am Sunday would otherwise open its own
+           -- window after kickoff, leaving nobody able to pick it at all.
+           when o >= k  then o - interval '7 days'
+           else o
+         end
+  from (
+    select k,
+           (   date_trunc('week', (k at time zone 'America/Denver') + interval '1 day')
+             - interval '1 day' + interval '6 hours'
+           ) at time zone 'America/Denver' as o
+    from (select min(kickoff) as k from pickem_games
+          where season = p_season and week = p_week) m
+  ) t;
+$$;
+
 -- Has this person locked their picks in for the week?
 create or replace function pickem_is_locked_in(p_user uuid, p_season int, p_week int)
 returns boolean
@@ -115,11 +141,14 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- Fails closed: an unknown game counts as locked.
+-- True whenever a pick may NOT be made right now: before the window opens,
+-- after the deadline, or because this person locked themselves in early.
 create or replace function pickem_game_locked(p_game_id text)
 returns boolean
 language sql stable security definer set search_path = public as $$
   select coalesce(
-    (select now() >= pickem_lock_at(g.season, g.week)
+    (select now() <  pickem_open_at(g.season, g.week)
+          or now() >= pickem_lock_at(g.season, g.week)
           or pickem_is_locked_in(auth.uid(), g.season, g.week)
      from pickem_games g where g.id = p_game_id),
     true
@@ -227,11 +256,15 @@ create policy locks_insert on pickem_locks
 -- Views
 -- ---------------------------------------------------------------------------
 
--- One row per week, with its lock time.
-create or replace view pickem_weeks with (security_invoker = true) as
+-- One row per week, with the window it can be picked in.
+-- Dropped first because the column list has changed since the first release,
+-- and CREATE OR REPLACE VIEW cannot add a column anywhere but the end.
+drop view if exists pickem_weeks cascade;
+create view pickem_weeks with (security_invoker = true) as
 select season,
        week,
        min(kickoff)                             as lock_at,
+       pickem_open_at(season, week)             as open_at,
        max(kickoff)                             as last_kickoff,
        count(*)::int                            as games,
        count(*) filter (where status = 'final')::int as finals
@@ -239,7 +272,8 @@ from pickem_games
 group by season, week;
 
 -- Season leaderboard, now scored on points rather than raw correct picks.
-create or replace view pickem_standings with (security_invoker = true) as
+drop view if exists pickem_standings cascade;
+create view pickem_standings with (security_invoker = true) as
 select pl.user_id,
        pl.display_name,
        coalesce(sum(

@@ -227,11 +227,13 @@
               correctly and it's worth 2 (+3 to +9.5), 3 (+10 to +17.5), or 4 (+18 or more).
               Each card shows what it pays before you pick. A wrong pick is always 0 &mdash;
               you can never lose points for swinging big.</li>
-          <li><b>The line is frozen at kickoff.</b> What a game pays can move during the week,
-              but once it starts the number is locked, so everyone is scored on the same line.
-              Games without a posted line are worth 1.</li>
-          <li><b>Everything locks at the first kickoff of the week.</b> One deadline for the
-              whole slate, usually Thursday night. Miss it and those games are zeroes.</li>
+          <li><b>The lines are set Sunday at 6am and never move.</b> That's when picks
+              open. Whatever a game pays when you first see it is what it pays all week, so
+              there's no advantage to waiting for a better number. Games without a posted
+              line are worth 1.</li>
+          <li><b>You have from Sunday 6am to the first kickoff.</b> Picks open at the same
+              time every week and close when the week's earliest game starts &mdash; usually
+              Thursday evening. Miss it and those games are zeroes.</li>
           <li><b>Lock in early if you want to see everyone else.</b> Once all your games are
               picked you can lock in before the deadline. Your picks go final immediately, and
               in exchange you see the picks of everyone else who has locked in &mdash; and only
@@ -280,22 +282,23 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-08-26.1';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-08-26.3';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
 let locks=[], myLocked=false;
-let season=null, week=null, lockAt=null, ticker=null;
+let season=null, week=null, lockAt=null, openAt=null, ticker=null;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const ready = () => CFG.url.startsWith('http') && CFG.key.length > 20;
-// Three distinct questions that used to be conflated:
-const weekOver = () => !lockAt || Date.now() >= lockAt.getTime();  // deadline passed
-const canPick  = () => !weekOver() && !myLocked;                   // may still change picks
-const revealed = () => weekOver() || myLocked;                     // may see others' picks
-const locked   = () => !canPick();                                 // kept for older call sites
+// Four distinct questions that used to be conflated:
+const windowOpen = () => !openAt || Date.now() >= openAt.getTime();   // Sunday midnight passed
+const weekOver   = () => !lockAt || Date.now() >= lockAt.getTime();   // first kickoff passed
+const canPick    = () => windowOpen() && !weekOver() && !myLocked;
+const revealed   = () => weekOver() || myLocked;                      // may see others' picks
+const locked     = () => !canPick();                                  // older call sites
 
 function pointsFor(g, teamId){
   if(g.home_spread == null) return 1;
@@ -444,6 +447,7 @@ async function loadAll(){
 async function loadWeek(scrollWeeks){
   const meta=weeks.find(w=>w.week===week);
   lockAt = meta && meta.lock_at ? new Date(meta.lock_at) : null;
+  openAt = meta && meta.open_at ? new Date(meta.open_at) : null;
 
   const { data:g } = await supa.from('pickem_games').select('*')
     .eq('season',season).eq('week',week).order('kickoff',{ascending:true});
@@ -476,8 +480,9 @@ async function loadStandings(){
 
 /* ========================= picking ========================= */
 async function setPick(gameId, teamId){
-  if(myLocked)   return toast("You're locked in for this week");
-  if(weekOver()) return toast('This week is locked');
+  if(!windowOpen()) return toast('Picks open Sunday at 6am');
+  if(myLocked)      return toast("You're locked in for this week");
+  if(weekOver())    return toast('This week is locked');
   const prev=picks[gameId];
   picks[gameId]=teamId;
   paintPick(gameId); renderLock(); updatePip(); renderLockIn();
@@ -523,7 +528,12 @@ function renderLock(){
   const pct=Math.round(made/games.length*100);
   let t,s;
 
-  if(weekOver()){
+  if(!windowOpen()){
+    const ms=openAt.getTime()-Date.now();
+    const d=Math.floor(ms/864e5), h=Math.floor(ms%864e5/36e5), m=Math.floor(ms%36e5/6e4);
+    t='Picks open in '+(d? d+'d '+h+'h' : h+'h '+m+'m');
+    s='Sunday at 6am, when the lines are set. They stay put all week.';
+  }else if(weekOver()){
     const fin=games.filter(g=>g.status==='final').length;
     t='Picks are locked';
     s = fin===games.length ? 'All '+games.length+' games final.'
@@ -654,7 +664,7 @@ function paintPick(gameId){
 
 function renderLockIn(){
   const el=$('lockIn'); if(!el) return;
-  if(!games.length || weekOver()){ el.innerHTML=''; return; }
+  if(!games.length || weekOver() || !windowOpen()){ el.innerHTML=''; return; }
 
   const made   = games.filter(g=>picks[g.id]).length;
   const others = locks.filter(l=>l.user_id!==user.id).length;

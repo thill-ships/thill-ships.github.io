@@ -127,14 +127,33 @@ Every pick is worth at least 1 point. Correctly calling an underdog is worth mor
 | a +10 to +17.5 underdog | 3 |
 | a +18 or bigger underdog | 4 |
 
-A wrong pick is always 0, so swinging for an upset never costs you anything. Spreads come
-from ESPN alongside the schedule. **A game's line stops updating once it kicks off**, so
-everyone is scored on the same number, and a line moving during the week can't change what
-your pick was worth after the fact. Games with no posted line — FCS opponents, or lines not
-out yet — are worth 1 either way.
+A wrong pick is always 0, so swinging for an upset never costs you anything. Games with no
+posted line — FCS opponents, or lines not out yet — are worth 1 either way.
 
-The sync job prints odds coverage on every run (`Odds: 14 of 16 upcoming games have a line`),
-so it's obvious in the Actions log if ESPN stops supplying them.
+## The pick window
+
+**Picks open Sunday at 6:00am Mountain and close when the week's first game kicks off**,
+which is normally Thursday evening. Same opening time every week.
+
+**The lines freeze the moment the window opens.** Spreads come from ESPN alongside the
+schedule and move freely up until Sunday 6am; after that a game's number never changes. That
+is deliberate: if the line kept moving, the sharpest number would always be Thursday's, and
+everyone would be pushed into picking at the last minute. Freezing at the open means whatever
+a game pays when you first see it is what it pays all week.
+
+One exception, and it only ever adds information: a game with **no** line at Sunday 6am can
+still receive its first one later. That turns "unknown" into a value; it never moves a value
+that already exists.
+
+The sync job prints the state of every week on each run:
+
+```
+Odds: 14 of 16 games have a line; 9 frozen, 7 still open to change.
+  week  3: picks open, opened Sun Aug 30 06:00 MT
+  week  4: picks not yet open, opened Sun Sep 06 06:00 MT
+```
+
+so it's obvious in the Actions log if ESPN stops supplying odds.
 
 ## Locking in early
 
@@ -150,9 +169,9 @@ automatically and all picks become public at that point.
 
 Not by the honor system — by the database.
 
-- **Picks lock at the week's first kickoff.** A Row Level Security policy rejects any
-  insert or update after `min(kickoff)` for that week. Even someone poking at the API
-  directly can't backdate a pick.
+- **Picks only work inside the window.** A Row Level Security policy rejects any insert or
+  update before Sunday 6am or after `min(kickoff)` for that week. Someone poking at the API
+  directly can't pick early against an unset line, or backdate a pick afterwards.
 - **Nobody sees anyone else's picks until the lock.** The read policy returns only your
   own rows until the deadline passes.
 - **Only the sync job writes games.** It uses the service_role key, which bypasses RLS.
