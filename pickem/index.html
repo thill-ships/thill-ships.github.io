@@ -233,6 +233,9 @@
       </div>
       <button class="sw" id="notifySw" onclick="toggleNotify()" aria-label="Reminder emails"></button>
     </div>
+    <div style="font-size:11.5px;color:var(--faint);text-align:center;margin:14px 0 12px">
+      Version <span id="buildStamp"></span>
+    </div>
     <button class="btn ghost" style="margin-top:4px" onclick="closeProfile()">Done</button>
     <button class="btn danger" style="margin-top:8px" onclick="signOut()">Sign out</button>
   </div>
@@ -249,6 +252,8 @@ const CFG = {
   url: 'https://yehpygarkxdopdvugifk.supabase.co',
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
+
+const BUILD = '2026-08-25.4';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
@@ -373,6 +378,7 @@ async function loadWeek(scrollWeeks){
   picks={};
   allPicks.filter(p=>p.user_id===user.id).forEach(p=>{ picks[p.game_id]=p.team_id; });
 
+  $('lockBar')._built=false;   // week changed, rebuild the bar from scratch
   renderWeeks(scrollWeeks); renderLock(); renderGames();
   clearInterval(ticker); ticker=setInterval(renderLock,1000);
 }
@@ -389,14 +395,14 @@ async function setPick(gameId, teamId){
   if(locked()) return toast('This week is locked');
   const prev=picks[gameId];
   picks[gameId]=teamId;
-  paintPick(gameId); renderLock(); renderWeeks();
+  paintPick(gameId); renderLock(); updatePip();
 
   const { error } = await supa.from('pickem_picks').upsert(
     { user_id:user.id, game_id:gameId, team_id:teamId, updated_at:new Date().toISOString() },
     { onConflict:'user_id,game_id' });
   if(error){
     if(prev) picks[gameId]=prev; else delete picks[gameId];
-    paintPick(gameId); renderLock(); renderWeeks();
+    paintPick(gameId); renderLock(); updatePip();
     toast(/row-level|policy/i.test(error.message) ? 'Too late — the week just locked'
                                                   : 'Could not save that pick');
   }
@@ -425,7 +431,9 @@ function renderWeeks(scrollToActive){
 async function goWeek(w){ week=w; await loadWeek(true); }
 
 function renderLock(){
-  if(!games.length){ $('lockBar').innerHTML=''; return; }
+  const bar=$('lockBar');
+  if(!games.length){ bar.innerHTML=''; bar._built=false; return; }
+
   const made=games.filter(g=>picks[g.id]).length;
   const pct=Math.round(made/games.length*100);
   let t,s;
@@ -442,10 +450,30 @@ function renderLock(){
     t='Locks in '+(d? d+'d '+h+'h' : h? h+'h '+m+'m' : m+'m '+sec+'s');
     s=lockAt.toLocaleString([],{weekday:'long',hour:'numeric',minute:'2-digit'})+' — first kickoff';
   }
-  $('lockBar').innerHTML=
-    '<div class="lock"><div><div class="lock-t">'+t+'</div><div class="lock-s">'+s+'</div></div>'+
-    '<div class="ring" style="background:conic-gradient(var(--navy) 0 '+pct+'%,#E4E8EE '+pct+'%)">'+
-    '<i>'+made+'/'+games.length+'</i></div></div>';
+
+  // Build once, then only touch text. This ticks every second, and replacing
+  // innerHTML that often is needless churn right above the user's scroll position.
+  if(!bar._built){
+    bar.innerHTML='<div class="lock"><div><div class="lock-t"></div><div class="lock-s"></div></div>'+
+      '<div class="ring"><i></i></div></div>';
+    bar._built=true;
+  }
+  bar.querySelector('.lock-t').textContent=t;
+  bar.querySelector('.lock-s').textContent=s;
+  bar.querySelector('.ring i').textContent=made+'/'+games.length;
+  bar.querySelector('.ring').style.background=
+    'conic-gradient(var(--navy) 0 '+pct+'%,#E4E8EE '+pct+'%)';
+}
+
+// Toggling one dot does not require rebuilding the week strip, which also
+// resets its horizontal scroll.
+function updatePip(){
+  const chip=document.querySelector('.wk.on');
+  if(!chip) return;
+  const short = !locked() && games.filter(g=>picks[g.id]).length < games.length;
+  const pip=chip.querySelector('.pip');
+  if(short && !pip){ chip.insertAdjacentHTML('beforeend','<span class="pip"></span>'); }
+  else if(!short && pip){ pip.remove(); }
 }
 
 function renderGames(){
@@ -573,6 +601,7 @@ function showView(v){
 
 /* ========================= profile ========================= */
 function openProfile(){
+  $('buildStamp').textContent = BUILD;
   $('nameIn').value=(player&&player.display_name)||'';
   $('notifySw').classList.toggle('on', !player || player.notify!==false);
   $('sheet').classList.add('on');
