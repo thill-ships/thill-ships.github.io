@@ -5,6 +5,11 @@ name: Pick'em — sync games
 on:
   schedule:
     - cron: '0 */2 * * *'      # every 2 hours (UTC)
+    # A line is frozen at whatever the last sync before Sunday 6am Mountain saw,
+    # so take one deliberately just before that. 6am Mountain is 12:00 UTC in
+    # summer and 13:00 UTC after the clocks change, and these two land ~30
+    # minutes ahead of each. The later one is a harmless no-op in summer.
+    - cron: '30 11,12 * * 0'
   workflow_dispatch:            # or run it by hand from the Actions tab
     inputs:
       season:

@@ -291,7 +291,7 @@ def main():
         print("!! No games parsed. ESPN may have changed its response shape.")
         sys.exit(1)
 
-    # Lines are frozen when the pick window opens: Sunday 00:00 Mountain. Before
+    # Lines are frozen when the pick window opens: Sunday 06:00 Mountain. Before
     # that the market can move freely. After it, a game's number never changes --
     # except that a game with no line yet can still receive its first one, which
     # only ever turns "unknown" into a value rather than moving an existing one.
