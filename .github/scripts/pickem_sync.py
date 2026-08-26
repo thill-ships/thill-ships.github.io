@@ -17,6 +17,7 @@ Env:
 
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -50,6 +51,41 @@ def get_json(url, tries=3):
                 raise
             print(f"  retry {attempt}/{tries} after {exc.__class__.__name__}: {exc}")
     return None
+
+
+SPREAD_RE = re.compile(r"^([A-Za-z&.'\- ]+?)\s+([+-]?\d+(?:\.\d+)?)$")
+
+
+def parse_spread(comp, home_abbr, away_abbr):
+    """Return (home_spread, detail). Negative home_spread means home is favored.
+
+    ESPN's `details` string ("TTU -3.5") names the team it refers to, so it is
+    self-describing and preferred. The bare `spread` number is used only as a
+    fallback, where ESPN documents it as home-relative.
+    """
+    odds = comp.get("odds") or []
+    if not odds:
+        return None, ""
+    o = odds[0]
+    detail = (o.get("details") or "").strip()
+
+    if detail:
+        flat = detail.upper().replace(" ", "")
+        if flat in ("EVEN", "PK", "PICK", "PICKEM", "PICK'EM"):
+            return 0.0, detail
+        m = SPREAD_RE.match(detail)
+        if m:
+            abbr, num = m.group(1).strip().upper(), float(m.group(2))
+            if abbr == (home_abbr or "").upper():
+                return num, detail
+            if abbr == (away_abbr or "").upper():
+                return -num, detail
+
+    sp = o.get("spread")
+    if isinstance(sp, (int, float)):
+        return float(sp), detail
+
+    return None, detail
 
 
 def side(competitors, home_away):
@@ -120,6 +156,7 @@ def parse_event(event, fallback_week, season):
 
     h, a = team_fields(home), team_fields(away)
     week = as_int((event.get("week") or {}).get("number")) or fallback_week
+    spread, odds_detail = parse_spread(comp, h["abbr"], a["abbr"])
 
     return {
         "id": str(event.get("id")),
@@ -136,12 +173,18 @@ def parse_event(event, fallback_week, season):
         "away_logo": a["logo"], "away_rank": a["rank"], "away_score": a["score"],
         "away_record": a["record"],
         "winner_id": winner_id,
+        "home_spread": spread,
+        "odds_detail": odds_detail,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
 def upsert(rows):
-    """PostgREST bulk upsert on the primary key."""
+    """PostgREST bulk upsert on the primary key.
+
+    Every row in a batch must carry the same keys, which is why started games
+    are sent separately -- see freeze_started_lines().
+    """
     if not rows:
         return
     body = json.dumps(rows).encode("utf-8")
@@ -204,11 +247,31 @@ def main():
         print("!! No games parsed. ESPN may have changed its response shape.")
         sys.exit(1)
 
-    for i in range(0, len(all_rows), 100):
-        upsert(all_rows[i:i + 100])
+    # The line you were shown when you picked is the line you are scored on, so
+    # once a game starts we stop touching its spread. Dropping those keys leaves
+    # whatever is already stored untouched.
+    live, frozen = [], []
+    for r in all_rows:
+        if r["status"] == "scheduled":
+            live.append(r)
+        else:
+            r = dict(r)
+            r.pop("home_spread", None)
+            r.pop("odds_detail", None)
+            frozen.append(r)
 
+    for batch in (live, frozen):
+        for i in range(0, len(batch), 100):
+            upsert(batch[i:i + 100])
+
+    with_line = sum(1 for r in live if r.get("home_spread") is not None)
     total_finals = sum(1 for r in all_rows if r["status"] == "final")
-    print(f"\nUpserted {len(all_rows)} games ({total_finals} final). Done.")
+    print(f"\nUpserted {len(all_rows)} games ({total_finals} final).")
+    print(f"Odds: {with_line} of {len(live)} upcoming games have a line "
+          f"({len(frozen)} already started, lines frozen).")
+    if live and with_line == 0:
+        print("!! No lines found on any upcoming game. Every pick will be worth "
+              "1 point until this resolves -- check ESPN's odds field.")
 
 
 if __name__ == "__main__":
