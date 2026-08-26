@@ -22,6 +22,12 @@ Three pieces:
    [`schema.sql`](./schema.sql), and hit **Run**. It creates the tables, the security
    rules, and the leaderboard view.
 
+   Supabase will warn that the query contains destructive operations. That warning is a
+   keyword match on `drop policy` and `alter table`; the file drops policies only so it can
+   recreate them, and never drops a table, a column, or any data. **Re-run this whole file
+   after pulling updates** — it is written to be safe to run repeatedly, and that is how new
+   columns and rules get applied.
+
 ## 2. Point the app at it
 
 In Supabase, go to **Project Settings → API** and copy two values:
@@ -42,68 +48,41 @@ The publishable key is *meant* to be public — it's in the page source of every
 app. Row Level Security in `schema.sql` is what actually protects the data. The
 **service_role** key is the dangerous one; that goes in GitHub Secrets and nowhere else.
 
-## 3. Turn on magic-link sign-in
+## 3. Configure sign-in (email + password)
 
 In Supabase → **Authentication**:
 
-1. **Providers → Email**: make sure Email is enabled, and turn **Confirm email** ON.
-2. **URL Configuration**:
-   - Site URL: `https://thill-ships.github.io/pickem/`
-   - Redirect URLs: add `https://thill-ships.github.io/pickem/`
+1. **Providers → Email**: make sure Email is enabled, and turn **Confirm email OFF**.
 
-   Sign-in links won't work without that second one.
+   That last part is the point. With confirmation off, creating an account is instant and
+   **no email is sent at all**, so sign-in cannot be broken by spam filters, rate limits, or
+   a mail provider having a bad day. It's the right trade for a family league: the worst case
+   is a stranger who guesses the URL making a useless account, and you can see and delete any
+   account from the Supabase dashboard.
 
-> **Do this part or sign-in will break on day one.** Supabase's built-in email sender is
-> heavily rate limited and documented as development-only — fine while you test, useless
-> when eight relatives sign up during the same commercial break. Go to
-> **Project Settings → Authentication → SMTP Settings**, enable **Custom SMTP**, and enter
-> the Gmail credentials from step 4:
->
-> | Field | Value |
-> |---|---|
-> | Host | `smtp.gmail.com` |
-> | Port | `465` (or `587`) |
-> | Username | your full Gmail address |
-> | Password | the app password from step 4 |
-> | Sender email | **the same Gmail address** — Gmail refuses to send as anyone else |
-> | Sender name | `Big 12 Pick'em` |
+2. **URL Configuration → Site URL**: `https://thill-ships.github.io/pickem/`
 
-### Known risk with Gmail, and how to test for it
+3. Nothing else. No SMTP is needed for sign-in.
 
-Supabase has open issues where custom SMTP sometimes uses **the signing-up user's email**
-as the From address instead of your configured sender
-([supabase/auth#1980](https://github.com/supabase/auth/issues/1980),
-[#1957](https://github.com/supabase/auth/issues/1957)). Gmail rejects that outright:
+### Delete the old magic-link accounts
 
-```
-gomail: could not send email 1: 554 Message rejected: Email address is not verified.
-```
+Accounts created during magic-link testing have no password, so they can't sign in any more.
+Go to **Authentication → Users**, delete them, and sign up again from the app. Deleting a
+user also removes their picks, which is what you want for throwaway test accounts.
 
-**Test with an address that is not your own.** If you request a magic link for your own
-Gmail, the buggy From happens to match your authenticated account and the mail sends —
-so the bug stays hidden until a relative tries to sign in. Use a family member's address,
-or any non-Gmail address you control, as the very first test.
+### About password resets
 
-Where to look when it fails: **Supabase → Logs → Auth Logs**, filtered around the moment
-you requested the link. A 554 there is this bug, not a typo in your password.
-
-If it does bite, three ways out, cheapest first:
-
-1. **Switch to email + password** and turn *Confirm email* off. Sign-in stops depending on
-   email entirely. This is what GolfOS already does on this site.
-2. **Register a domain** (~$10/year) and use Resend or similar with DKIM. Most reliable
-   magic links, best deliverability, one DNS step.
-3. **Keep magic links but onboard people yourself** — invite users from the Supabase
-   dashboard one at a time, which sidesteps the self-signup path.
-
-Two smaller things worth knowing: free Gmail caps at roughly 500 recipients a day, which is
-far more than this league will use; and mail sent *from* a `@gmail.com` address to other
-Gmail accounts has weaker deliverability since Google and Yahoo tightened sender rules, so
-tell everyone to check spam on the first link and mark it "not spam."
+With confirmation email off, there is no self-service password reset. For a family league
+that's fine — you're the admin. If someone forgets their password, open
+**Authentication → Users**, find them, and use the row menu to send a recovery link or set a
+new password directly. If that ever becomes annoying, configuring custom SMTP (step 4's Gmail
+credentials work) turns on self-service resets.
 
 ## 4. Create a Gmail app password
 
-This lets the reminder job send mail as you. It is **not** your normal Google password.
+This is **only for the weekly reminder emails** — sign-in no longer needs email at all. The
+reminder job talks to Gmail directly through Python, which is not affected by any of the
+Supabase SMTP issues. It is **not** your normal Google password.
 
 1. Your Google account needs 2-Step Verification turned on.
 2. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
@@ -131,22 +110,76 @@ own, and final scores flow in so the leaderboard scores itself.
 
 ## 7. Invite everyone
 
-Send them `https://thill-ships.github.io/pickem/`. They enter their email, tap the link,
-set a display name. That browser stays signed in all season.
+Send them `https://thill-ships.github.io/pickem/`. They tap **Create an account**, enter an email
+and any password, and set a display name. No confirmation email, no waiting. That browser
+stays signed in all season.
 
 ---
+
+## Scoring
+
+Every pick is worth at least 1 point. Correctly calling an underdog is worth more:
+
+| The team you picked is | Points if they win |
+|---|---|
+| favored, or within 3 points | 1 |
+| a +3 to +9.5 underdog | 2 |
+| a +10 to +17.5 underdog | 3 |
+| a +18 or bigger underdog | 4 |
+
+A wrong pick is always 0, so swinging for an upset never costs you anything. Games with no
+posted line — FCS opponents, or lines not out yet — are worth 1 either way.
+
+## The pick window
+
+**Picks open Sunday at 6:00am Mountain and close when the week's first game kicks off**,
+which is normally Thursday evening. Same opening time every week.
+
+**The lines freeze the moment the window opens.** Spreads come from ESPN alongside the
+schedule and move freely up until Sunday 6am; after that a game's number never changes. That
+is deliberate: if the line kept moving, the sharpest number would always be Thursday's, and
+everyone would be pushed into picking at the last minute. Freezing at the open means whatever
+a game pays when you first see it is what it pays all week.
+
+One exception, and it only ever adds information: a game with **no** line at Sunday 6am can
+still receive its first one later. That turns "unknown" into a value; it never moves a value
+that already exists.
+
+The sync job prints the state of every week on each run:
+
+```
+Odds: 14 of 16 games have a line; 9 frozen, 7 still open to change.
+  week  3: picks open, opened Sun Aug 30 06:00 MT
+  week  4: picks not yet open, opened Sun Sep 06 06:00 MT
+```
+
+so it's obvious in the Actions log if ESPN stops supplying odds.
+
+## Locking in early
+
+Once you've picked every game in a week you can lock in before the deadline. Your picks go
+final immediately, and in exchange you can see the picks of **everyone else who has also
+locked in** — and only them. Someone still deciding stays hidden, so nobody's tentative picks
+leak while they could still change them.
+
+If you never lock in, nothing happens to you: the weekly deadline locks everyone
+automatically and all picks become public at that point.
 
 ## How the rules are enforced
 
 Not by the honor system — by the database.
 
-- **Picks lock at the week's first kickoff.** A Row Level Security policy rejects any
-  insert or update after `min(kickoff)` for that week. Even someone poking at the API
-  directly can't backdate a pick.
+- **Picks only work inside the window.** A Row Level Security policy rejects any insert or
+  update before Sunday 6am or after `min(kickoff)` for that week. Someone poking at the API
+  directly can't pick early against an unset line, or backdate a pick afterwards.
 - **Nobody sees anyone else's picks until the lock.** The read policy returns only your
   own rows until the deadline passes.
 - **Only the sync job writes games.** It uses the service_role key, which bypasses RLS.
-  Nothing in the browser can touch scores.
+  Nothing in the browser can touch scores, spreads, or point values.
+- **Locking in is irreversible.** There is no update or delete policy on the locks table, so
+  nobody can quietly un-lock after seeing what everyone else picked.
+- **You can't lock in with blank picks.** The insert policy counts your picks against that
+  week's games and refuses if any are missing.
 
 ## Reminders
 
@@ -173,7 +206,8 @@ Anyone can turn reminders off for themselves in the app's profile sheet.
 | Symptom | Look at |
 |---|---|
 | "No games yet" in the app | Actions → did the sync run? Check its log. |
-| Sign-in link never arrives | Custom SMTP in step 3. Check spam. |
+| "Invalid login credentials" | No account yet — tap Create an account. Or a leftover magic-link account with no password; delete it in Authentication → Users. |
+| Every pick is worth 1 point | ESPN returned no lines. Check the sync log's odds coverage line. |
 | Picks won't save | The week already locked, or `schema.sql` wasn't run. |
 | Leaderboard is empty | Nothing is `final` yet — scores fill in as games end. |
 | Reminders never send | Check the workflow log: it prints why it skipped each person. |

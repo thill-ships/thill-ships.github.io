@@ -99,6 +99,14 @@
   .pk.on .fav{background:var(--navy);color:#fff;}
   .pk .fav.hit{background:var(--green);color:#fff;}
   .pk .fav.miss{background:var(--red);color:#fff;}
+  .pts{position:absolute;top:9px;left:9px;font-size:9.5px;font-weight:800;letter-spacing:.03em;
+    background:#FFF1DC;color:var(--amber);padding:3px 6px;border-radius:999px;}
+  .lin{margin:16px 15px 0;background:var(--card);border-radius:20px;padding:18px 17px;
+    box-shadow:var(--lift);text-align:center;}
+  .lin.done{background:#F1F7F3;}
+  .lin h3{font-size:15.5px;font-weight:800;letter-spacing:-.015em;margin:0 0 6px;}
+  .lin p{font-size:12.5px;color:var(--muted);line-height:1.55;margin:0 0 14px;}
+  .lin p:last-child{margin-bottom:0;}
   .tally{padding:11px 5px 1px;margin-top:10px;border-top:1px solid var(--line);
     font-size:11.5px;color:var(--muted);line-height:1.55;}
   .tally b{color:var(--ink);font-weight:700;}
@@ -179,13 +187,21 @@
   <!-- ===== signed out ===== -->
   <div id="gate" style="display:none">
     <div class="card">
-      <h2>Sign in</h2>
-      <p>Enter your email and we'll send you a link. Tap it once and this browser stays
-         signed in all season &mdash; no password to remember.</p>
-      <label for="email">Email</label>
-      <input type="email" id="email" placeholder="you@example.com" autocomplete="email" />
-      <button class="btn" id="sendBtn" onclick="sendLink()">Email me a sign-in link</button>
+      <h2 id="authTitle">Sign in</h2>
+      <p id="authBlurb">Enter your email and password. This browser stays signed in
+         all season.</p>
+      <form onsubmit="doAuth(event)">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="you@example.com"
+               autocomplete="email" required />
+        <label for="pw">Password</label>
+        <input type="password" id="pw" placeholder="At least 6 characters"
+               autocomplete="current-password" required />
+        <button class="btn" id="authBtn" type="submit">Sign in</button>
+      </form>
       <p id="gateMsg" style="margin:14px 0 0;display:none"></p>
+      <button class="btn ghost" id="authSwap" style="margin-top:10px"
+              onclick="swapAuth()">Create an account</button>
     </div>
     <a class="back" href="../">&larr; All apps</a>
   </div>
@@ -196,6 +212,7 @@
       <div class="wks" id="wks"></div>
       <div id="lockBar"></div>
       <div id="games"></div>
+      <div id="lockIn"></div>
     </div>
 
     <div class="view" id="v-board"><div id="boardBody"></div></div>
@@ -205,13 +222,25 @@
         <h2>How it works</h2>
         <ul class="rules">
           <li><b>Every Big 12 game, every week.</b> If a Big 12 team is playing, it's on the sheet.</li>
-          <li><b>Straight up.</b> No spreads &mdash; just pick who wins.</li>
-          <li><b>Every game is worth 1 point.</b> A blowout counts the same as the Holy War.</li>
-          <li><b>Everything locks at the first kickoff of the week.</b> One deadline for the whole
-              slate, usually Thursday night. Get them in early.</li>
-          <li><b>Nobody sees your picks until the lock.</b> After that the whole week is public.</li>
-          <li><b>Miss a game, take the zero.</b> No make-ups.</li>
-          <li><b>Most correct picks at the end of the season wins.</b> That's the whole thing.</li>
+          <li><b>Straight up.</b> No spreads to cover &mdash; just pick who wins.</li>
+          <li><b>Underdogs pay more.</b> A favorite is worth 1 point. Call an underdog
+              correctly and it's worth 2 (+3 to +9.5), 3 (+10 to +17.5), or 4 (+18 or more).
+              Each card shows what it pays before you pick. A wrong pick is always 0 &mdash;
+              you can never lose points for swinging big.</li>
+          <li><b>The lines are set Sunday at 6am and never move.</b> That's when picks
+              open. Whatever a game pays when you first see it is what it pays all week, so
+              there's no advantage to waiting for a better number. Games without a posted
+              line are worth 1.</li>
+          <li><b>You have from Sunday 6am to the first kickoff.</b> Picks open at the same
+              time every week and close when the week's earliest game starts &mdash; usually
+              Thursday evening. Miss it and those games are zeroes.</li>
+          <li><b>Lock in early if you want to see everyone else.</b> Once all your games are
+              picked you can lock in before the deadline. Your picks go final immediately, and
+              in exchange you see the picks of everyone else who has locked in &mdash; and only
+              them. People still deciding stay hidden.</li>
+          <li><b>If you never lock in, you're locked in automatically at the deadline</b>,
+              and then everybody's picks are public.</li>
+          <li><b>Most points at the end of the season wins.</b> That's the whole thing.</li>
         </ul>
       </div>
       <a class="back" href="../">&larr; All apps</a>
@@ -233,6 +262,9 @@
       </div>
       <button class="sw" id="notifySw" onclick="toggleNotify()" aria-label="Reminder emails"></button>
     </div>
+    <div style="font-size:11.5px;color:var(--faint);text-align:center;margin:14px 0 12px">
+      Version <span id="buildStamp"></span>
+    </div>
     <button class="btn ghost" style="margin-top:4px" onclick="closeProfile()">Done</button>
     <button class="btn danger" style="margin-top:8px" onclick="signOut()">Sign out</button>
   </div>
@@ -250,15 +282,29 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
+const BUILD = '2026-08-26.3';   // bump on every change; shown in the profile sheet
+
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
-let season=null, week=null, lockAt=null, ticker=null;
+let locks=[], myLocked=false;
+let season=null, week=null, lockAt=null, openAt=null, ticker=null;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const ready = () => CFG.url.startsWith('http') && CFG.key.length > 20;
-const locked = () => !lockAt || Date.now() >= lockAt.getTime();
+// Four distinct questions that used to be conflated:
+const windowOpen = () => !openAt || Date.now() >= openAt.getTime();   // Sunday midnight passed
+const weekOver   = () => !lockAt || Date.now() >= lockAt.getTime();   // first kickoff passed
+const canPick    = () => windowOpen() && !weekOver() && !myLocked;
+const revealed   = () => weekOver() || myLocked;                      // may see others' picks
+const locked     = () => !canPick();                                  // older call sites
+
+function pointsFor(g, teamId){
+  if(g.home_spread == null) return 1;
+  const v = teamId === g.home_id ? Number(g.home_spread) : -Number(g.home_spread);
+  return v >= 18 ? 4 : v >= 10 ? 3 : v >= 3 ? 2 : 1;
+}
 
 function toast(m, ms=2600){
   const t=$('toast'); t.textContent=m; t.classList.add('on');
@@ -291,23 +337,64 @@ function toast(m, ms=2600){
 })();
 
 function showGate(){
+  paintAuth();
   $('gate').style.display=''; $('app').style.display='none';
   $('meBtn').style.display='none'; $('tabs').style.display='none';
 }
 
-async function sendLink(){
+let authMode='signin';
+function swapAuth(){ authMode = authMode==='signin' ? 'signup' : 'signin'; paintAuth(); }
+function paintAuth(){
+  const up = authMode==='signup';
+  $('authTitle').textContent = up ? 'Create an account' : 'Sign in';
+  $('authBlurb').textContent = up
+    ? 'Pick any password you like. There is no confirmation email to wait for.'
+    : 'Enter your email and password. This browser stays signed in all season.';
+  $('authBtn').textContent  = up ? 'Create account' : 'Sign in';
+  $('authSwap').textContent = up ? 'I already have an account' : 'Create an account';
+  $('pw').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+  $('gateMsg').style.display = 'none';
+}
+
+async function doAuth(ev){
+  if(ev) ev.preventDefault();
   const email = ($('email').value||'').trim();
+  const pw    = $('pw').value||'';
   if(!email.includes('@')) return toast('Enter a valid email');
-  const b=$('sendBtn'); b.disabled=true; b.textContent='Sending…';
-  const { error } = await supa.auth.signInWithOtp({
-    email, options:{ emailRedirectTo: location.origin + location.pathname }
-  });
-  b.disabled=false; b.textContent='Email me a sign-in link';
-  const m=$('gateMsg'); m.style.display='';
-  if(error){ m.textContent=error.message; m.style.color='var(--red)'; return; }
-  m.innerHTML='<b>Check your email.</b> Tap the link and you\'re in. It can take a minute, '+
-              'and the first one sometimes lands in spam.';
-  m.style.color='var(--muted)';
+  if(pw.length < 6)        return toast('Password must be at least 6 characters');
+
+  const btn = $('authBtn'); btn.disabled = true;
+  btn.textContent = authMode==='signup' ? 'Creating…' : 'Signing in…';
+
+  const { data, error } = authMode==='signup'
+    ? await supa.auth.signUp({ email, password: pw })
+    : await supa.auth.signInWithPassword({ email, password: pw });
+
+  btn.disabled = false; paintAuth();
+  const msg = $('gateMsg');
+
+  if(error){
+    msg.style.display=''; msg.style.color='var(--red)';
+    const m = error.message || '';
+    if(/invalid login credentials/i.test(m)){
+      msg.textContent = authMode==='signin'
+        ? "That email and password don't match. If you haven't made an account yet, tap Create an account."
+        : m;
+    } else if(/already registered|already been registered/i.test(m)){
+      msg.textContent = 'That email already has an account. Tap "I already have an account" and sign in.';
+    } else if(/password/i.test(m)){
+      msg.textContent = m;
+    } else {
+      msg.textContent = m;
+    }
+    return;
+  }
+
+  // With email confirmation switched off, sign-up returns a session immediately.
+  if(authMode==='signup' && !(data && data.session)){
+    msg.style.display=''; msg.style.color='var(--muted)';
+    msg.innerHTML = '<b>Account created.</b> Check your email to confirm it, then sign in.';
+  }
 }
 
 async function signedIn(u){
@@ -360,6 +447,7 @@ async function loadAll(){
 async function loadWeek(scrollWeeks){
   const meta=weeks.find(w=>w.week===week);
   lockAt = meta && meta.lock_at ? new Date(meta.lock_at) : null;
+  openAt = meta && meta.open_at ? new Date(meta.open_at) : null;
 
   const { data:g } = await supa.from('pickem_games').select('*')
     .eq('season',season).eq('week',week).order('kickoff',{ascending:true});
@@ -373,7 +461,13 @@ async function loadWeek(scrollWeeks){
   picks={};
   allPicks.filter(p=>p.user_id===user.id).forEach(p=>{ picks[p.game_id]=p.team_id; });
 
-  renderWeeks(scrollWeeks); renderLock(); renderGames();
+  const { data:lk } = await supa.from('pickem_locks').select('*')
+    .eq('season',season).eq('week',week);
+  locks = lk || [];
+  myLocked = locks.some(l => l.user_id === user.id);
+
+  $('lockBar')._built=false;   // week changed, rebuild the bar from scratch
+  renderWeeks(scrollWeeks); renderLock(); renderGames(); renderLockIn();
   clearInterval(ticker); ticker=setInterval(renderLock,1000);
 }
 
@@ -386,17 +480,19 @@ async function loadStandings(){
 
 /* ========================= picking ========================= */
 async function setPick(gameId, teamId){
-  if(locked()) return toast('This week is locked');
+  if(!windowOpen()) return toast('Picks open Sunday at 6am');
+  if(myLocked)      return toast("You're locked in for this week");
+  if(weekOver())    return toast('This week is locked');
   const prev=picks[gameId];
   picks[gameId]=teamId;
-  paintPick(gameId); renderLock(); renderWeeks();
+  paintPick(gameId); renderLock(); updatePip(); renderLockIn();
 
   const { error } = await supa.from('pickem_picks').upsert(
     { user_id:user.id, game_id:gameId, team_id:teamId, updated_at:new Date().toISOString() },
     { onConflict:'user_id,game_id' });
   if(error){
     if(prev) picks[gameId]=prev; else delete picks[gameId];
-    paintPick(gameId); renderLock(); renderWeeks();
+    paintPick(gameId); renderLock(); updatePip();
     toast(/row-level|policy/i.test(error.message) ? 'Too late — the week just locked'
                                                   : 'Could not save that pick');
   }
@@ -425,12 +521,19 @@ function renderWeeks(scrollToActive){
 async function goWeek(w){ week=w; await loadWeek(true); }
 
 function renderLock(){
-  if(!games.length){ $('lockBar').innerHTML=''; return; }
+  const bar=$('lockBar');
+  if(!games.length){ bar.innerHTML=''; bar._built=false; return; }
+
   const made=games.filter(g=>picks[g.id]).length;
   const pct=Math.round(made/games.length*100);
   let t,s;
 
-  if(locked()){
+  if(!windowOpen()){
+    const ms=openAt.getTime()-Date.now();
+    const d=Math.floor(ms/864e5), h=Math.floor(ms%864e5/36e5), m=Math.floor(ms%36e5/6e4);
+    t='Picks open in '+(d? d+'d '+h+'h' : h+'h '+m+'m');
+    s='Sunday at 6am, when the lines are set. They stay put all week.';
+  }else if(weekOver()){
     const fin=games.filter(g=>g.status==='final').length;
     t='Picks are locked';
     s = fin===games.length ? 'All '+games.length+' games final.'
@@ -442,16 +545,36 @@ function renderLock(){
     t='Locks in '+(d? d+'d '+h+'h' : h? h+'h '+m+'m' : m+'m '+sec+'s');
     s=lockAt.toLocaleString([],{weekday:'long',hour:'numeric',minute:'2-digit'})+' — first kickoff';
   }
-  $('lockBar').innerHTML=
-    '<div class="lock"><div><div class="lock-t">'+t+'</div><div class="lock-s">'+s+'</div></div>'+
-    '<div class="ring" style="background:conic-gradient(var(--navy) 0 '+pct+'%,#E4E8EE '+pct+'%)">'+
-    '<i>'+made+'/'+games.length+'</i></div></div>';
+
+  // Build once, then only touch text. This ticks every second, and replacing
+  // innerHTML that often is needless churn right above the user's scroll position.
+  if(!bar._built){
+    bar.innerHTML='<div class="lock"><div><div class="lock-t"></div><div class="lock-s"></div></div>'+
+      '<div class="ring"><i></i></div></div>';
+    bar._built=true;
+  }
+  bar.querySelector('.lock-t').textContent=t;
+  bar.querySelector('.lock-s').textContent=s;
+  bar.querySelector('.ring i').textContent=made+'/'+games.length;
+  bar.querySelector('.ring').style.background=
+    'conic-gradient(var(--navy) 0 '+pct+'%,#E4E8EE '+pct+'%)';
+}
+
+// Toggling one dot does not require rebuilding the week strip, which also
+// resets its horizontal scroll.
+function updatePip(){
+  const chip=document.querySelector('.wk.on');
+  if(!chip) return;
+  const short = canPick() && games.filter(g=>picks[g.id]).length < games.length;
+  const pip=chip.querySelector('.pip');
+  if(short && !pip){ chip.insertAdjacentHTML('beforeend','<span class="pip"></span>'); }
+  else if(!short && pip){ pip.remove(); }
 }
 
 function renderGames(){
   if(!games.length) return renderNoGames();
   const keepY = window.scrollY;      // an innerHTML swap collapses height and clamps scroll
-  const lk=locked();
+  const lk=!canPick();
 
   $('games').innerHTML = games.map(g=>{
     const mine=picks[g.id], final=g.status==='final', live=g.status==='in';
@@ -481,6 +604,10 @@ function renderGames(){
       else if(isMine)     badge='<span class="fav">&#10003;</span>';
       else if(!lk)        badge='<span class="fav">&#10003;</span>';
 
+      // Underdogs advertise their payout before you pick.
+      const pv = pointsFor(g, id);
+      if(pv > 1) badge += '<span class="pts">'+pv+' PTS</span>';
+
       const meta = [rank?'#'+rank:'', rec||''].filter(Boolean).join(' · ');
       const bottom = (final||live) && sc!=null
         ? '<span class="sc">'+sc+'</span>'
@@ -495,9 +622,10 @@ function renderGames(){
         '<span class="nm">'+esc(nm)+'</span>'+bottom+'</button>';
     };
 
-    // Once locked, show how the family split.
+    // Visible once the deadline passes, or as soon as you lock in early -- in
+    // which case RLS only returns the picks of others who also locked in.
     let tally='';
-    if(lk){
+    if(revealed()){
       const forGame=allPicks.filter(p=>p.game_id===g.id);
       if(forGame.length){
         const by={};
@@ -509,7 +637,8 @@ function renderGames(){
       }
     }
 
-    return '<div class="mu" data-game="'+esc(g.id)+'"><div class="mu-hd"><span class="mu-when">'+esc(when)+'</span>'+
+    const line = g.odds_detail ? ' &middot; '+esc(g.odds_detail) : '';
+    return '<div class="mu" data-game="'+esc(g.id)+'"><div class="mu-hd"><span class="mu-when">'+esc(when)+line+'</span>'+
       '<span class="mu-flag '+cls+'">'+flag+'</span></div>'+
       '<div class="pair">'+box('away')+'<span class="at">at</span>'+box('home')+'</div>'+
       tally+'</div>';
@@ -533,6 +662,49 @@ function paintPick(gameId){
   }
 }
 
+function renderLockIn(){
+  const el=$('lockIn'); if(!el) return;
+  if(!games.length || weekOver() || !windowOpen()){ el.innerHTML=''; return; }
+
+  const made   = games.filter(g=>picks[g.id]).length;
+  const others = locks.filter(l=>l.user_id!==user.id).length;
+  const someone = others===1 ? '1 other person has' : others+' others have';
+
+  if(myLocked){
+    el.innerHTML='<div class="lin done"><h3>You\'re locked in &#10003;</h3>'+
+      '<p>Your picks are final for Week '+week+'. '+
+      (others ? someone+' locked in too &mdash; their picks are showing above.'
+              : 'Nobody else has locked in yet. Their picks appear here as soon as they do.')+
+      '</p></div>';
+    return;
+  }
+  if(made < games.length){
+    el.innerHTML='<div class="lin"><h3>Lock in early</h3>'+
+      '<p>Pick all '+games.length+' games and you can lock in before the deadline to see '+
+      'what everyone else who has locked in chose. You have '+made+' of '+games.length+'.</p>'+
+      '<button class="btn" disabled>Pick every game first</button></div>';
+    return;
+  }
+  el.innerHTML='<div class="lin"><h3>Lock in early?</h3>'+
+    '<p>Your picks become final right away, and in exchange you get to see the picks of '+
+    'everyone else who has locked in. '+
+    (others ? someone+' locked in so far.' : 'Nobody has locked in yet.')+
+    '</p><button class="btn" onclick="lockIn()">Lock in my picks</button></div>';
+}
+
+async function lockIn(){
+  if(!confirm("Lock in your Week "+week+" picks?\n\nYou will not be able to change them, "+
+              "and you'll be able to see the picks of everyone else who has locked in.")) return;
+  const { error } = await supa.from('pickem_locks')
+    .insert({ user_id:user.id, season, week });
+  if(error){
+    return toast(/row-level|policy/i.test(error.message)
+      ? 'Pick every game first' : 'Could not lock in');
+  }
+  await loadWeek();
+  toast("Locked in");
+}
+
 function renderBoard(){
   if(!standings.length){
     $('boardBody').innerHTML='<div class="card"><div class="empty"><b>Nobody yet</b>'+
@@ -543,25 +715,27 @@ function renderBoard(){
   const finals=games.filter(g=>g.status==='final');
   allPicks.forEach(p=>{
     const g=finals.find(x=>x.id===p.game_id);
-    if(g && g.winner_id===p.team_id) weekly[p.user_id]=(weekly[p.user_id]||0)+1;
+    if(g && g.winner_id===p.team_id)
+      weekly[p.user_id]=(weekly[p.user_id]||0)+pointsFor(g,p.team_id);
   });
 
   const sorted=standings.slice().sort((a,b)=>
-    (b.correct-a.correct) || a.display_name.localeCompare(b.display_name));
+    (b.points-a.points) || (b.correct-a.correct) ||
+    a.display_name.localeCompare(b.display_name));
 
   const rows=sorted.map((s,i)=>{
-    const tie = i>0 && sorted[i-1].correct===s.correct;
-    const pct = s.decided ? Math.round(s.correct/s.decided*100)+'%' : '—';
+    const tie = i>0 && sorted[i-1].points===s.points;
     return '<div class="br'+(s.user_id===user.id?' me':'')+'">'+
       '<span class="bp">'+(tie?'':(i+1))+'</span>'+
       '<span class="bn">'+esc(s.display_name)+'</span>'+
-      '<span class="bw">'+(weekly[s.user_id]||0)+' this wk</span>'+
-      '<span class="bs">'+s.correct+'<small>/'+s.decided+' · '+pct+'</small></span></div>';
+      '<span class="bw">+'+(weekly[s.user_id]||0)+' this wk</span>'+
+      '<span class="bs">'+s.points+'<small> pts · '+s.correct+'/'+s.decided+'</small></span></div>';
   }).join('');
 
   $('boardBody').innerHTML='<div class="board"><div class="bh">Season standings</div>'+rows+'</div>'+
     '<p style="font-size:12.5px;color:var(--muted);margin:14px 19px;line-height:1.6">'+
-    'Every game is worth 1 point. &ldquo;This wk&rdquo; counts only games already final in Week '+week+'.</p>';
+    'Ranked by points. Picking a favorite is worth 1; correctly calling an underdog is worth '+
+    'more, up to 4. &ldquo;This wk&rdquo; counts only games already final in Week '+week+'.</p>';
 }
 
 function showView(v){
@@ -573,6 +747,7 @@ function showView(v){
 
 /* ========================= profile ========================= */
 function openProfile(){
+  $('buildStamp').textContent = BUILD;
   $('nameIn').value=(player&&player.display_name)||'';
   $('notifySw').classList.toggle('on', !player || player.notify!==false);
   $('sheet').classList.add('on');
@@ -605,7 +780,7 @@ function realtime(){
       loadWeek(); loadStandings();
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'pickem_picks'},()=>{
-      if(locked()) loadWeek();
+      if(revealed()) loadWeek();
     })
     .subscribe();
 }
