@@ -354,10 +354,10 @@ async function loadAll(){
     week = next ? next.week : weeks[weeks.length-1].week;
   }
   await loadStandings();
-  await loadWeek();
+  await loadWeek(true);
 }
 
-async function loadWeek(){
+async function loadWeek(scrollWeeks){
   const meta=weeks.find(w=>w.week===week);
   lockAt = meta && meta.lock_at ? new Date(meta.lock_at) : null;
 
@@ -373,7 +373,7 @@ async function loadWeek(){
   picks={};
   allPicks.filter(p=>p.user_id===user.id).forEach(p=>{ picks[p.game_id]=p.team_id; });
 
-  renderWeeks(); renderLock(); renderGames();
+  renderWeeks(scrollWeeks); renderLock(); renderGames();
   clearInterval(ticker); ticker=setInterval(renderLock,1000);
 }
 
@@ -389,14 +389,14 @@ async function setPick(gameId, teamId){
   if(locked()) return toast('This week is locked');
   const prev=picks[gameId];
   picks[gameId]=teamId;
-  renderGames(); renderLock(); renderWeeks();
+  paintPick(gameId); renderLock(); renderWeeks();
 
   const { error } = await supa.from('pickem_picks').upsert(
     { user_id:user.id, game_id:gameId, team_id:teamId, updated_at:new Date().toISOString() },
     { onConflict:'user_id,game_id' });
   if(error){
     if(prev) picks[gameId]=prev; else delete picks[gameId];
-    renderGames(); renderLock(); renderWeeks();
+    paintPick(gameId); renderLock(); renderWeeks();
     toast(/row-level|policy/i.test(error.message) ? 'Too late — the week just locked'
                                                   : 'Could not save that pick');
   }
@@ -410,17 +410,19 @@ function renderNoGames(){
     'Actions tab and run <b>Pick\'em — sync games</b> once by hand.</div></div>';
 }
 
-function renderWeeks(){
+function renderWeeks(scrollToActive){
   $('wks').innerHTML = weeks.map(w=>{
     const open = w.lock_at && new Date(w.lock_at).getTime()>Date.now();
     const short = w.week===week && open && games.filter(g=>picks[g.id]).length < games.length;
     return '<button class="wk'+(w.week===week?' on':'')+'" onclick="goWeek('+w.week+')">Week '+
       w.week+(short?'<span class="pip"></span>':'')+'</button>';
   }).join('');
+  // Only on a real week change. This chip sits at the top of the page, so
+  // scrolling it into view mid-pick drags the whole page up with it.
   const on=document.querySelector('.wk.on');
-  if(on) on.scrollIntoView({block:'nearest',inline:'center'});
+  if(scrollToActive && on) on.scrollIntoView({block:'nearest',inline:'center'});
 }
-async function goWeek(w){ week=w; await loadWeek(); }
+async function goWeek(w){ week=w; await loadWeek(true); }
 
 function renderLock(){
   if(!games.length){ $('lockBar').innerHTML=''; return; }
@@ -448,6 +450,7 @@ function renderLock(){
 
 function renderGames(){
   if(!games.length) return renderNoGames();
+  const keepY = window.scrollY;      // an innerHTML swap collapses height and clamps scroll
   const lk=locked();
 
   $('games').innerHTML = games.map(g=>{
@@ -483,7 +486,7 @@ function renderGames(){
         ? '<span class="sc">'+sc+'</span>'
         : (meta ? '<span class="sub">'+esc(meta)+'</span>' : '<span class="sub">&nbsp;</span>');
 
-      return '<button class="'+c+'"'+(lk?' disabled':'')+
+      return '<button class="'+c+'" data-team="'+esc(id)+'"'+(lk?' disabled':'')+
         ' onclick="setPick(\''+g.id+'\',\''+id+'\')">'+badge+
         '<span class="side">'+(side==='away'?'Away':'Home')+'</span>'+
         '<span class="logo">'+(logo
@@ -506,11 +509,28 @@ function renderGames(){
       }
     }
 
-    return '<div class="mu"><div class="mu-hd"><span class="mu-when">'+esc(when)+'</span>'+
+    return '<div class="mu" data-game="'+esc(g.id)+'"><div class="mu-hd"><span class="mu-when">'+esc(when)+'</span>'+
       '<span class="mu-flag '+cls+'">'+flag+'</span></div>'+
       '<div class="pair">'+box('away')+'<span class="at">at</span>'+box('home')+'</div>'+
       tally+'</div>';
   }).join('');
+  if(window.scrollY !== keepY) window.scrollTo(0, keepY);
+}
+
+// A pick changes one matchup, so repaint just that matchup. Rebuilding the whole
+// list threw the scroll position away and re-fetched every logo.
+function paintPick(gameId){
+  const mu = document.querySelector('.mu[data-game="' + gameId + '"]');
+  if(!mu) return renderGames();
+  const mine = picks[gameId];
+  mu.querySelectorAll('.pk').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.team === mine);
+  });
+  const flag = mu.querySelector('.mu-flag');
+  if(flag && !locked()){
+    flag.textContent = mine ? 'Picked' : 'Needs you';
+    flag.className   = 'mu-flag ' + (mine ? 'in' : 'todo');
+  }
 }
 
 function renderBoard(){
