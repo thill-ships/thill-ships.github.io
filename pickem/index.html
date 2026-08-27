@@ -143,7 +143,6 @@
   .btn.danger{background:#FDEDED;color:var(--red);}
   .empty{text-align:center;padding:40px 22px;color:var(--muted);font-size:14px;line-height:1.65;}
   .empty b{display:block;font-size:16.5px;color:var(--ink);margin-bottom:7px;font-weight:800;}
-  .back{display:inline-block;margin:20px 19px 0;font-size:13px;color:var(--muted);text-decoration:none;font-weight:600;}
 
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom));
     background:#14181F;color:#fff;font-size:14px;font-weight:600;padding:12px 18px;border-radius:13px;
@@ -204,7 +203,6 @@
       <button class="btn ghost" id="authSwap" style="margin-top:10px"
               onclick="swapAuth()">Create an account</button>
     </div>
-    <a class="back" href="../">&larr; All apps</a>
   </div>
 
   <!-- ===== signed in ===== -->
@@ -244,7 +242,6 @@
           <li><b>Most points at the end of the season wins.</b> That's the whole thing.</li>
         </ul>
       </div>
-      <a class="back" href="../">&larr; All apps</a>
     </div>
   </div>
 </div>
@@ -283,7 +280,7 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-08-26.4';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-08-26.5';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
