@@ -111,9 +111,11 @@ def main():
     called = sum(1 for p in preds if p.get("strength") != "auto")
 
     payload = {
-        "v": 1,
+        "v": 2,
         "season": season,
-        "likely_prob": float(cfg.get("likely_prob") or 0.75),
+        # A settings row written by the three-level board only has likely_prob.
+        "strong_prob": float(cfg.get("strong_prob") or cfg.get("likely_prob") or 0.80),
+        "lean_prob": float(cfg.get("lean_prob") or 0.65),
         "contenders": cfg.get("contenders") or [],
         "predictions": [
             {"game_id": p["game_id"], "pick_team_id": p.get("pick_team_id"),
@@ -144,8 +146,9 @@ def main():
 
     print(f"Snapshot saved for the {season} season, week {week}.")
     print(f"  {len(games)} games ({finals} final), {called} of them with a call on the board.")
-    print(f"  tracking {len(payload['contenders'])} contenders, "
-          f"'likely' worth {payload['likely_prob']:.0%}")
+    print(f"  tracking {len(payload['contenders'])} contenders; "
+          f"'should win' worth {payload['strong_prob']:.0%}, "
+          f"'lean' worth {payload['lean_prob']:.0%}")
 
 
 if __name__ == "__main__":

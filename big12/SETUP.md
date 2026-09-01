@@ -80,8 +80,11 @@ visit writes the settings row.
 
 ## 5. Choose your contenders
 
-Open the board and hit **Contenders**. Six rows is the sweet spot; eight is the cap. Everyone
-else in the league still plays in the simulation — this only decides who gets a row.
+The board opens on **BYU, Arizona State, Texas Tech, Utah, Arizona and Houston**. Hit
+**Contenders** to change it: add a team, drop one, or move a row up and down. Eight rows is
+the cap. Everyone else in the league still plays in the simulation — this only decides whose
+schedule you are predicting week to week, so dropping a team that has fallen out of the race
+costs you nothing.
 
 ---
 
@@ -91,8 +94,14 @@ else in the league still plays in the simulation — this only decides who gets 
    sync job pulled them overnight.
 2. Read **This week** first: it lists the games with the most riding on them, biggest swing
    first, and tells you which side to root for.
-3. Argue. Flip games on the **Board** as you change your minds — click cycles
-   *the line stands → likely W → 50-50 → likely L → back*, and right-click adds a note.
+3. Argue. Move games on the **Board** as you change your minds. Clicking walks a game down
+   the scale and shift-clicking walks it back up:
+
+   *the line stands → should win → lean win → coin flip → lean loss → should lose → back*
+
+   Right-click for the same five in a list, with the percentage each one is worth and a box
+   for a note. A game between two tracked teams moves on both rows at once — one side's
+   *should win* is the other's *should lose*, so the board can never contradict itself.
 4. Hit **Save this week** when you are done. That is the entry in the history.
 
 Step 4 is optional insurance: a snapshot is taken automatically at 6am Monday whether or not
@@ -103,8 +112,20 @@ second, post-argument entry with your notes on it.
 
 **Every undecided game has a win probability.** In order of preference:
 
-1. **Your call.** "Likely" means the team wins 75% of the time; a 50-50 is a coin flip. That
-   75% is adjustable — Standings → *change*.
+1. **Your call**, on a five-point scale:
+
+   | Call | The team wins |
+   |---|---|
+   | Should win | 80% |
+   | Lean win | 65% |
+   | Coin flip | 50% |
+   | Lean loss | 35% |
+   | Should lose | 20% |
+
+   Only two of those are settings — *should win* and *lean*. A coin flip is always 50%, and
+   the bottom two are the mirror images of the top two, which is what keeps a shared game
+   consistent from both sides. Change either dial at Standings → *change*; 80% is about a
+   12-point favourite and 65% about a 6-point one.
 2. **The betting line**, when you haven't made a call. A spread is converted through a normal
    curve with a 16-point standard deviation, which is about right for college football: a
    7-point favorite wins ~67% of the time, a 21-point favorite ~90%.
@@ -134,8 +155,8 @@ their swing is zero by construction. They're listed for completeness and for the
 
 | Table | What's in it |
 |---|---|
-| `b12_settings` | Your contenders and what "likely" is worth. One row per season. |
-| `b12_predictions` | One row per game you have an opinion about, stored **per game** — so BYU–Utah can never be "BYU likely" on one row and "Utah likely" on the other. |
+| `b12_settings` | Your contenders, in board order, and what *should win* and *lean* are worth. One row per season. |
+| `b12_predictions` | One row per game you have an opinion about, stored **per game** as a direction plus a strength — so BYU–Utah can never be "BYU should win" on one row and "Utah should win" on the other. |
 | `b12_snapshots` | One row per saved week. Self-contained: the predictions *and* the results as they stood, so a week can be re-scored later exactly as you saw it. |
 
 The schedule itself is not duplicated — it's `pickem_games`, kept current by the job that was
@@ -159,4 +180,5 @@ already running.
 | Predictions won't save | Same mismatch — you're signed in as somebody the policy doesn't recognise. |
 | The board is empty | The pick'em sync hasn't loaded this season yet. Actions → *Pick'em — sync games* → Run workflow. |
 | Every untouched game says "PK" or shows no line | ESPN returned no odds. Check the sync log's odds coverage line. |
+| A call won't save, "violates check constraint" | `schema.sql` is the three-level version. Re-run the current file; it widens the allowed strengths. |
 | No automatic snapshots | Actions → *War Room — weekly snapshot* → check the log; it prints why it skipped. |

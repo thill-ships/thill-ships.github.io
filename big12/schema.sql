@@ -35,14 +35,22 @@ $$;
 -- Tables
 -- ---------------------------------------------------------------------------
 
--- One row per season: who you are tracking, and how confident "likely" means.
+-- One row per season: who you are tracking, and what the two confident calls
+-- are worth. A coin flip is always 50%, and each call's mirror image applies to
+-- the losing side, so these two numbers cover all five levels.
 create table if not exists b12_settings (
   season      int primary key,
   contenders  text[] not null default '{}',    -- ESPN team ids, in board order
-  likely_prob numeric not null default 0.75    -- win probability behind "likely"
-                check (likely_prob > 0.5 and likely_prob < 1),
+  strong_prob numeric not null default 0.80    -- what "should win" is worth
+                check (strong_prob > 0.5 and strong_prob < 1),
+  lean_prob   numeric not null default 0.65    -- what "lean" is worth
+                check (lean_prob > 0.5 and lean_prob < 1),
   updated_at  timestamptz not null default now()
 );
+
+-- Upgrading from the three-level board (one "likely" setting). Safe to re-run.
+alter table b12_settings add column if not exists strong_prob numeric not null default 0.80;
+alter table b12_settings add column if not exists lean_prob   numeric not null default 0.65;
 
 -- One row per game you have an opinion about. A game with no row here falls
 -- back to the betting line, so an untouched board is already a real forecast.
@@ -53,12 +61,15 @@ create table if not exists b12_predictions (
   season       int  not null,
   game_id      text not null,                  -- ESPN event id (pickem_games.id)
   pick_team_id text,                           -- winner you expect; null = 50-50
-  strength     text not null default 'likely'
-                 check (strength in ('likely','tossup','auto')),
-                 -- likely: you expect pick_team_id to win
-                 -- tossup: a 50-50, pick_team_id is null
+  strength     text not null default 'strong'
+                 check (strength in ('strong','lean','tossup','auto','likely')),
+                 -- strong: pick_team_id should win
+                 -- lean:   pick_team_id is the softer call
+                 -- tossup: a coin flip, pick_team_id is null
                  -- auto:   no opinion; the betting line stands. Only ever stored
                  --         so a note can outlive the opinion that came with it.
+                 -- likely: what "strong" was called on the three-level board.
+                 --         Accepted so old rows keep working; never written now.
   note         text,                           -- "starting QB is out", etc.
   updated_at   timestamptz not null default now(),
   primary key (season, game_id)

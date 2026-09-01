@@ -27,6 +27,16 @@
     --lean-win-bg:#EFF7F2; --lean-loss-bg:#FDF2F1;
     --toss:#8A5A0F;     --toss-bg:#FFF4DF;  --toss-line:#F2DCB4;
 
+    /* The board's own scale: a diverging ramp on this team's chance of winning
+       the game, green through neutral to red, with the two results as its
+       endpoints — a win is just 100%. Every step's text clears 6:1 on its fill,
+       and every cell carries the words too, so the colour is never doing the
+       job alone. */
+    --c-won:#B7DCC6;  --c-sw:#D8ECE1;  --c-lw:#EDF6F1;  --c-cf:#ECEEF3;
+    --c-ll:#FBEFEC;   --c-sl:#F7DBD6;  --c-lost:#EFC4BD;
+    --t-won:#12522F;  --t-win:#15603A; --t-cf:#3D4756;
+    --t-loss:#A32C23; --t-sl:#95271F;  --t-lost:#7E1F19;
+
     --series-1:#2a78d6;         /* the one chart hue (validated) */
     --lift:0 1px 2px rgba(16,24,40,.04), 0 6px 18px rgba(16,24,40,.05);
   }
@@ -104,6 +114,8 @@
     box-shadow:-7px 0 14px -10px rgba(16,24,40,.35);}
   .bteam.corner{z-index:4;}
   .bteam img{width:24px;height:24px;object-fit:contain;flex:none;}
+  /* Hidden rather than removed: a logo that never arrives leaves its slot, so
+     the team names stay on one line down the column instead of jumping. */
   .bteam .tn{font-size:13.5px;font-weight:800;letter-spacing:-.015em;line-height:1.15;}
   .bteam .tr{font-size:11px;color:var(--muted);margin-top:1px;}
   .rk{font-size:10.5px;font-weight:800;color:var(--navy);}
@@ -119,11 +131,13 @@
   .g .st{font-size:10.5px;font-weight:700;letter-spacing:.02em;}
   .g.bye{background:var(--panel);cursor:default;}
   .g.bye .opp{color:var(--faint);font-weight:700;font-size:11px;letter-spacing:.1em;}
-  .g.w{background:var(--win-bg);}      .g.w .st{color:var(--win);}
-  .g.l{background:var(--loss-bg);}     .g.l .st{color:var(--loss);}
-  .g.lw{background:var(--lean-win-bg);}  .g.lw .st{color:var(--win);}
-  .g.ll{background:var(--lean-loss-bg);} .g.ll .st{color:var(--loss);}
-  .g.t{background:var(--toss-bg);}     .g.t .st{color:var(--toss);}
+  .g.won {background:var(--c-won);}  .g.won  .st{color:var(--t-won);}
+  .g.sw  {background:var(--c-sw);}   .g.sw   .st{color:var(--t-win);}
+  .g.lw  {background:var(--c-lw);}   .g.lw   .st{color:var(--t-win);}
+  .g.cf  {background:var(--c-cf);}   .g.cf   .st{color:var(--t-cf);}
+  .g.ll  {background:var(--c-ll);}   .g.ll   .st{color:var(--t-loss);}
+  .g.sl  {background:var(--c-sl);}   .g.sl   .st{color:var(--t-sl);}
+  .g.lost{background:var(--c-lost);} .g.lost .st{color:var(--t-lost);}
   .g.auto .st{color:var(--faint);font-weight:600;}
   .g.set{box-shadow:inset 0 0 0 1.5px rgba(0,46,93,.16);}
   .g.nc .opp:after{content:'NC';font-size:8.5px;font-weight:800;color:var(--faint);
@@ -224,6 +238,16 @@
   .tpick img{width:22px;height:22px;object-fit:contain;}
   .tpick .nm{font-size:13.5px;font-weight:700;}
   .tpick .rc{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .tpick .acts{display:flex;gap:4px;margin-left:12px;flex:none;}
+  .sec{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--faint);margin:16px 0 6px;}
+  .sec:first-child{margin-top:2px;}
+  .mini{border:1.5px solid var(--line);background:var(--card);border-radius:8px;padding:4px 8px;
+    font-size:11.5px;font-weight:700;cursor:pointer;line-height:1.3;}
+  .mini:hover:not(:disabled){background:var(--panel);}
+  .mini:disabled{opacity:.35;cursor:default;}
+  .mini.drop{color:var(--loss);border-color:var(--loss-line);}
+  .mini.go{color:var(--navy);border-color:#C3D5E8;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
   input[type=text],textarea.big{width:100%;padding:10px 12px;border:1.5px solid var(--line);
     border-radius:10px;font:inherit;font-size:14px;background:var(--panel);}
@@ -304,6 +328,19 @@ const SIMS  = 20000;    // Monte Carlo runs for the live view
 const SIMS_HIST = 4000; // fewer per point when redrawing the whole season's history
 const SIGMA = 16.0;     // std dev of a college football final margin, in points
 
+/* The five calls you can make on a game, best to worst from the row team's
+   point of view. `pick` is who the prediction favours; `strength` is how hard.
+   Storing direction and strength separately is what keeps a game between two
+   contenders honest: one row's "Should win" IS the other row's "Should lose".
+   Rename the labels here and they change everywhere. */
+const LEVELS = [
+  { k:'sw', label:'Should win',  full:'Should win',   pick:'me',  strength:'strong' },
+  { k:'lw', label:'Lean win',    full:'Lean win',     pick:'me',  strength:'lean'   },
+  { k:'cf', label:'Coin flip',   full:'Coin flip',    pick:null,  strength:'tossup' },
+  { k:'ll', label:'Lean loss',   full:'Lean loss',    pick:'opp', strength:'lean'   },
+  { k:'sl', label:'Should lose', full:'Should lose',  pick:'opp', strength:'strong' }
+];
+
 /* ========================= state ========================= */
 let supa = null, user = null;
 let season = null;
@@ -311,7 +348,7 @@ let games = [];                 // every Big 12 game this season
 let teams = {};                 // id -> {id,name,abbr,logo,rank,record}
 let members = [];               // Big 12 team ids, alphabetical by name
 let preds = {};                 // game_id -> {pick_team_id, strength, note}
-let settings = { contenders: [], likely_prob: 0.75 };
+let settings = { contenders: [], strong_prob: 0.80, lean_prob: 0.65 };
 let snapshots = [];             // newest first, payload included
 let view = 'board';
 let weekSel = null;             // week shown on the "This week" tab
@@ -435,9 +472,16 @@ async function loadAll(){
   }
 
   if(sRes.data){
-    settings = { contenders: sRes.data.contenders || [], likely_prob: Number(sRes.data.likely_prob) };
+    settings = {
+      contenders: sRes.data.contenders || [],
+      // strong_prob/lean_prob arrived with the five-level board; a row written
+      // by the three-level one only has likely_prob.
+      strong_prob: Number(sRes.data.strong_prob != null ? sRes.data.strong_prob
+                                                        : sRes.data.likely_prob || 0.80),
+      lean_prob:   Number(sRes.data.lean_prob != null ? sRes.data.lean_prob : 0.65)
+    };
   } else {
-    settings = { contenders: defaultContenders(), likely_prob: 0.75 };
+    settings = { contenders: defaultContenders(), strong_prob: 0.80, lean_prob: 0.65 };
     await saveSettings();     // first run: write the defaults so both of you see the same board
   }
   settings.contenders = settings.contenders.filter(id => members.includes(id));
@@ -495,18 +539,21 @@ function byuId(){
   return hit || members[0];
 }
 
-/* Six to start with: BYU, then the best of the rest by ranking, then by
-   conference record. All of it is editable in the Contenders sheet. */
+/* The six we start the season watching. Matched by abbreviation rather than a
+   hardcoded id, so it survives ESPN renumbering anything. Add and remove teams
+   in the Contenders sheet — this list only decides the very first load. */
+const OPENING_SIX = ['BYU', 'ASU', 'TTU', 'UTAH', 'ARIZ', 'HOU'];
+
 function defaultContenders(){
-  const rec = confRecords();
-  const rest = members.filter(id => id !== byuId()).sort((a,b) => {
-    const ra = teams[a].rank || 99, rb = teams[b].rank || 99;
-    if(ra !== rb) return ra - rb;
-    const pa = rec[a] ? rec[a].w - rec[a].l : 0, pb = rec[b] ? rec[b].w - rec[b].l : 0;
-    if(pa !== pb) return pb - pa;
-    return teams[a].name.localeCompare(teams[b].name);
-  });
-  return [byuId()].concat(rest.slice(0, 5)).filter(Boolean);
+  const byAbbr = {};
+  members.forEach(id => { byAbbr[(teams[id].abbr || '').toUpperCase()] = id; });
+  const picked = OPENING_SIX.map(a => byAbbr[a]).filter(Boolean);
+  if(picked.length >= 4) return picked;
+  // Something has changed about the conference. Fall back to the ranked teams.
+  const rest = members.filter(id => picked.indexOf(id) < 0)
+    .sort((a,b) => (teams[a].rank || 99) - (teams[b].rank || 99)
+                || teams[a].name.localeCompare(teams[b].name));
+  return picked.concat(rest).slice(0, 6);
 }
 
 function subscribe(){
@@ -519,7 +566,9 @@ function subscribe(){
     })
     .on('postgres_changes', { event:'*', schema:'public', table:'b12_settings' }, p => {
       if(p.new && p.new.season === season){
-        settings = { contenders: p.new.contenders || [], likely_prob: Number(p.new.likely_prob) };
+        settings = { contenders: p.new.contenders || [],
+                     strong_prob: Number(p.new.strong_prob),
+                     lean_prob: Number(p.new.lean_prob) };
         live(); render();
       }
     })
@@ -554,18 +603,40 @@ function marketPHome(g){
   return normCdf(-Number(g.home_spread) / SIGMA);
 }
 
-function pHome(g, P, likely){
+/* `probs` is {strong, lean} — what the two confident calls are worth. */
+function pHome(g, P, probs){
   const p = P[g.id];
-  if(p){
+  if(p && p.strength && p.strength !== 'auto'){
     if(p.strength === 'tossup' || !p.pick_team_id) return 0.5;
-    if(p.pick_team_id === g.home_id) return likely;
-    if(p.pick_team_id === g.away_id) return 1 - likely;
+    // 'likely' is the three-level board's old name for 'strong'.
+    const v = p.strength === 'lean' ? probs.lean : probs.strong;
+    if(p.pick_team_id === g.home_id) return v;
+    if(p.pick_team_id === g.away_id) return 1 - v;
   }
   return marketPHome(g);
 }
-function pFor(g, teamId, P, likely){
-  const h = pHome(g, P, likely);
+function pFor(g, teamId, P, probs){
+  const h = pHome(g, P, probs);
   return teamId === g.home_id ? h : 1 - h;
+}
+const probsOf = st => ({ strong: Number(st.strong_prob), lean: Number(st.lean_prob) });
+
+/* Which of the five calls a stored row represents, from teamId's side. */
+function levelOf(p, teamId){
+  if(!p || !p.strength || p.strength === 'auto') return null;
+  if(p.strength === 'tossup' || !p.pick_team_id) return LEVELS[2];
+  const mine = p.pick_team_id === teamId;
+  const strong = p.strength !== 'lean';          // 'strong', or legacy 'likely'
+  return LEVELS.find(l => l.strength === (strong ? 'strong' : 'lean')
+                       && l.pick === (mine ? 'me' : 'opp'));
+}
+/* Turn one of the five back into a storable row. */
+function rowFor(level, g, teamId){
+  return {
+    pick_team_id: level.pick === 'me' ? teamId
+                : level.pick === 'opp' ? oppOf(g, teamId) : null,
+    strength: level.strength
+  };
 }
 
 function oppOf(g, teamId){ return teamId === g.home_id ? g.away_id : g.home_id; }
@@ -573,20 +644,18 @@ function isHome(g, teamId){ return teamId === g.home_id; }
 
 /* What one cell of the board says. `set` means a human decided it. */
 function cellState(g, teamId){
-  const P = preds, likely = settings.likely_prob;
+  const P = preds;
   if(g.status === 'final' && g.winner_id){
     const won = g.winner_id === teamId;
     const me = teamId === g.home_id ? g.home_score : g.away_score;
     const them = teamId === g.home_id ? g.away_score : g.home_score;
-    return { k: won ? 'w' : 'l', label: (won ? 'W ' : 'L ') + me + '–' + them, set: true, done: true };
+    return { k: won ? 'won' : 'lost', label: (won ? 'W ' : 'L ') + me + '–' + them,
+             set: true, done: true };
   }
-  const p = P[g.id];
-  if(p){
-    if(p.strength === 'tossup' || !p.pick_team_id) return { k:'t',  label:'50-50',    set:true };
-    if(p.pick_team_id === teamId)                  return { k:'lw', label:'Likely W', set:true };
-    return { k:'ll', label:'Likely L', set:true };
-  }
-  const pv = pFor(g, teamId, P, likely);
+  const lvl = levelOf(P[g.id], teamId);
+  if(lvl) return { k: lvl.k, label: lvl.label, set: true };
+
+  const pv = pFor(g, teamId, P, probsOf(settings));
   const sp = g.home_spread == null ? null
            : (teamId === g.home_id ? Number(g.home_spread) : -Number(g.home_spread));
   const line = sp == null ? '' : (sp > 0 ? '+' + sp : sp === 0 ? 'PK' : String(sp));
@@ -642,7 +711,7 @@ function mulberry32(a){
    that wiggle when you switch tabs are odds nobody trusts.
    -------------------------------------------------------------------------- */
 function simulate(opts){
-  const G = opts.games, P = opts.preds, likely = opts.likely;
+  const G = opts.games, P = opts.preds, probs = opts.probs;
   const runs = opts.runs || SIMS;
   const n = members.length;
   const idx = {}; members.forEach((id, i) => { idx[id] = i; });
@@ -667,7 +736,7 @@ function simulate(opts){
       if(hw){ baseW[h]++; baseL[a]++; } else { baseW[a]++; baseL[h]++; }
     } else {
       gfinal[ci] = -1; gpend[ci] = pendP.length;
-      pendP.push(pHome(g, P, likely)); pendCi.push(ci);
+      pendP.push(pHome(g, P, probs)); pendCi.push(ci);
     }
   });
 
@@ -773,7 +842,7 @@ function simulate(opts){
 /* Re-run the live board. Cheap enough to just do it on every change. */
 function live(){
   sim = simulate({
-    games, preds, likely: settings.likely_prob,
+    games, preds, probs: probsOf(settings),
     focus: settings.contenders, leverageWeek: weekSel, runs: SIMS
   });
 }
@@ -836,12 +905,19 @@ function renderBoard(){
   const cols = '210px repeat(' + wks.length + ', 112px) 148px';
   let h = '<div class="card">'
     + '<div class="card-hd"><div class="card-t">The board</div>'
-    + '<div class="card-s">Click a game to cycle it: <b>the line stands</b> → <b>likely W</b> → '
-    + '<b>50-50</b> → <b>likely L</b> → back. Right-click for the same choices plus a note. '
-    + 'A game between two contenders moves on both rows at once.</div></div>'
+    + '<div class="card-s">Click a game to walk it down the scale, shift-click to walk it '
+    + 'back up. Right-click for the five calls in a list, plus a note. A game between two '
+    + 'contenders moves on both rows at once — one side’s Should win is the other’s '
+    + 'Should lose.</div></div>'
     + '<div class="legend">'
-    + lg('w','Won') + lg('l','Lost') + lg('lw','Likely win') + lg('t','50-50')
-    + lg('ll','Likely loss') + lg('auto','Untouched — the betting line stands')
+    + '<span class="lg" style="color:var(--faint);font-weight:800;letter-spacing:.08em;'
+    + 'text-transform:uppercase;font-size:10px">Played</span>'
+    + lg('won','Won') + lg('lost','Lost')
+    + '<span class="lg" style="color:var(--faint);font-weight:800;letter-spacing:.08em;'
+    + 'text-transform:uppercase;font-size:10px;margin-left:10px">Our call</span>'
+    + lg('sw','Should win') + lg('lw','Lean win') + lg('cf','Coin flip')
+    + lg('ll','Lean loss') + lg('sl','Should lose')
+    + lg('auto','None yet — the line stands')
     + '</div>'
     + '<div class="scroller"><div class="board" style="grid-template-columns:' + cols + '">';
 
@@ -859,7 +935,7 @@ function renderBoard(){
     const t = teams[id], r = rec[id] || { w:0, l:0 }, s = sim.teams[id] || {};
     h += '<div class="bcell bteam">'
        + (t.logo ? '<img src="' + esc(t.logo) + '" alt="" '
-                     + 'onerror="this.style.display=\'none\'" />' : '')
+                     + 'onerror="this.style.visibility=\'hidden\'" />' : '')
        + '<div><div class="tn">' + (t.rank ? '<span class="rk">#' + t.rank + '</span> ' : '')
        + esc(t.name) + '</div>'
        + '<div class="tr num">' + r.w + '–' + r.l + ' Big 12</div></div></div>';
@@ -898,7 +974,7 @@ function renderBoard(){
 }
 
 function lg(k, label){
-  const bg = { w:'win-bg', l:'loss-bg', lw:'lean-win-bg', ll:'lean-loss-bg', t:'toss-bg', auto:'card' }[k];
+  const bg = k === 'auto' ? 'card' : 'c-' + k;
   return '<span class="lg"><i style="background:var(--' + bg + ')"></i>' + label + '</span>';
 }
 
@@ -934,20 +1010,18 @@ function onCell(ev){
   const g = games.find(x => x.id === b.dataset.g);
   if(!g) return;
   if(g.status === 'final') return toast('That one is in the books.');
-  cycle(g, b.dataset.t);
+  cycle(g, b.dataset.t, ev.shiftKey);
 }
 
-/* the line stands → likely W → 50-50 → likely L → the line stands */
-function cycle(g, teamId){
-  const cur = preds[g.id];
-  const opinion = cur && cur.strength !== 'auto';
-  let next;
-  if(!opinion)                                        next = { pick_team_id: teamId,          strength:'likely' };
-  else if(cur.strength === 'likely' && cur.pick_team_id === teamId)
-                                                      next = { pick_team_id: null,            strength:'tossup' };
-  else if(cur.strength === 'tossup')                  next = { pick_team_id: oppOf(g, teamId), strength:'likely' };
-  else                                                next = { pick_team_id: null,            strength:'auto'   };
-  setPred(g.id, next);
+/* Six states in a ring: the line stands → should win → lean win → coin flip →
+   lean loss → should lose → back. Shift-click walks it the other way, which
+   matters once the ring is this long. */
+function cycle(g, teamId, back){
+  const cur = levelOf(preds[g.id], teamId);
+  const at = cur ? LEVELS.indexOf(cur) + 1 : 0;        // 0 is "the line stands"
+  const next = (at + (back ? -1 : 1) + (LEVELS.length + 1)) % (LEVELS.length + 1);
+  setPred(g.id, next === 0 ? { pick_team_id: null, strength: 'auto' }
+                           : rowFor(LEVELS[next - 1], g, teamId));
 }
 
 async function setPred(gameId, next, note){
@@ -961,9 +1035,10 @@ async function setPred(gameId, next, note){
     if(error) toast('Could not clear that: ' + error.message, 4000);
     return;
   }
+  const directional = next.strength !== 'tossup' && next.strength !== 'auto';
   const row = {
     season, game_id: gameId,
-    pick_team_id: next.strength === 'likely' ? next.pick_team_id : null,
+    pick_team_id: directional ? next.pick_team_id : null,
     strength: next.strength, note: keepNote || null,
     updated_at: new Date().toISOString()
   };
@@ -985,23 +1060,24 @@ function onCellMenu(ev){
 
 function openPop(g, teamId, anchor){
   popGame = g.id;
-  const p = preds[g.id] || {}, opinion = p.strength && p.strength !== 'auto';
-  const me = teams[teamId] || {}, op = teams[oppOf(g, teamId)] || {};
+  const cur = levelOf(preds[g.id], teamId);
+  const p = preds[g.id] || {};
+  const me = teams[teamId] || {};
   const mk = (k, on, title, sub) =>
     '<button class="opt' + (on ? ' on' : '') + '" data-k="' + k + '">' + title +
     (sub ? '<small>' + sub + '</small>' : '') + '</button>';
   const auto = cellState({ ...g, id:'__' }, teamId);   // market view, ignoring the saved row
+  const pr = probsOf(settings);
+  const odds = { sw: pr.strong, lw: pr.lean, cf: .5, ll: 1 - pr.lean, sl: 1 - pr.strong };
 
   $('pop').innerHTML =
       '<h4>' + esc(matchupText(g)) + '</h4>'
     + '<div class="sub">' + esc(fmtWhen(g.kickoff))
-    + (g.odds_detail ? ' · line ' + esc(g.odds_detail) : ' · no line posted') + '</div>'
-    + mk('win',  opinion && p.strength === 'likely' && p.pick_team_id === teamId,
-         esc(me.name) + ' likely wins')
-    + mk('toss', opinion && p.strength === 'tossup', 'Even — 50-50')
-    + mk('loss', opinion && p.strength === 'likely' && p.pick_team_id !== teamId,
-         esc(op.name) + ' likely wins')
-    + mk('auto', !opinion, 'Let the line decide', 'currently ' + esc(auto.label))
+    + (g.odds_detail ? ' · line ' + esc(g.odds_detail) : ' · no line posted')
+    + ' · from ' + esc(me.abbr || me.name) + '’s side</div>'
+    + LEVELS.map(l => mk(l.k, !!cur && cur.k === l.k, esc(l.full),
+        Math.round(odds[l.k] * 100) + '% to win')).join('')
+    + mk('auto', !cur, 'Let the line decide', 'currently ' + esc(auto.label))
     + '<div style="margin-top:10px"><textarea id="popNote" placeholder="Note — injury, weather, '
     + 'whatever you two said about it">' + esc(p.note || '') + '</textarea></div>'
     + '<div class="row" style="margin-top:9px"><button class="btn sm" id="popSave">Save</button>'
@@ -1012,21 +1088,16 @@ function openPop(g, teamId, anchor){
   pop.style.left = Math.min(window.scrollX + r.left, window.scrollX + window.innerWidth - 280) + 'px';
   pop.style.top  = (window.scrollY + r.bottom + 6) + 'px';
 
-  let chosen = !opinion ? 'auto'
-    : p.strength === 'tossup' ? 'toss'
-    : p.pick_team_id === teamId ? 'win' : 'loss';
+  let chosen = cur ? cur.k : 'auto';
   pop.querySelectorAll('.opt').forEach(b => b.onclick = () => {
     chosen = b.dataset.k;
     pop.querySelectorAll('.opt').forEach(o => o.classList.toggle('on', o === b));
   });
   $('popSave').onclick = () => {
     const note = $('popNote').value.trim();
-    const next = chosen === 'win'  ? { pick_team_id: teamId,          strength:'likely' }
-               : chosen === 'loss' ? { pick_team_id: oppOf(g, teamId), strength:'likely' }
-               : chosen === 'toss' ? { pick_team_id: null,            strength:'tossup' }
-               :                     { pick_team_id: null,            strength:'auto'   };
+    const lvl = LEVELS.find(l => l.k === chosen);
     closePop();
-    setPred(g.id, next, note);
+    setPred(g.id, lvl ? rowFor(lvl, g, teamId) : { pick_team_id: null, strength:'auto' }, note);
   };
 }
 function closePop(){ $('pop').style.display = 'none'; popGame = null; }
@@ -1071,7 +1142,7 @@ function renderStandings(){
     h += '<tr class="' + (id === home ? 'me' : settings.contenders.includes(id) ? 'tracked' : '') + '">'
       + '<td class="l"><span class="seed' + (i < 2 ? ' top2' : '') + '">' + (i + 1) + '</span></td>'
       + '<td class="l"><div class="tcell">'
-      + (t.logo ? '<img src="' + esc(t.logo) + '" alt="" onerror="this.style.display=\'none\'">' : '')
+      + (t.logo ? '<img src="' + esc(t.logo) + '" alt="" onerror="this.style.visibility=\'hidden\'">' : '')
       + '<span>' + (t.rank ? '<span class="rk">#' + t.rank + '</span> ' : '') + esc(t.name) + '</span>'
       + (move ? '<span class="muted" style="font-size:11px">' + (move > 0 ? '▲' : '▼')
                 + Math.abs(move) + ' vs today</span>' : '') + '</div></td>'
@@ -1087,7 +1158,8 @@ function renderStandings(){
   h += '</tbody></table></div>'
     + '<div class="card-s" style="padding:4px 20px 18px">Ties are broken head to head inside each '
     + 'simulated season, then at random — close to the real rule, and exact for the two-team case. '
-    + '“Likely” is worth ' + Math.round(settings.likely_prob * 100) + '% '
+    + '“Should win” is worth ' + Math.round(settings.strong_prob * 100) + '%, “lean” '
+    + Math.round(settings.lean_prob * 100) + '% '
     + '<button class="btn ghost sm" onclick="openTuning()">change</button></div></div>';
   $('v-standings').innerHTML = h;
 }
@@ -1202,8 +1274,10 @@ function liveOdds(){
 function oddsFromPayload(p){
   const P = {};
   (p.predictions || []).forEach(r => { P[r.game_id] = r; });
-  const r = simulate({ games: p.games || [], preds: P,
-                       likely: Number(p.likely_prob) || 0.75, runs: SIMS_HIST });
+  // A v1 payload only knew one confidence level; read it as "should win".
+  const probs = { strong: Number(p.strong_prob != null ? p.strong_prob : p.likely_prob || 0.80),
+                  lean:   Number(p.lean_prob != null ? p.lean_prob : 0.65) };
+  const r = simulate({ games: p.games || [], preds: P, probs, runs: SIMS_HIST });
   const o = {};
   members.forEach(id => o[id] = r.teams[id]
     ? { pTop2: r.teams[id].pTop2, projWins: r.teams[id].projWins }
@@ -1360,14 +1434,16 @@ function diffSnapshots(a, b){
   return out;
 }
 function sameCall(x, y){
-  const k = r => !r || r.strength === 'auto' ? 'auto'
-    : r.strength === 'tossup' ? 'toss' : 'w:' + r.pick_team_id;
+  const k = r => !r || !r.strength || r.strength === 'auto' ? 'auto'
+    : r.strength === 'tossup' ? 'toss'
+    : (r.strength === 'lean' ? 'lean:' : 'strong:') + r.pick_team_id;
   return k(x) === k(y);
 }
 function callText(r, g){
-  if(!r || r.strength === 'auto') return 'the line';
-  if(r.strength === 'tossup') return '50-50';
-  return teamName(r.pick_team_id) + ' likely';
+  if(!r || !r.strength || r.strength === 'auto') return 'the line';
+  if(r.strength === 'tossup') return 'a coin flip';
+  const lvl = levelOf(r, r.pick_team_id);            // read from the picked team's side
+  return teamName(r.pick_team_id) + (lvl && lvl.k === 'lw' ? ' by a lean' : ' should win');
 }
 
 /* ========================= snapshots ========================= */
@@ -1376,8 +1452,9 @@ function callText(r, g){
    than against games that had not been played yet. */
 function buildPayload(){
   return {
-    v: 1, season,
-    likely_prob: settings.likely_prob,
+    v: 2, season,
+    strong_prob: settings.strong_prob,
+    lean_prob: settings.lean_prob,
     contenders: settings.contenders.slice(),
     predictions: Object.keys(preds).map(id => ({
       game_id: id,
@@ -1437,69 +1514,109 @@ async function delSnap(id){
 /* ========================= settings sheets ========================= */
 async function saveSettings(){
   const { error } = await supa.from('b12_settings').upsert({
-    season, contenders: settings.contenders, likely_prob: settings.likely_prob,
+    season, contenders: settings.contenders,
+    strong_prob: settings.strong_prob, lean_prob: settings.lean_prob,
     updated_at: new Date().toISOString()
   });
   if(error) toast('Could not save that: ' + error.message, 4000);
 }
 
+let draft = [];      // the contender list being edited in the sheet
+
 function openContenders(){
-  const rec = confRecords();
-  const list = members.slice().sort((a,b) =>
-    (sim.teams[b].pTop2 - sim.teams[a].pTop2) || teams[a].name.localeCompare(teams[b].name));
+  draft = settings.contenders.slice();
   openModal('<h3>Who are we tracking?</h3>'
-    + '<p>The teams that get a row on the board. Everyone else still plays in the simulation — '
-    + 'this only decides who you are watching closely. Pick up to eight.</p>'
-    + '<div id="tlist">' + list.map(id => {
-        const t = teams[id], r = rec[id] || { w:0, l:0 };
-        const on = settings.contenders.includes(id);
-        return '<div class="tpick' + (on ? ' on' : '') + '" data-id="' + id + '">'
-          + (t.logo ? '<img src="' + esc(t.logo) + '" alt="" onerror="this.style.display=\'none\'">' : '')
-          + '<span class="nm">' + esc(t.name) + '</span>'
-          + '<span class="rc">' + r.w + '–' + r.l + ' · ' + pct(sim.teams[id].pTop2) + '</span></div>';
-      }).join('') + '</div>'
+    + '<p>These get a row on the board. Everyone else in the league still plays in the '
+    + 'simulation — this only decides whose schedule you are predicting week to week. '
+    + 'Add or drop a team whenever the race changes; up to eight rows.</p>'
+    + '<div id="tlist"></div>'
     + '<div class="row" style="margin-top:18px"><button class="btn" onclick="saveContenders()">Done</button>'
     + '<button class="btn ghost" onclick="closeModal()">Cancel</button></div>');
+  $('tlist').addEventListener('click', onContenderClick);
+  paintContenders();
+}
 
-  $('tlist').addEventListener('click', e => {
-    const row = e.target.closest('.tpick');
-    if(!row) return;
-    const on = row.classList.contains('on');
-    if(!on && $('tlist').querySelectorAll('.tpick.on').length >= 8)
-      return toast('Eight rows is plenty for one board');
-    row.classList.toggle('on', !on);
-  });
+function paintContenders(){
+  const rec = confRecords();
+  const line = id => {
+    const t = teams[id], r = rec[id] || { w:0, l:0 };
+    return (t.logo ? '<img src="' + esc(t.logo) + '" alt="" onerror="this.style.visibility=\'hidden\'">' : '')
+      + '<span class="nm">' + esc(t.name) + '</span>'
+      + '<span class="rc">' + r.w + '–' + r.l + ' · ' + pct(sim.teams[id].pTop2) + '</span>';
+  };
+  const rest = members.filter(id => draft.indexOf(id) < 0).sort((a,b) =>
+    (sim.teams[b].pTop2 - sim.teams[a].pTop2) || teams[a].name.localeCompare(teams[b].name));
+
+  $('tlist').innerHTML =
+      '<div class="sec">On the board · ' + draft.length + '</div>'
+    + (draft.length ? draft.map((id, i) =>
+        '<div class="tpick on">' + line(id)
+        + '<span class="acts">'
+        + '<button class="mini" data-act="up" data-id="' + id + '"' + (i === 0 ? ' disabled' : '')
+        + ' title="Move up">▲</button>'
+        + '<button class="mini" data-act="down" data-id="' + id + '"'
+        + (i === draft.length - 1 ? ' disabled' : '') + ' title="Move down">▼</button>'
+        + '<button class="mini drop" data-act="remove" data-id="' + id + '">Remove</button>'
+        + '</span></div>').join('')
+       : '<div class="empty" style="padding:16px">Nobody yet — add a team below.</div>')
+    + '<div class="sec">Everyone else</div>'
+    + rest.map(id => '<div class="tpick">' + line(id)
+        + '<span class="acts"><button class="mini go" data-act="add" data-id="' + id + '">Add</button>'
+        + '</span></div>').join('');
+}
+
+function onContenderClick(e){
+  const b = e.target.closest('[data-act]');
+  if(!b) return;
+  const id = b.dataset.id, at = draft.indexOf(id);
+  if(b.dataset.act === 'add'){
+    if(draft.length >= 8) return toast('Eight rows is plenty for one board');
+    draft.push(id);
+  } else if(b.dataset.act === 'remove'){
+    draft.splice(at, 1);
+  } else {
+    const to = at + (b.dataset.act === 'up' ? -1 : 1);
+    if(to < 0 || to >= draft.length) return;
+    draft.splice(to, 0, draft.splice(at, 1)[0]);
+  }
+  paintContenders();
 }
 
 async function saveContenders(){
-  const picked = Array.from($('tlist').querySelectorAll('.tpick.on')).map(e => e.dataset.id);
-  if(!picked.length) return toast('Pick at least one team');
+  if(!draft.length) return toast('Pick at least one team');
   closeModal();
-  // Keep the order you already had; new teams go on the end.
-  settings.contenders = settings.contenders.filter(id => picked.includes(id))
-    .concat(picked.filter(id => !settings.contenders.includes(id)));
+  settings.contenders = draft.slice();
   if(!settings.contenders.includes(focusId)) focusId = settings.contenders[0];
   await saveSettings();
   live(); render();
 }
 
 function openTuning(){
-  openModal('<h3>What does “likely” mean?</h3>'
-    + '<p>When you call a game likely, the simulation gives that team this chance of winning it. '
-    + 'Nudge it if your “likely” is more of a hedge, or more of a sure thing. It applies to every '
-    + 'call on the board, and to the saved history from here on.</p>'
-    + '<div style="text-align:center;font-size:38px;font-weight:800;letter-spacing:-.04em" '
-    + 'class="num" id="tuneV">' + Math.round(settings.likely_prob * 100) + '%</div>'
-    + '<input type="range" id="tune" min="55" max="95" step="1" style="width:100%;margin:14px 0 4px" '
-    + 'value="' + Math.round(settings.likely_prob * 100) + '" '
-    + 'oninput="document.getElementById(\'tuneV\').textContent=this.value+\'%\'" />'
-    + '<div class="row"><span class="muted" style="font-size:11.5px">55% — barely a lean</span>'
-    + '<div class="spacer"></div><span class="muted" style="font-size:11.5px">95% — a formality</span></div>'
-    + '<div class="row" style="margin-top:18px"><button class="btn" onclick="saveTuning()">Save</button>'
+  const dial = (id, label, val, lo, hi, blurb) =>
+      '<div style="margin-bottom:22px">'
+    + '<div class="row"><b style="font-size:13.5px">' + label + '</b><div class="spacer"></div>'
+    + '<span class="num" id="' + id + 'V" style="font-size:26px;font-weight:800;'
+    + 'letter-spacing:-.03em">' + val + '%</span></div>'
+    + '<input type="range" id="' + id + '" min="' + lo + '" max="' + hi + '" step="1" value="' + val
+    + '" style="width:100%;margin:6px 0 3px" '
+    + 'oninput="document.getElementById(\'' + id + 'V\').textContent=this.value+\'%\'" />'
+    + '<div class="muted" style="font-size:11.5px;line-height:1.45">' + blurb + '</div></div>';
+
+  openModal('<h3>What the calls are worth</h3>'
+    + '<p>Two numbers drive everything: the chance the simulation gives a team when you say it '
+    + '<b>should win</b>, and the chance when you only <b>lean</b> its way. A coin flip is always '
+    + '50%, and the mirror image of each applies to the losing side.</p>'
+    + dial('tuneS', 'Should win', Math.round(settings.strong_prob * 100), 60, 95,
+           'Clear favourite, but not a certainty. 80% is about a 12-point spread.')
+    + dial('tuneL', 'Lean', Math.round(settings.lean_prob * 100), 51, 79,
+           'You would take them, without much conviction. 65% is about a 6-point spread.')
+    + '<div class="row" style="margin-top:4px"><button class="btn" onclick="saveTuning()">Save</button>'
     + '<button class="btn ghost" onclick="closeModal()">Cancel</button></div>');
 }
 async function saveTuning(){
-  settings.likely_prob = Number($('tune').value) / 100;
+  const strong = Number($('tuneS').value) / 100, lean = Number($('tuneL').value) / 100;
+  if(lean >= strong) return toast('A lean has to be softer than a should-win');
+  settings.strong_prob = strong; settings.lean_prob = lean;
   closeModal();
   await saveSettings();
   live(); render();
