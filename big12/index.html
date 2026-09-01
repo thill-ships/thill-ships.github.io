@@ -318,6 +318,7 @@ let weekSel = null;             // week shown on the "This week" tab
 let focusId = null;             // whose odds the swing numbers are measured in
 let sim = null;                 // cached simulate() output for the live board
 let popGame = null;             // game_id the popover is editing
+let boardScroll = 0;            // horizontal scroll, kept across re-renders
 
 const $  = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s)
@@ -880,6 +881,13 @@ function renderBoard(){
   h += '</div></div></div>';
   $('v-board').innerHTML = h;
 
+  // Every edit rebuilds the grid, which would otherwise snap you back to week 1
+  // mid-argument. Restore the scroll before the browser paints, so it never
+  // visibly moves, and keep tracking it for the next rebuild.
+  const scroller = $('v-board').querySelector('.scroller');
+  scroller.scrollLeft = boardScroll;
+  scroller.addEventListener('scroll', () => { boardScroll = scroller.scrollLeft; });
+
   const board = $('v-board').querySelector('.board');
   board.addEventListener('click', onCell);
   board.addEventListener('contextmenu', onCellMenu);
@@ -1038,10 +1046,11 @@ function renderStandings(){
     sim.teams[b].pTop2 - sim.teams[a].pTop2 ||
     sim.teams[b].projWins - sim.teams[a].projWins);
 
-  const f = sim.teams[focusId];
+  const home = homeId();
+  const f = sim.teams[home];
   let h = '<div class="card"><div class="card-hd" style="padding-bottom:16px">'
     + '<div class="row"><div>'
-    + '<div class="card-t">' + esc(teamName(focusId)) + ' reaches the Big 12 championship game</div>'
+    + '<div class="card-t">' + esc(teamName(home)) + ' reaches the Big 12 championship game</div>'
     + '<div class="card-s">Out of ' + sim.runs.toLocaleString() + ' simulated finishes, using your calls '
     + 'where you have made one and the betting line everywhere else.</div></div>'
     + '<div class="spacer"></div>'
@@ -1049,8 +1058,7 @@ function renderStandings(){
     + 'class="num">' + pct(f.pTop2) + '</div>'
     + '<div class="muted" style="font-size:12px">' + pct(f.pTop1) + ' to finish first outright</div>'
     + '</div></div></div>'
-    + '<div style="padding:0 20px 4px" class="row">' + contenderChips() + '</div>'
-    + '<div style="padding:12px 6px 4px"><table><thead><tr>'
+    + '<div style="padding:8px 6px 4px"><table><thead><tr>'
     + '<th class="l" style="width:30px">#</th><th class="l">Team</th>'
     + '<th>Big 12</th><th>Overall</th><th>Left</th><th>Projected</th>'
     + '<th class="l" style="width:190px">Reaches the title game</th><th>Finishes 1st</th>'
@@ -1060,7 +1068,7 @@ function renderStandings(){
     const t = teams[id], s = sim.teams[id], r = rec[id] || {w:0,l:0}, o = ovr[id] || {w:0,l:0};
     const left = s.confGames - s.confW - s.confL;
     const move = rankToday[id] - (i + 1);
-    h += '<tr class="' + (id === focusId ? 'me' : settings.contenders.includes(id) ? 'tracked' : '') + '">'
+    h += '<tr class="' + (id === home ? 'me' : settings.contenders.includes(id) ? 'tracked' : '') + '">'
       + '<td class="l"><span class="seed' + (i < 2 ? ' top2' : '') + '">' + (i + 1) + '</span></td>'
       + '<td class="l"><div class="tcell">'
       + (t.logo ? '<img src="' + esc(t.logo) + '" alt="" onerror="this.style.display=\'none\'">' : '')
@@ -1084,6 +1092,9 @@ function renderStandings(){
   $('v-standings').innerHTML = h;
 }
 
+function homeId(){
+  return settings.contenders.includes(byuId()) ? byuId() : settings.contenders[0];
+}
 function contenderChips(){
   return settings.contenders.map(id =>
     '<button class="btn ' + (id === focusId ? '' : 'ghost ') + 'sm" onclick="setFocus(\'' + id + '\')">'
