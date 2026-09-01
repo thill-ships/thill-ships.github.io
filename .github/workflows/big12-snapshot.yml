@@ -1,0 +1,41 @@
+name: War Room — weekly snapshot
+
+# Freezes the board every Monday morning so the season's history has no holes
+# in it, even on a week nobody presses "Save this week".
+on:
+  schedule:
+    # 6am Mountain on Monday: 12:00 UTC during the season, 13:00 UTC once the
+    # clocks change in November. Both fire; the job takes at most one snapshot
+    # per week, so the second is a no-op.
+    - cron: '0 12 * * 1'
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season year (blank = current)'
+        required: false
+      force:
+        description: 'Snapshot even if this week already has one'
+        required: false
+        default: '0'
+
+concurrency:
+  group: big12-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Save this week's board
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SEASON: ${{ inputs.season }}
+          FORCE: ${{ inputs.force }}
+        run: python .github/scripts/big12_snapshot.py

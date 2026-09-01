@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Big 12 War Room</title>
+<meta name="description" content="Monday morning Big 12 board — every contender's schedule, our call on every game, and what it does to BYU's odds." />
+<meta name="theme-color" content="#002E5D" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Big 12 War Room" />
+<meta property="og:description" content="Every contender's schedule, our call on every game, and what it does to BYU's odds." />
+<meta property="og:url" content="https://thill-ships.github.io/big12/" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23002E5D'/%3E%3Cg%20fill='%23fff'%3E%3Crect%20x='13'%20y='30'%20width='8'%20height='21'%20rx='2'/%3E%3Crect%20x='28'%20y='20'%20width='8'%20height='31'%20rx='2'/%3E%3Crect%20x='43'%20y='11'%20width='8'%20height='40'%20rx='2'/%3E%3C/g%3E%3C/svg%3E" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#F1F3F7; --card:#FFFFFF; --panel:#F5F7FA;
+    --ink:#14181F; --muted:#69727F; --faint:#A6AEBA; --line:#E6E9EF;
+    --navy:#002E5D; --navy-soft:#E7EEF6;
+
+    /* Status palette. Never used alone — every chip also carries a word. */
+    --win:#1B6E42;      --win-bg:#E3F1E8;   --win-line:#BEDFCC;
+    --loss:#B4322A;     --loss-bg:#FBE8E6;  --loss-line:#F0C9C4;
+    --lean-win-bg:#EFF7F2; --lean-loss-bg:#FDF2F1;
+    --toss:#8A5A0F;     --toss-bg:#FFF4DF;  --toss-line:#F2DCB4;
+
+    --series-1:#2a78d6;         /* the one chart hue (validated) */
+    --lift:0 1px 2px rgba(16,24,40,.04), 0 6px 18px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;font-size:14px;
+  }
+  button{font:inherit;color:inherit;}
+  .wrap{max-width:1400px;margin:0 auto;padding:0 22px 70px;}
+
+  /* ---------------- gate ---------------- */
+  #gate{max-width:430px;margin:12vh auto;padding:0 22px;}
+  .gate-card{background:var(--card);border-radius:20px;padding:30px 30px 28px;box-shadow:var(--lift);}
+  .gate-card h1{font-size:23px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px;}
+  .gate-card p{color:var(--muted);line-height:1.55;margin:0 0 20px;font-size:13.5px;}
+  .gate-card label{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--faint);margin-bottom:6px;}
+  .gate-card input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;
+    font:inherit;font-size:15px;background:var(--panel);}
+  .gate-card input:focus{outline:none;border-color:var(--navy);background:#fff;}
+  .btn{border:none;border-radius:11px;background:var(--navy);color:#fff;font-weight:700;
+    padding:12px 18px;cursor:pointer;font-size:14.5px;}
+  .btn:disabled{opacity:.55;cursor:default;}
+  .btn.ghost{background:var(--panel);color:var(--ink);}
+  .btn.sm{padding:8px 13px;font-size:13px;border-radius:9px;}
+  #gateMsg{margin-top:14px;font-size:13px;line-height:1.5;display:none;}
+
+  /* ---------------- header ---------------- */
+  .hd{background:var(--card);border-bottom:1px solid var(--line);}
+  .hd-in{max-width:1400px;margin:0 auto;padding:20px 22px 0;
+    display:flex;align-items:flex-start;justify-content:space-between;gap:20px;}
+  .hd-k{font-size:10.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;
+    color:#8A93A1;margin-bottom:5px;}
+  .hd-t{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1.05;}
+  .hd-s{font-size:12.5px;color:var(--muted);margin-top:6px;}
+  .hd-actions{display:flex;align-items:center;gap:9px;flex:none;}
+  .tabs{max-width:1400px;margin:0 auto;padding:18px 22px 0;display:flex;gap:26px;}
+  .tab{border:none;background:none;font-size:14px;font-weight:700;color:var(--faint);
+    padding:0 0 12px;cursor:pointer;border-bottom:3px solid transparent;}
+  .tab.on{color:var(--ink);border-bottom-color:var(--navy);}
+  .tab:hover{color:var(--muted);}
+  .view{display:none;} .view.on{display:block;}
+
+  /* ---------------- shared bits ---------------- */
+  .card{background:var(--card);border-radius:16px;box-shadow:var(--lift);margin-top:18px;}
+  .card-hd{padding:17px 20px 0;}
+  .card-t{font-size:16px;font-weight:800;letter-spacing:-.02em;}
+  .card-s{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .spacer{flex:1;}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border-radius:999px;
+    padding:5px 11px;font-size:12px;font-weight:700;color:var(--muted);}
+  .num{font-variant-numeric:tabular-nums;}
+  .muted{color:var(--muted);}
+  .empty{padding:34px 20px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6;}
+
+  /* ---------------- the board ---------------- */
+  .legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 20px 16px;}
+  .lg{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--muted);}
+  .lg i{width:13px;height:13px;border-radius:4px;display:block;border:1px solid var(--line);flex:none;}
+  .scroller{overflow-x:auto;padding-bottom:4px;}
+  .board{display:grid;min-width:max-content;border-top:1px solid var(--line);}
+  .bcell{border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .bhead{background:var(--card);padding:9px 8px;text-align:center;}
+  .bhead .wk{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);}
+  .bhead .dt{font-size:10.5px;color:var(--faint);margin-top:2px;}
+  .bhead.now{background:var(--navy-soft);}
+  .bteam{position:sticky;left:0;z-index:2;background:var(--card);padding:10px 12px;
+    display:flex;align-items:center;gap:9px;box-shadow:7px 0 14px -10px rgba(16,24,40,.35);}
+  .bproj{position:sticky;right:0;z-index:2;background:var(--card);padding:9px 12px;
+    display:flex;flex-direction:column;justify-content:center;
+    box-shadow:-7px 0 14px -10px rgba(16,24,40,.35);}
+  .bteam.corner{z-index:4;}
+  .bteam img{width:24px;height:24px;object-fit:contain;flex:none;}
+  .bteam .tn{font-size:13.5px;font-weight:800;letter-spacing:-.015em;line-height:1.15;}
+  .bteam .tr{font-size:11px;color:var(--muted);margin-top:1px;}
+  .rk{font-size:10.5px;font-weight:800;color:var(--navy);}
+  .bteam .drag{margin-left:auto;color:var(--faint);cursor:grab;font-size:13px;user-select:none;}
+
+  .g{width:100%;height:100%;min-height:56px;border:none;background:var(--card);cursor:pointer;
+    padding:7px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;text-align:center;transition:filter .12s;}
+  .g:hover{filter:brightness(.975);}
+  .g:focus-visible{outline:2px solid var(--navy);outline-offset:-2px;}
+  .g .opp{font-size:12.5px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;}
+  .g .opp span{font-weight:600;color:var(--muted);font-size:11px;}
+  .g .st{font-size:10.5px;font-weight:700;letter-spacing:.02em;}
+  .g.bye{background:var(--panel);cursor:default;}
+  .g.bye .opp{color:var(--faint);font-weight:700;font-size:11px;letter-spacing:.1em;}
+  .g.w{background:var(--win-bg);}      .g.w .st{color:var(--win);}
+  .g.l{background:var(--loss-bg);}     .g.l .st{color:var(--loss);}
+  .g.lw{background:var(--lean-win-bg);}  .g.lw .st{color:var(--win);}
+  .g.ll{background:var(--lean-loss-bg);} .g.ll .st{color:var(--loss);}
+  .g.t{background:var(--toss-bg);}     .g.t .st{color:var(--toss);}
+  .g.auto .st{color:var(--faint);font-weight:600;}
+  .g.set{box-shadow:inset 0 0 0 1.5px rgba(0,46,93,.16);}
+  .g.nc .opp:after{content:'NC';font-size:8.5px;font-weight:800;color:var(--faint);
+    vertical-align:super;margin-left:3px;letter-spacing:.05em;}
+  .g.link{filter:brightness(.955);}
+  .g .flag{font-size:9px;color:var(--faint);}
+
+  /* ---------------- popover ---------------- */
+  #pop{position:absolute;z-index:60;display:none;width:260px;background:var(--card);
+    border-radius:14px;box-shadow:0 4px 12px rgba(16,24,40,.1),0 20px 44px rgba(16,24,40,.16);
+    border:1px solid var(--line);padding:14px;}
+  #pop h4{margin:0 0 3px;font-size:13.5px;font-weight:800;letter-spacing:-.01em;}
+  #pop .sub{font-size:11.5px;color:var(--muted);margin-bottom:11px;}
+  #pop .opt{display:block;width:100%;text-align:left;border:1.5px solid var(--line);background:var(--card);
+    border-radius:10px;padding:8px 11px;margin-bottom:6px;cursor:pointer;font-size:13px;font-weight:700;}
+  #pop .opt:hover{background:var(--panel);}
+  #pop .opt.on{border-color:var(--navy);background:var(--navy-soft);}
+  #pop .opt small{display:block;font-weight:500;color:var(--muted);font-size:11px;margin-top:1px;}
+  #pop textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;
+    font:inherit;font-size:12.5px;resize:vertical;min-height:52px;background:var(--panel);}
+  #pop textarea:focus{outline:none;border-color:var(--navy);background:#fff;}
+
+  /* ---------------- tables ---------------- */
+  table{width:100%;border-collapse:collapse;}
+  th{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);
+    text-align:right;padding:12px 12px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th.l,td.l{text-align:left;}
+  td{padding:11px 12px;border-bottom:1px solid var(--line);font-size:13.5px;
+    font-variant-numeric:tabular-nums;text-align:right;}
+  tr:last-child td{border-bottom:none;}
+  tr.me td{background:var(--navy-soft);}
+  tr.tracked td{font-weight:700;}
+  .tcell{display:flex;align-items:center;gap:9px;}
+  .tcell img{width:21px;height:21px;object-fit:contain;flex:none;}
+  .seed{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:6px;
+    background:var(--panel);font-size:11px;font-weight:800;color:var(--muted);}
+  .seed.top2{background:var(--navy);color:#fff;}
+  .bar{position:relative;height:7px;border-radius:999px;background:var(--panel);
+    width:110px;display:inline-block;vertical-align:middle;overflow:hidden;}
+  .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--series-1);}
+  .bar.dim i{background:#C3CBD8;}
+
+  /* ---------------- this week ---------------- */
+  .gm{display:grid;grid-template-columns:1fr 190px;gap:16px;align-items:center;
+    padding:13px 20px;border-bottom:1px solid var(--line);}
+  .gm:last-child{border-bottom:none;}
+  .gm-t{font-size:14px;font-weight:700;letter-spacing:-.01em;}
+  .gm-s{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45;}
+  .gm-s b{color:var(--ink);font-weight:700;}
+  .swing{text-align:right;}
+  .swing .v{font-size:17px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  .swing .k{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);}
+  .root{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;
+    padding:3px 9px;border-radius:999px;background:var(--win-bg);color:var(--win);margin-top:5px;}
+  .root.none{background:var(--panel);color:var(--muted);}
+
+  /* ---------------- history ---------------- */
+  .facets{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+    border-top:1px solid var(--line);}
+  .facet{padding:14px 16px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .facet-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:2px;}
+  .facet-t{font-size:13.5px;font-weight:800;letter-spacing:-.015em;}
+  .facet-v{margin-left:auto;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .facet-d{font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .up{color:var(--win);} .down{color:var(--loss);} .flat{color:var(--faint);}
+  .facet svg{display:block;width:100%;height:auto;overflow:visible;margin-top:4px;}
+  .snaps{display:flex;gap:8px;overflow-x:auto;padding:14px 20px 16px;}
+  .snap{flex:none;border:1.5px solid var(--line);background:var(--card);border-radius:11px;
+    padding:8px 13px;cursor:pointer;text-align:left;min-width:120px;}
+  .snap.on{border-color:var(--navy);background:var(--navy-soft);}
+  .snap .sd{font-size:12.5px;font-weight:800;}
+  .snap .ss{font-size:11px;color:var(--muted);margin-top:2px;}
+  .chg{padding:12px 20px;border-bottom:1px solid var(--line);font-size:13px;line-height:1.55;}
+  .chg:last-child{border-bottom:none;}
+  .chg b{font-weight:700;}
+  .tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    padding:2px 7px;border-radius:5px;background:var(--panel);color:var(--muted);margin-right:8px;
+    vertical-align:1px;}
+  .tag.res{background:var(--navy-soft);color:var(--navy);}
+  .tag.pred{background:var(--toss-bg);color:var(--toss);}
+
+  /* ---------------- misc ---------------- */
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);
+    background:#14181F;color:#fff;padding:11px 18px;border-radius:11px;font-size:13.5px;font-weight:600;
+    opacity:0;pointer-events:none;transition:.2s;z-index:80;}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+  .modal{position:fixed;inset:0;background:rgba(16,24,40,.4);display:none;z-index:70;
+    align-items:center;justify-content:center;padding:22px;}
+  .modal.on{display:flex;}
+  .sheet{background:var(--card);border-radius:18px;max-width:520px;width:100%;max-height:86vh;
+    overflow:auto;padding:24px;}
+  .sheet h3{margin:0 0 5px;font-size:18px;font-weight:800;letter-spacing:-.02em;}
+  .sheet p{margin:0 0 18px;font-size:13px;color:var(--muted);line-height:1.55;}
+  .tpick{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;
+    border:1.5px solid transparent;}
+  .tpick:hover{background:var(--panel);}
+  .tpick.on{border-color:var(--navy);background:var(--navy-soft);}
+  .tpick img{width:22px;height:22px;object-fit:contain;}
+  .tpick .nm{font-size:13.5px;font-weight:700;}
+  .tpick .rc{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+  input[type=text],textarea.big{width:100%;padding:10px 12px;border:1.5px solid var(--line);
+    border-radius:10px;font:inherit;font-size:14px;background:var(--panel);}
+  input[type=text]:focus,textarea.big:focus{outline:none;border-color:var(--navy);background:#fff;}
+</style>
+</head>
+<body>
+
+<!-- ======================= sign in ======================= -->
+<div id="gate">
+  <div class="gate-card">
+    <h1>Big 12 War Room</h1>
+    <p id="gateBlurb">One board, one password. Enter the shared password and this browser stays signed in all season.</p>
+    <form onsubmit="return doAuth(event)">
+      <label for="pw">Shared password</label>
+      <input id="pw" type="password" autocomplete="current-password" />
+      <div style="margin-top:16px"><button class="btn" id="authBtn" style="width:100%">Open the board</button></div>
+    </form>
+    <div id="gateMsg"></div>
+  </div>
+</div>
+
+<!-- ======================= app ======================= -->
+<div id="app" style="display:none">
+  <div class="hd">
+    <div class="hd-in">
+      <div>
+        <div class="hd-k">Monday morning</div>
+        <div class="hd-t">Big 12 War Room</div>
+        <div class="hd-s" id="hdSub">Loading the season…</div>
+      </div>
+      <div class="hd-actions">
+        <button class="btn ghost sm" onclick="openContenders()">Contenders</button>
+        <button class="btn sm" onclick="openSnapshot()">Save this week</button>
+        <button class="btn ghost sm" onclick="signOut()" title="Sign out of this browser">Sign out</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-v="board"     onclick="go('board')">Board</button>
+      <button class="tab"    data-v="standings" onclick="go('standings')">Standings</button>
+      <button class="tab"    data-v="week"      onclick="go('week')">This week</button>
+      <button class="tab"    data-v="history"   onclick="go('history')">History</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section class="view on" id="v-board"></section>
+    <section class="view"    id="v-standings"></section>
+    <section class="view"    id="v-week"></section>
+    <section class="view"    id="v-history"></section>
+  </div>
+</div>
+
+<div id="pop"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+/* ==========================================================================
+   CONFIG
+
+   Same Supabase project as the pick'em app — the schedule, scores and betting
+   lines this board runs on are the ones that sync job already keeps current.
+   The publishable key belongs in public code; Row Level Security is what
+   actually protects the data (see schema.sql). Full walkthrough in SETUP.md.
+   ========================================================================== */
+const CFG = {
+  url:     'https://yehpygarkxdopdvugifk.supabase.co',
+  key:     'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo',
+  account: 'warroom@thill-ships.app'   // the one shared login. Must match schema.sql.
+};
+
+const BUILD = '2026-09-01.1';
+const SIMS  = 20000;    // Monte Carlo runs for the live view
+const SIMS_HIST = 4000; // fewer per point when redrawing the whole season's history
+const SIGMA = 16.0;     // std dev of a college football final margin, in points
+
+/* ========================= state ========================= */
+let supa = null, user = null;
+let season = null;
+let games = [];                 // every Big 12 game this season
+let teams = {};                 // id -> {id,name,abbr,logo,rank,record}
+let members = [];               // Big 12 team ids, alphabetical by name
+let preds = {};                 // game_id -> {pick_team_id, strength, note}
+let settings = { contenders: [], likely_prob: 0.75 };
+let snapshots = [];             // newest first, payload included
+let view = 'board';
+let weekSel = null;             // week shown on the "This week" tab
+let focusId = null;             // whose odds the swing numbers are measured in
+let sim = null;                 // cached simulate() output for the live board
+let popGame = null;             // game_id the popover is editing
+
+const $  = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const pct = v => v > 0 && v < 0.005 ? '<1%'
+              : v < 1 && v > 0.995 ? '>99%'
+              : Math.round(v * 100) + '%';
+const pct1 = v => (v * 100).toFixed(1) + '%';
+const ready = () => CFG.url.startsWith('http') && CFG.key.length > 20;
+
+function toast(m, ms = 2600){
+  const t = $('toast'); t.textContent = m; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), ms);
+}
+function seasonOf(d){ d = d || new Date(); return d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear()-1; }
+function fmtDate(iso){
+  return new Date(iso).toLocaleDateString([], { month:'short', day:'numeric' });
+}
+function fmtWhen(iso){
+  return new Date(iso).toLocaleString([], { weekday:'short', month:'short', day:'numeric',
+                                            hour:'numeric', minute:'2-digit' });
+}
+function teamName(id){ return (teams[id] && teams[id].name) || 'TBD'; }
+function teamAbbr(id){ return (teams[id] && teams[id].abbr) || '—'; }
+
+/* ========================= boot ========================= */
+(function(){
+  if(!ready()){
+    $('gate').innerHTML = '<div class="gate-card"><h1>Almost there</h1><p>This board still needs '+
+      'its Supabase keys. Open <code>big12/index.html</code>, find the <code>CFG</code> block, and '+
+      'paste in the project URL and publishable key — the same pair the pick’em app uses. '+
+      'Walkthrough in <code>big12/SETUP.md</code>.</p></div>';
+    return;
+  }
+  supa = window.supabase.createClient(CFG.url, CFG.key);
+  supa.auth.getSession().then(({ data }) => {
+    if(data && data.session) signedIn(data.session.user); else $('gate').style.display = '';
+  });
+  supa.auth.onAuthStateChange((_e, s) => {
+    if(s && s.user){ if(!user || user.id !== s.user.id) signedIn(s.user); }
+    else { user = null; $('gate').style.display = ''; $('app').style.display = 'none'; }
+  });
+})();
+
+async function doAuth(ev){
+  if(ev) ev.preventDefault();
+  const pw = $('pw').value || '';
+  if(pw.length < 6) return toast('The password is at least 6 characters');
+  const btn = $('authBtn'); btn.disabled = true; btn.textContent = 'Opening…';
+
+  const { error } = await supa.auth.signInWithPassword({ email: CFG.account, password: pw });
+  btn.disabled = false; btn.textContent = 'Open the board';
+  if(!error) return;
+
+  const msg = $('gateMsg');
+  msg.style.display = ''; msg.style.color = 'var(--loss)';
+  if(/invalid login credentials/i.test(error.message || '')){
+    // Either the password is wrong, or nobody has claimed the account yet.
+    msg.innerHTML = 'That password did not work. If this is the very first time anyone has '+
+      'opened the board, <button class="btn ghost sm" style="margin-top:8px" onclick="claim()">'+
+      'set this as the password</button>';
+  } else {
+    msg.textContent = error.message;
+  }
+}
+
+/* First-run only: claims the shared account with whatever is in the box. */
+async function claim(){
+  const pw = $('pw').value || '';
+  const { error } = await supa.auth.signUp({ email: CFG.account, password: pw });
+  if(error){
+    $('gateMsg').innerHTML = /already registered/i.test(error.message)
+      ? 'The account already exists, so that password is simply wrong. Ask whoever set it, or '+
+        'reset it in Supabase under Authentication → Users.'
+      : esc(error.message);
+    return;
+  }
+  toast('Password set. You are in.');
+}
+
+function signOut(){ supa.auth.signOut(); }
+
+async function signedIn(u){
+  user = u;
+  $('gate').style.display = 'none';
+  $('app').style.display = '';
+  await loadAll();
+}
+
+/* ========================= loading ========================= */
+async function loadAll(){
+  season = seasonOf();
+
+  const [gRes, pRes, sRes] = await Promise.all([
+    supa.from('pickem_games').select('*').eq('season', season).order('kickoff'),
+    supa.from('b12_predictions').select('*').eq('season', season),
+    supa.from('b12_settings').select('*').eq('season', season).maybeSingle()
+  ]);
+
+  if(gRes.error){ fatal(gRes.error, 'the schedule'); return; }
+  if(pRes.error){ fatal(pRes.error, 'the predictions'); return; }
+
+  games = gRes.data || [];
+  preds = {};
+  (pRes.data || []).forEach(r => { preds[r.game_id] = r; });
+
+  indexTeams();
+  if(!members.length){
+    $('app').innerHTML = '<div class="wrap"><div class="card"><div class="empty">'
+      + 'No ' + season + ' Big 12 schedule in the database yet.<br><br>Run '
+      + '<b>Actions → Pick’em — sync games</b> once; it loads the whole season from ESPN and '
+      + 'both apps read it. This page will work as soon as it has.</div></div></div>';
+    return;
+  }
+
+  if(sRes.data){
+    settings = { contenders: sRes.data.contenders || [], likely_prob: Number(sRes.data.likely_prob) };
+  } else {
+    settings = { contenders: defaultContenders(), likely_prob: 0.75 };
+    await saveSettings();     // first run: write the defaults so both of you see the same board
+  }
+  settings.contenders = settings.contenders.filter(id => members.includes(id));
+  if(!settings.contenders.length) settings.contenders = defaultContenders();
+
+  focusId = settings.contenders.includes(byuId()) ? byuId() : settings.contenders[0];
+  weekSel = currentWeek();
+
+  await loadSnapshots();
+  live();
+  render();
+  subscribe();
+}
+
+function fatal(error, what){
+  $('app').innerHTML = '<div class="wrap"><div class="card"><div class="empty">'+
+    'Could not load '+what+'.<br><br><code>'+esc(error.message||'')+'</code><br><br>'+
+    'If this says the table does not exist, <code>big12/schema.sql</code> has not been run yet — '+
+    'see <code>big12/SETUP.md</code>.</div></div></div>';
+}
+
+async function loadSnapshots(){
+  const { data, error } = await supa.from('b12_snapshots').select('*')
+    .eq('season', season).order('taken_at', { ascending: false }).limit(60);
+  snapshots = (error ? [] : (data || []))
+    .slice().sort((a, b) => (a.taken_at < b.taken_at ? 1 : a.taken_at > b.taken_at ? -1 : 0));
+}
+
+/* Teams come out of the schedule itself rather than a hardcoded list, so a
+   conference realignment fixes itself. A team counts as a Big 12 member if it
+   plays at least one conference game — true for all 16 from day one, because
+   the sync job loads the whole season's schedule up front. */
+function indexTeams(){
+  teams = {};
+  const isMember = {};
+  for(const g of games){
+    for(const side of ['home','away']){
+      const id = g[side+'_id'];
+      if(!id) continue;
+      const cur = teams[id] || { id, name:'', abbr:'', logo:'', rank:null, record:'' };
+      cur.name   = g[side+'_name']   || cur.name;
+      cur.abbr   = g[side+'_abbr']   || cur.abbr;
+      cur.logo   = g[side+'_logo']   || cur.logo;
+      cur.record = g[side+'_record'] || cur.record;
+      if(g[side+'_rank'] != null) cur.rank = g[side+'_rank'];
+      teams[id] = cur;
+    }
+    if(g.conference_game){ isMember[g.home_id] = 1; isMember[g.away_id] = 1; }
+  }
+  members = Object.keys(isMember).sort((a,b) => teams[a].name.localeCompare(teams[b].name));
+}
+
+function byuId(){
+  const hit = members.find(id => (teams[id].abbr || '').toUpperCase() === 'BYU');
+  return hit || members[0];
+}
+
+/* Six to start with: BYU, then the best of the rest by ranking, then by
+   conference record. All of it is editable in the Contenders sheet. */
+function defaultContenders(){
+  const rec = confRecords();
+  const rest = members.filter(id => id !== byuId()).sort((a,b) => {
+    const ra = teams[a].rank || 99, rb = teams[b].rank || 99;
+    if(ra !== rb) return ra - rb;
+    const pa = rec[a] ? rec[a].w - rec[a].l : 0, pb = rec[b] ? rec[b].w - rec[b].l : 0;
+    if(pa !== pb) return pb - pa;
+    return teams[a].name.localeCompare(teams[b].name);
+  });
+  return [byuId()].concat(rest.slice(0, 5)).filter(Boolean);
+}
+
+function subscribe(){
+  supa.channel('b12')
+    .on('postgres_changes', { event:'*', schema:'public', table:'b12_predictions' }, p => {
+      const r = p.new && p.new.game_id ? p.new : null;
+      if(p.eventType === 'DELETE' && p.old) delete preds[p.old.game_id];
+      else if(r) preds[r.game_id] = r;
+      live(); render();
+    })
+    .on('postgres_changes', { event:'*', schema:'public', table:'b12_settings' }, p => {
+      if(p.new && p.new.season === season){
+        settings = { contenders: p.new.contenders || [], likely_prob: Number(p.new.likely_prob) };
+        live(); render();
+      }
+    })
+    .subscribe();
+}
+
+/* ==========================================================================
+   THE MATH
+
+   Every undecided game gets a win probability. In order of preference:
+     1. your call on it        — "likely" is worth `likely_prob` (0.75 by default)
+     2. the betting line       — a spread converted through a normal curve
+     3. nothing at all         — a coin flip
+   That second step is what makes an untouched board already worth reading: the
+   market has an opinion about all 72 conference games, and yours overrides it
+   one game at a time.
+   ========================================================================== */
+
+/* Normal CDF, Zelen & Severo 26.2.17 — plenty accurate for this. */
+function normCdf(z){
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989422804014327 * Math.exp(-z * z / 2);
+  const p = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 +
+            t * (-1.821255978 + t * 1.330274429))));
+  return z > 0 ? 1 - p : p;
+}
+
+/* home_spread is negative when the home team is favored, so the expected home
+   margin is its negation. SIGMA is the spread of actual results around it. */
+function marketPHome(g){
+  if(g.home_spread == null) return 0.5;
+  return normCdf(-Number(g.home_spread) / SIGMA);
+}
+
+function pHome(g, P, likely){
+  const p = P[g.id];
+  if(p){
+    if(p.strength === 'tossup' || !p.pick_team_id) return 0.5;
+    if(p.pick_team_id === g.home_id) return likely;
+    if(p.pick_team_id === g.away_id) return 1 - likely;
+  }
+  return marketPHome(g);
+}
+function pFor(g, teamId, P, likely){
+  const h = pHome(g, P, likely);
+  return teamId === g.home_id ? h : 1 - h;
+}
+
+function oppOf(g, teamId){ return teamId === g.home_id ? g.away_id : g.home_id; }
+function isHome(g, teamId){ return teamId === g.home_id; }
+
+/* What one cell of the board says. `set` means a human decided it. */
+function cellState(g, teamId){
+  const P = preds, likely = settings.likely_prob;
+  if(g.status === 'final' && g.winner_id){
+    const won = g.winner_id === teamId;
+    const me = teamId === g.home_id ? g.home_score : g.away_score;
+    const them = teamId === g.home_id ? g.away_score : g.home_score;
+    return { k: won ? 'w' : 'l', label: (won ? 'W ' : 'L ') + me + '–' + them, set: true, done: true };
+  }
+  const p = P[g.id];
+  if(p){
+    if(p.strength === 'tossup' || !p.pick_team_id) return { k:'t',  label:'50-50',    set:true };
+    if(p.pick_team_id === teamId)                  return { k:'lw', label:'Likely W', set:true };
+    return { k:'ll', label:'Likely L', set:true };
+  }
+  const pv = pFor(g, teamId, P, likely);
+  const sp = g.home_spread == null ? null
+           : (teamId === g.home_id ? Number(g.home_spread) : -Number(g.home_spread));
+  const line = sp == null ? '' : (sp > 0 ? '+' + sp : sp === 0 ? 'PK' : String(sp));
+  return { k:'auto', label: line || (pv >= .5 ? 'lean W' : 'lean L'), set:false, auto:true, p:pv };
+}
+
+function confRecords(){
+  const rec = {};
+  for(const g of games){
+    if(!g.conference_game) continue;
+    for(const id of [g.home_id, g.away_id]) rec[id] = rec[id] || { w:0, l:0, games:0 };
+    rec[g.home_id].games++; rec[g.away_id].games++;
+    if(g.status === 'final' && g.winner_id){
+      const lose = g.winner_id === g.home_id ? g.away_id : g.home_id;
+      rec[g.winner_id].w++; rec[lose].l++;
+    }
+  }
+  return rec;
+}
+function overallRecords(){
+  const rec = {};
+  for(const g of games){
+    for(const id of [g.home_id, g.away_id]) rec[id] = rec[id] || { w:0, l:0 };
+    if(g.status === 'final' && g.winner_id){
+      const lose = g.winner_id === g.home_id ? g.away_id : g.home_id;
+      rec[g.winner_id].w++; rec[lose].l++;
+    }
+  }
+  return rec;
+}
+
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* --------------------------------------------------------------------------
+   Monte Carlo the rest of the conference season.
+
+   Plays every undecided conference game `runs` times at its probability, ranks
+   the league each time, and counts how often each team lands in the top two —
+   which is the whole ballgame, because the top two play for the title.
+
+   Ties are broken head to head using that same simulated season, then at
+   random. That is a simplification of the real multi-team tiebreaker, but it
+   gets the two-team case (much the most common) exactly right.
+
+   The run is seeded, so the same board always produces the same numbers. Odds
+   that wiggle when you switch tabs are odds nobody trusts.
+   -------------------------------------------------------------------------- */
+function simulate(opts){
+  const G = opts.games, P = opts.preds, likely = opts.likely;
+  const runs = opts.runs || SIMS;
+  const n = members.length;
+  const idx = {}; members.forEach((id, i) => { idx[id] = i; });
+
+  const conf = G.filter(g => g.conference_game && idx[g.home_id] !== undefined
+                                               && idx[g.away_id] !== undefined);
+
+  const gh = new Int32Array(conf.length), ga = new Int32Array(conf.length);
+  const gfinal = new Int8Array(conf.length), gpend = new Int32Array(conf.length);
+  const pairGame = new Int32Array(n * n).fill(-1);
+  const baseW = new Int32Array(n), baseL = new Int32Array(n), played = new Int32Array(n);
+  const pendP = [], pendCi = [];
+
+  conf.forEach((g, ci) => {
+    const h = idx[g.home_id], a = idx[g.away_id];
+    gh[ci] = h; ga[ci] = a;
+    pairGame[h * n + a] = ci; pairGame[a * n + h] = ci;
+    played[h]++; played[a]++;
+    if(g.status === 'final' && g.winner_id){
+      const hw = g.winner_id === g.home_id ? 1 : 0;
+      gfinal[ci] = hw; gpend[ci] = -1;
+      if(hw){ baseW[h]++; baseL[a]++; } else { baseW[a]++; baseL[h]++; }
+    } else {
+      gfinal[ci] = -1; gpend[ci] = pendP.length;
+      pendP.push(pHome(g, P, likely)); pendCi.push(ci);
+    }
+  });
+
+  // Which games we want conditional odds for, and for whom.
+  const levCi = [], levGames = [];
+  if(opts.leverageWeek != null){
+    conf.forEach((g, ci) => {
+      if(g.week === opts.leverageWeek && gpend[ci] >= 0){ levCi.push(ci); levGames.push(g); }
+    });
+  }
+  const foc = (opts.focus || []).filter(id => idx[id] !== undefined);
+  const L = levCi.length, F = foc.length;
+  const hitH = new Float64Array(L * F), hitA = new Float64Array(L * F);
+  const nH = new Float64Array(L), nA = new Float64Array(L);
+
+  const cnt1 = new Float64Array(n), cnt2 = new Float64Array(n), sumW = new Float64Array(n);
+  const hist = new Float64Array(n * 12);
+  const outcomes = new Uint8Array(pendP.length);
+  const wins = new Int32Array(n), rk = new Float64Array(n);
+  const ord = new Int32Array(n);
+  const rnd = mulberry32(0x9E3779B9 ^ (pendP.length * 7919) ^ runs);
+  const ordArr = [];
+
+  for(let s = 0; s < runs; s++){
+    wins.set(baseW);
+    for(let k = 0; k < pendP.length; k++){
+      const r = rnd() < pendP[k] ? 1 : 0;
+      outcomes[k] = r;
+      wins[r ? gh[pendCi[k]] : ga[pendCi[k]]]++;
+    }
+    for(let i = 0; i < n; i++){ ord[i] = i; rk[i] = rnd(); }
+    ordArr.length = 0;
+    for(let i = 0; i < n; i++) ordArr.push(ord[i]);
+    ordArr.sort((a, b) => (wins[b] - wins[a]) || (rk[a] - rk[b]));
+
+    // Head-to-head, but only where it can change who the top two are.
+    let i = 0;
+    while(i <= 1 && i < n){
+      let j = i;
+      while(j + 1 < n && wins[ordArr[j + 1]] === wins[ordArr[i]]) j++;
+      if(j > i){
+        const grp = ordArr.slice(i, j + 1);
+        const h2h = grp.map(t => {
+          let c = 0;
+          for(const o of grp){
+            if(o === t) continue;
+            const ci = pairGame[t * n + o];
+            if(ci < 0) continue;
+            const hw = gfinal[ci] >= 0 ? gfinal[ci] : outcomes[gpend[ci]];
+            if((hw ? gh[ci] : ga[ci]) === t) c++;
+          }
+          return c;
+        });
+        const order = grp.map((t, q) => q).sort((a, b) => (h2h[b] - h2h[a]) || (rk[grp[a]] - rk[grp[b]]));
+        for(let q = 0; q < order.length; q++) ordArr[i + q] = grp[order[q]];
+      }
+      i = j + 1;
+    }
+
+    const t1 = ordArr[0], t2 = ordArr[1];
+    cnt1[t1]++; cnt2[t1]++; cnt2[t2]++;
+    for(let k = 0; k < n; k++){
+      sumW[k] += wins[k];
+      const w = wins[k] < 12 ? wins[k] : 11;
+      hist[k * 12 + w]++;
+    }
+    for(let e = 0; e < L; e++){
+      const ci = levCi[e], home = outcomes[gpend[ci]] === 1;
+      if(home) nH[e]++; else nA[e]++;
+      for(let f = 0; f < F; f++){
+        const ti = idx[foc[f]];
+        if(ti === t1 || ti === t2){ if(home) hitH[e * F + f]++; else hitA[e * F + f]++; }
+      }
+    }
+  }
+
+  const out = { runs, teams:{}, leverage:[], pending: pendP.length };
+  members.forEach((id, k) => {
+    const dist = [];
+    for(let w = 0; w < 12; w++) dist.push(hist[k * 12 + w] / runs);
+    out.teams[id] = {
+      confW: baseW[k], confL: baseL[k], confGames: played[k],
+      projWins: sumW[k] / runs,
+      projLosses: played[k] - sumW[k] / runs,
+      pTop2: cnt2[k] / runs,
+      pTop1: cnt1[k] / runs,
+      dist
+    };
+  });
+  levGames.forEach((g, e) => {
+    const by = {};
+    foc.forEach((id, f) => {
+      by[id] = {
+        ifHome: nH[e] ? hitH[e * F + f] / nH[e] : null,
+        ifAway: nA[e] ? hitA[e * F + f] / nA[e] : null
+      };
+    });
+    out.leverage.push({ game: g, by });
+  });
+  return out;
+}
+
+/* Re-run the live board. Cheap enough to just do it on every change. */
+function live(){
+  sim = simulate({
+    games, preds, likely: settings.likely_prob,
+    focus: settings.contenders, leverageWeek: weekSel, runs: SIMS
+  });
+}
+
+/* ==========================================================================
+   RENDER
+   ========================================================================== */
+function go(v){
+  view = v;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === v));
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  render();
+}
+
+function weeksList(){
+  const seen = {};
+  for(const g of games){
+    if(g.week == null) continue;
+    if(!seen[g.week] || g.kickoff < seen[g.week]) seen[g.week] = g.kickoff;
+  }
+  return Object.keys(seen).map(Number).sort((a,b) => a-b).map(w => ({ w, start: seen[w] }));
+}
+function currentWeek(){
+  const wl = weeksList();
+  for(const { w } of wl){
+    if(games.some(g => g.week === w && g.status !== 'final')) return w;
+  }
+  return wl.length ? wl[wl.length-1].w : 1;
+}
+function needsCall(){
+  return games.filter(g => g.conference_game && g.status !== 'final' &&
+    !(preds[g.id] && preds[g.id].strength !== 'auto')).length;
+}
+
+function render(){
+  const rec = confRecords();
+  const done = games.filter(g => g.conference_game && g.status === 'final').length;
+  const total = games.filter(g => g.conference_game).length;
+  const synced = games.reduce((m, g) => g.updated_at > m ? g.updated_at : m, '');
+  $('hdSub').innerHTML = season + ' season &nbsp;·&nbsp; ' + done + ' of ' + total +
+    ' conference games played &nbsp;·&nbsp; <b>' + needsCall() + '</b> still need a call' +
+    (synced ? ' &nbsp;·&nbsp; scores synced ' + fmtWhen(synced) : '');
+
+  if(view === 'board')     renderBoard(rec);
+  if(view === 'standings') renderStandings(rec);
+  if(view === 'week')      renderWeek();
+  if(view === 'history')   renderHistory();
+}
+
+/* ------------------------------- board ---------------------------------- */
+function renderBoard(){
+  const wks = weeksList();
+  const by = {};                                  // teamId -> week -> game
+  for(const g of games){
+    for(const id of [g.home_id, g.away_id]){
+      (by[id] = by[id] || {})[g.week] = g;
+    }
+  }
+
+  const cols = '210px repeat(' + wks.length + ', 112px) 148px';
+  let h = '<div class="card">'
+    + '<div class="card-hd"><div class="card-t">The board</div>'
+    + '<div class="card-s">Click a game to cycle it: <b>the line stands</b> → <b>likely W</b> → '
+    + '<b>50-50</b> → <b>likely L</b> → back. Right-click for the same choices plus a note. '
+    + 'A game between two contenders moves on both rows at once.</div></div>'
+    + '<div class="legend">'
+    + lg('w','Won') + lg('l','Lost') + lg('lw','Likely win') + lg('t','50-50')
+    + lg('ll','Likely loss') + lg('auto','Untouched — the betting line stands')
+    + '</div>'
+    + '<div class="scroller"><div class="board" style="grid-template-columns:' + cols + '">';
+
+  h += '<div class="bcell bteam corner bhead"><div class="wk">Contender</div>'
+     + '<div class="dt">conference record</div></div>';
+  for(const { w, start } of wks){
+    h += '<div class="bcell bhead' + (w === currentWeek() ? ' now' : '') + '">'
+       + '<div class="wk">Wk ' + w + '</div><div class="dt">' + fmtDate(start) + '</div></div>';
+  }
+  h += '<div class="bcell bhead bproj"><div class="wk">Projected</div>'
+     + '<div class="dt">final · title game</div></div>';
+
+  const rec = confRecords();
+  for(const id of settings.contenders){
+    const t = teams[id], r = rec[id] || { w:0, l:0 }, s = sim.teams[id] || {};
+    h += '<div class="bcell bteam">'
+       + (t.logo ? '<img src="' + esc(t.logo) + '" alt="" />' : '')
+       + '<div><div class="tn">' + (t.rank ? '<span class="rk">#' + t.rank + '</span> ' : '')
+       + esc(t.name) + '</div>'
+       + '<div class="tr num">' + r.w + '–' + r.l + ' Big 12</div></div></div>';
+
+    for(const { w } of wks){
+      const g = by[id] && by[id][w];
+      if(!g){ h += '<div class="bcell"><div class="g bye"><span class="opp">BYE</span></div></div>'; continue; }
+      h += '<div class="bcell">' + cellHtml(g, id) + '</div>';
+    }
+
+    const out = s.pTop2 === 0, lock = s.pTop2 === 1;
+    h += '<div class="bcell bproj">'
+       + '<div class="num" style="font-size:14px;font-weight:800">'
+       + s.projWins.toFixed(1) + '–' + s.projLosses.toFixed(1) + '</div>'
+       + '<div class="num" style="font-size:11.5px;margin-top:2px;color:'
+       + (out ? 'var(--loss)' : lock ? 'var(--win)' : 'var(--muted)') + '">'
+       + (out ? 'eliminated' : lock ? 'clinched a spot' : pct(s.pTop2) + ' title game') + '</div></div>';
+  }
+  h += '</div></div></div>';
+  $('v-board').innerHTML = h;
+
+  const board = $('v-board').querySelector('.board');
+  board.addEventListener('click', onCell);
+  board.addEventListener('contextmenu', onCellMenu);
+  board.addEventListener('mouseover', onCellHover);
+  board.addEventListener('mouseout', () => {
+    board.querySelectorAll('.g.link').forEach(e => e.classList.remove('link'));
+  });
+}
+
+function lg(k, label){
+  const bg = { w:'win-bg', l:'loss-bg', lw:'lean-win-bg', ll:'lean-loss-bg', t:'toss-bg', auto:'card' }[k];
+  return '<span class="lg"><i style="background:var(--' + bg + ')"></i>' + label + '</span>';
+}
+
+function cellHtml(g, teamId){
+  const st = cellState(g, teamId);
+  const opp = oppOf(g, teamId), ot = teams[opp] || {};
+  const cls = ['g', st.k, st.set && !st.done ? 'set' : '', g.conference_game ? '' : 'nc'].join(' ');
+  const note = preds[g.id] && preds[g.id].note ? '<span class="flag">●</span>' : '';
+  return '<button class="' + cls + '" data-g="' + esc(g.id) + '" data-t="' + esc(teamId) + '"'
+    + ' title="' + esc(matchupText(g)) + ' · ' + esc(fmtWhen(g.kickoff))
+    + (preds[g.id] && preds[g.id].note ? ' · ' + esc(preds[g.id].note) : '') + '">'
+    + '<span class="opp"><span>' + (isHome(g, teamId) ? 'vs' : '@') + '</span> '
+    + (ot.rank ? '#' + ot.rank + ' ' : '') + esc(ot.abbr || '—') + '</span>'
+    + '<span class="st">' + esc(st.label) + '</span>' + note + '</button>';
+}
+
+function matchupText(g){
+  return teamName(g.away_id) + ' at ' + teamName(g.home_id);
+}
+
+function onCellHover(ev){
+  const b = ev.target.closest('.g[data-g]');
+  if(!b) return;
+  document.querySelectorAll('.g[data-g="' + b.dataset.g + '"]').forEach(e => {
+    if(e !== b) e.classList.add('link');
+  });
+}
+
+function onCell(ev){
+  const b = ev.target.closest('.g[data-g]');
+  if(!b) return;
+  closePop();          // a left-click elsewhere abandons whatever the popover was editing
+  const g = games.find(x => x.id === b.dataset.g);
+  if(!g) return;
+  if(g.status === 'final') return toast('That one is in the books.');
+  cycle(g, b.dataset.t);
+}
+
+/* the line stands → likely W → 50-50 → likely L → the line stands */
+function cycle(g, teamId){
+  const cur = preds[g.id];
+  const opinion = cur && cur.strength !== 'auto';
+  let next;
+  if(!opinion)                                        next = { pick_team_id: teamId,          strength:'likely' };
+  else if(cur.strength === 'likely' && cur.pick_team_id === teamId)
+                                                      next = { pick_team_id: null,            strength:'tossup' };
+  else if(cur.strength === 'tossup')                  next = { pick_team_id: oppOf(g, teamId), strength:'likely' };
+  else                                                next = { pick_team_id: null,            strength:'auto'   };
+  setPred(g.id, next);
+}
+
+async function setPred(gameId, next, note){
+  const had = preds[gameId];
+  const keepNote = note !== undefined ? note : (had ? had.note : null);
+  if(next.strength === 'auto' && !keepNote){
+    delete preds[gameId];
+    live(); render();
+    const { error } = await supa.from('b12_predictions').delete()
+      .eq('season', season).eq('game_id', gameId);
+    if(error) toast('Could not clear that: ' + error.message, 4000);
+    return;
+  }
+  const row = {
+    season, game_id: gameId,
+    pick_team_id: next.strength === 'likely' ? next.pick_team_id : null,
+    strength: next.strength, note: keepNote || null,
+    updated_at: new Date().toISOString()
+  };
+  preds[gameId] = row;
+  live(); render();
+  const { error } = await supa.from('b12_predictions').upsert(row);
+  if(error) toast('Could not save that: ' + error.message, 4000);
+}
+
+/* ------------------------------ popover --------------------------------- */
+function onCellMenu(ev){
+  const b = ev.target.closest('.g[data-g]');
+  if(!b) return;
+  ev.preventDefault();
+  const g = games.find(x => x.id === b.dataset.g);
+  if(!g || g.status === 'final') return;
+  openPop(g, b.dataset.t, b);
+}
+
+function openPop(g, teamId, anchor){
+  popGame = g.id;
+  const p = preds[g.id] || {}, opinion = p.strength && p.strength !== 'auto';
+  const me = teams[teamId] || {}, op = teams[oppOf(g, teamId)] || {};
+  const mk = (k, on, title, sub) =>
+    '<button class="opt' + (on ? ' on' : '') + '" data-k="' + k + '">' + title +
+    (sub ? '<small>' + sub + '</small>' : '') + '</button>';
+  const auto = cellState({ ...g, id:'__' }, teamId);   // market view, ignoring the saved row
+
+  $('pop').innerHTML =
+      '<h4>' + esc(matchupText(g)) + '</h4>'
+    + '<div class="sub">' + esc(fmtWhen(g.kickoff))
+    + (g.odds_detail ? ' · line ' + esc(g.odds_detail) : ' · no line posted') + '</div>'
+    + mk('win',  opinion && p.strength === 'likely' && p.pick_team_id === teamId,
+         esc(me.name) + ' likely wins')
+    + mk('toss', opinion && p.strength === 'tossup', 'Even — 50-50')
+    + mk('loss', opinion && p.strength === 'likely' && p.pick_team_id !== teamId,
+         esc(op.name) + ' likely wins')
+    + mk('auto', !opinion, 'Let the line decide', 'currently ' + esc(auto.label))
+    + '<div style="margin-top:10px"><textarea id="popNote" placeholder="Note — injury, weather, '
+    + 'whatever you two said about it">' + esc(p.note || '') + '</textarea></div>'
+    + '<div class="row" style="margin-top:9px"><button class="btn sm" id="popSave">Save</button>'
+    + '<button class="btn ghost sm" onclick="closePop()">Cancel</button></div>';
+
+  const pop = $('pop'), r = anchor.getBoundingClientRect();
+  pop.style.display = 'block';
+  pop.style.left = Math.min(window.scrollX + r.left, window.scrollX + window.innerWidth - 280) + 'px';
+  pop.style.top  = (window.scrollY + r.bottom + 6) + 'px';
+
+  let chosen = !opinion ? 'auto'
+    : p.strength === 'tossup' ? 'toss'
+    : p.pick_team_id === teamId ? 'win' : 'loss';
+  pop.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+    chosen = b.dataset.k;
+    pop.querySelectorAll('.opt').forEach(o => o.classList.toggle('on', o === b));
+  });
+  $('popSave').onclick = () => {
+    const note = $('popNote').value.trim();
+    const next = chosen === 'win'  ? { pick_team_id: teamId,          strength:'likely' }
+               : chosen === 'loss' ? { pick_team_id: oppOf(g, teamId), strength:'likely' }
+               : chosen === 'toss' ? { pick_team_id: null,            strength:'tossup' }
+               :                     { pick_team_id: null,            strength:'auto'   };
+    closePop();
+    setPred(g.id, next, note);
+  };
+}
+function closePop(){ $('pop').style.display = 'none'; popGame = null; }
+document.addEventListener('click', e => {
+  if(popGame && !e.target.closest('#pop') && !e.target.closest('.g')) closePop();
+});
+
+/* ----------------------------- standings -------------------------------- */
+function renderStandings(){
+  const rec = confRecords(), ovr = overallRecords();
+  const today = members.slice().sort((a,b) => {
+    const A = rec[a] || {w:0,l:0}, B = rec[b] || {w:0,l:0};
+    return (B.w - B.l) - (A.w - A.l) || B.w - A.w || teams[a].name.localeCompare(teams[b].name);
+  });
+  const rankToday = {}; today.forEach((id, i) => rankToday[id] = i + 1);
+  const proj = members.slice().sort((a,b) =>
+    sim.teams[b].pTop2 - sim.teams[a].pTop2 ||
+    sim.teams[b].projWins - sim.teams[a].projWins);
+
+  const f = sim.teams[focusId];
+  let h = '<div class="card"><div class="card-hd" style="padding-bottom:16px">'
+    + '<div class="row"><div>'
+    + '<div class="card-t">' + esc(teamName(focusId)) + ' reaches the Big 12 championship game</div>'
+    + '<div class="card-s">Out of ' + sim.runs.toLocaleString() + ' simulated finishes, using your calls '
+    + 'where you have made one and the betting line everywhere else.</div></div>'
+    + '<div class="spacer"></div>'
+    + '<div style="text-align:right"><div style="font-size:40px;font-weight:800;letter-spacing:-.04em" '
+    + 'class="num">' + pct(f.pTop2) + '</div>'
+    + '<div class="muted" style="font-size:12px">' + pct(f.pTop1) + ' to finish first outright</div>'
+    + '</div></div></div>'
+    + '<div style="padding:0 20px 4px" class="row">' + contenderChips() + '</div>'
+    + '<div style="padding:12px 6px 4px"><table><thead><tr>'
+    + '<th class="l" style="width:30px">#</th><th class="l">Team</th>'
+    + '<th>Big 12</th><th>Overall</th><th>Left</th><th>Projected</th>'
+    + '<th class="l" style="width:190px">Reaches the title game</th><th>Finishes 1st</th>'
+    + '</tr></thead><tbody>';
+
+  proj.forEach((id, i) => {
+    const t = teams[id], s = sim.teams[id], r = rec[id] || {w:0,l:0}, o = ovr[id] || {w:0,l:0};
+    const left = s.confGames - s.confW - s.confL;
+    const move = rankToday[id] - (i + 1);
+    h += '<tr class="' + (id === focusId ? 'me' : settings.contenders.includes(id) ? 'tracked' : '') + '">'
+      + '<td class="l"><span class="seed' + (i < 2 ? ' top2' : '') + '">' + (i + 1) + '</span></td>'
+      + '<td class="l"><div class="tcell">' + (t.logo ? '<img src="' + esc(t.logo) + '" alt="">' : '')
+      + '<span>' + (t.rank ? '<span class="rk">#' + t.rank + '</span> ' : '') + esc(t.name) + '</span>'
+      + (move ? '<span class="muted" style="font-size:11px">' + (move > 0 ? '▲' : '▼')
+                + Math.abs(move) + ' vs today</span>' : '') + '</div></td>'
+      + '<td class="num">' + r.w + '–' + r.l + '</td>'
+      + '<td class="num muted">' + o.w + '–' + o.l + '</td>'
+      + '<td class="num muted">' + left + '</td>'
+      + '<td class="num">' + s.projWins.toFixed(1) + '–' + s.projLosses.toFixed(1) + '</td>'
+      + '<td class="l"><span class="bar' + (settings.contenders.includes(id) ? '' : ' dim') + '">'
+      + '<i style="width:' + (s.pTop2 * 100).toFixed(1) + '%"></i></span> '
+      + '<span class="num" style="font-weight:700;margin-left:7px">' + pct(s.pTop2) + '</span></td>'
+      + '<td class="num muted">' + pct(s.pTop1) + '</td></tr>';
+  });
+  h += '</tbody></table></div>'
+    + '<div class="card-s" style="padding:4px 20px 18px">Ties are broken head to head inside each '
+    + 'simulated season, then at random — close to the real rule, and exact for the two-team case. '
+    + '“Likely” is worth ' + Math.round(settings.likely_prob * 100) + '% '
+    + '<button class="btn ghost sm" onclick="openTuning()">change</button></div></div>';
+  $('v-standings').innerHTML = h;
+}
+
+function contenderChips(){
+  return settings.contenders.map(id =>
+    '<button class="btn ' + (id === focusId ? '' : 'ghost ') + 'sm" onclick="setFocus(\'' + id + '\')">'
+    + esc(teamAbbr(id)) + '</button>').join('');
+}
+function setFocus(id){ focusId = id; render(); }
+
+/* ------------------------------ this week ------------------------------- */
+function setWeek(w){ weekSel = w; live(); render(); }
+
+function renderWeek(){
+  const wl = weeksList();
+  const wkGames = games.filter(g => g.week === weekSel);
+  const swing = {};
+  sim.leverage.forEach(L => {
+    const b = L.by[focusId];
+    swing[L.game.id] = (b && b.ifHome != null && b.ifAway != null)
+      ? { home: b.ifHome, away: b.ifAway, delta: Math.abs(b.ifHome - b.ifAway) } : null;
+  });
+
+  const pending = wkGames.filter(g => g.conference_game && g.status !== 'final')
+    .sort((a,b) => ((swing[b.id]||{}).delta || 0) - ((swing[a.id]||{}).delta || 0));
+  const finals  = wkGames.filter(g => g.conference_game && g.status === 'final');
+  const nonconf = wkGames.filter(g => !g.conference_game);
+
+  let h = '<div class="card"><div class="card-hd"><div class="card-t">Week ' + weekSel
+    + ' — what actually matters to ' + esc(teamName(focusId)) + '</div>'
+    + '<div class="card-s">Each number is how far ' + esc(teamAbbr(focusId)) + '’s odds of reaching '
+    + 'the championship game move between the two results. Sorted by how much is riding on them.</div></div>'
+    + '<div class="snaps" style="padding:14px 20px 6px">'
+    + wl.map(({ w }) => '<button class="snap' + (w === weekSel ? ' on' : '') + '" onclick="setWeek(' + w + ')">'
+        + '<div class="sd">Week ' + w + '</div><div class="ss">'
+        + games.filter(g => g.week === w && g.conference_game).length + ' conf</div></button>').join('')
+    + '</div><div class="row" style="padding:4px 20px 14px">' + contenderChips() + '</div>';
+
+  if(!pending.length && !finals.length){
+    const next = wl.map(x => x.w).find(w => w > weekSel &&
+      games.some(g => g.week === w && g.conference_game));
+    h += '<div class="empty">No Big 12 conference games in week ' + weekSel + ', so nothing here '
+      + 'moves the race.' + (next ? ' Conference play picks back up in <b>week ' + next + '</b> — '
+      + '<button class="btn ghost sm" onclick="setWeek(' + next + ')">jump there</button>' : '')
+      + '</div>';
+  }
+
+  for(const g of pending){
+    const s = swing[g.id];
+    const rootHome = s && s.home >= s.away;
+    const p = preds[g.id];
+    const call = !p || p.strength === 'auto'
+      ? '<span class="muted">no call yet — the line stands</span>'
+      : p.strength === 'tossup' ? 'we called it <b>50-50</b>'
+      : 'we like <b>' + esc(teamName(p.pick_team_id)) + '</b>';
+    h += '<div class="gm"><div>'
+      + '<div class="gm-t">' + rankName(g.away_id) + ' at ' + rankName(g.home_id) + '</div>'
+      + '<div class="gm-s">' + esc(fmtWhen(g.kickoff))
+      + (g.odds_detail ? ' · line ' + esc(g.odds_detail) : ' · no line') + ' · ' + call + '</div></div>'
+      + '<div class="swing">'
+      + (s ? '<div class="v">' + (s.delta * 100).toFixed(1) + ' pts</div>'
+           + '<div class="k">swing for ' + esc(teamAbbr(focusId)) + '</div>'
+           + (s.delta < 0.005
+              ? '<div class="root none">Doesn’t move the needle</div>'
+              : '<div class="root">Root for ' + esc(teamAbbr(rootHome ? g.home_id : g.away_id))
+                + ' &nbsp;' + pct1(rootHome ? s.home : s.away) + ' vs ' + pct1(rootHome ? s.away : s.home) + '</div>')
+         : '<div class="k">—</div>')
+      + '</div></div>';
+  }
+
+  for(const g of finals){
+    const w = g.winner_id;
+    h += '<div class="gm"><div>'
+      + '<div class="gm-t">' + rankName(g.away_id) + ' at ' + rankName(g.home_id) + '</div>'
+      + '<div class="gm-s"><b>' + esc(teamName(w)) + '</b> won ' + Math.max(g.home_score, g.away_score)
+      + '–' + Math.min(g.home_score, g.away_score) + ' · already in the standings</div></div>'
+      + '<div class="swing"><div class="k">Final</div></div></div>';
+  }
+  h += '</div>';
+
+  if(nonconf.length){
+    h += '<div class="card"><div class="card-hd"><div class="card-t">Non-conference this week</div>'
+      + '<div class="card-s">These change nobody’s Big 12 record, so the swing is zero by '
+      + 'definition — they only matter for the polls.</div></div><div style="padding:6px 0 4px">';
+    for(const g of nonconf){
+      h += '<div class="gm"><div><div class="gm-t">' + rankName(g.away_id) + ' at ' + rankName(g.home_id) + '</div>'
+        + '<div class="gm-s">' + (g.status === 'final'
+            ? esc(teamName(g.winner_id)) + ' won ' + Math.max(g.home_score, g.away_score) + '–'
+              + Math.min(g.home_score, g.away_score)
+            : esc(fmtWhen(g.kickoff))) + '</div></div><div class="swing"></div></div>';
+    }
+    h += '</div></div>';
+  }
+  $('v-week').innerHTML = h;
+}
+
+function rankName(id){
+  const t = teams[id] || {};
+  return (t.rank ? '<span class="rk">#' + t.rank + '</span> ' : '') + esc(t.name || 'TBD');
+}
+
+/* ------------------------------- history -------------------------------- */
+function liveOdds(){
+  const o = {};
+  members.forEach(id => o[id] = { pTop2: sim.teams[id].pTop2, projWins: sim.teams[id].projWins });
+  return o;
+}
+function oddsFromPayload(p){
+  const P = {};
+  (p.predictions || []).forEach(r => { P[r.game_id] = r; });
+  const r = simulate({ games: p.games || [], preds: P,
+                       likely: Number(p.likely_prob) || 0.75, runs: SIMS_HIST });
+  const o = {};
+  members.forEach(id => o[id] = r.teams[id]
+    ? { pTop2: r.teams[id].pTop2, projWins: r.teams[id].projWins }
+    : { pTop2: 0, projWins: 0 });
+  return o;
+}
+
+function renderHistory(){
+  if(!snapshots.length){
+    $('v-history').innerHTML = '<div class="card"><div class="card-hd">'
+      + '<div class="card-t">Nothing saved yet</div><div class="card-s">Hit '
+      + '<b>Save this week</b> up top when you finish a Monday and the board is frozen exactly as '
+      + 'it stands — every prediction and every result to date. From then on this page shows how '
+      + 'each contender’s odds moved week to week. A snapshot is also taken automatically every '
+      + 'Monday at 6am Mountain, so a skipped week still gets recorded.</div></div>'
+      + '<div class="empty">Save one and come back.</div></div>';
+    return;
+  }
+
+  const asc = snapshots.slice().reverse();
+  asc.forEach(s => { if(!s._odds) s._odds = oddsFromPayload(s.payload); });
+  const nowSnap = { label:'Now', taken_at: new Date().toISOString(), live: true,
+                    payload: buildPayload(), _odds: liveOdds() };
+  const chain = asc.concat([nowSnap]);
+  const pts = chain.map(s => ({ label: s.live ? 'Now' : (s.label || fmtDate(s.taken_at)),
+                                at: s.taken_at, odds: s._odds }));
+
+  let h = '<div class="card"><div class="card-hd"><div class="card-t">How the odds have moved</div>'
+    + '<div class="card-s">Each panel is one contender’s chance of reaching the championship game, '
+    + 'recomputed from that week’s board — the predictions you had made <i>and</i> the results that '
+    + 'had happened by then. Every panel is on the same 0–100% scale; the faint lines behind are the '
+    + 'other contenders. Hover a dot for the exact number.</div></div>'
+    + '<div class="facets">';
+
+  for(const id of settings.contenders){
+    const series = pts.map(p => (p.odds[id] || {}).pTop2 || 0);
+    const last = series[series.length - 1];
+    const prev = series.length > 1 ? series[series.length - 2] : null;
+    const dp = prev == null ? null : Math.round((last - prev) * 1000) / 10;
+    const others = settings.contenders.filter(o => o !== id)
+      .map(o => pts.map(p => (p.odds[o] || {}).pTop2 || 0));
+    h += '<div class="facet"><div class="facet-hd">'
+      + '<div class="facet-t">' + esc(teamName(id)) + '</div>'
+      + (dp == null ? '' : dp === 0
+          ? '<div class="facet-d flat">no change</div>'
+          : '<div class="facet-d ' + (dp > 0 ? 'up' : 'down') + '">' + (dp > 0 ? '▲ ' : '▼ ')
+            + Math.abs(dp).toFixed(1) + ' pts</div>')
+      + '<div class="facet-v num">' + pct(last) + '</div></div>'
+      + spark(series, others, pts) + '</div>';
+  }
+  h += '</div></div>';
+
+  // What changed, most recent transition first.
+  h += '<div class="card"><div class="card-hd"><div class="card-t">What changed</div>'
+    + '<div class="card-s">Between each saved week and the one before it, newest first — '
+    + 'starting with everything that has happened since your last save.</div></div>';
+  const rows = [];
+  for(let i = chain.length - 1; i >= 0; i--){
+    const cur = chain[i], prv = i > 0 ? chain[i - 1] : null;
+    rows.push('<div class="chg" style="background:var(--panel);font-weight:700">'
+      + (cur.live
+          ? 'Since ' + esc(prv ? (prv.label || fmtDate(prv.taken_at)) : 'the start')
+            + ' <span class="muted" style="font-weight:500">· not saved yet</span>'
+          : esc(cur.label || fmtDate(cur.taken_at)) + ' <span class="muted" style="font-weight:500">· saved '
+            + fmtWhen(cur.taken_at) + (cur.source === 'auto' ? ' automatically' : '') + '</span>')
+      + (cur.note ? '<div style="font-weight:400;color:var(--muted);margin-top:4px">' + esc(cur.note) + '</div>' : '')
+      + '</div>');
+    if(prv) rows.push(...diffSnapshots(prv, cur));
+  }
+  h += rows.join('') + '</div>';
+
+  h += '<div class="card"><div class="card-hd"><div class="card-t">Saved weeks</div></div>'
+    + '<div class="snaps">' + snapshots.map(s =>
+        '<div class="snap"><div class="sd">' + esc(s.label || fmtDate(s.taken_at)) + '</div>'
+        + '<div class="ss">' + fmtDate(s.taken_at) + ' · '
+        + '<a href="#" onclick="return delSnap(' + s.id + ')" style="color:var(--loss)">delete</a>'
+        + '</div></div>').join('') + '</div></div>';
+  $('v-history').innerHTML = h;
+}
+
+/* A 300x88 sparkline. One colored series, the rest as recessive context. */
+function spark(series, others, pts){
+  const W = 300, H = 76, PAD = 3;
+  const n = series.length;
+  const x = i => n === 1 ? W / 2 : PAD + i * (W - PAD * 2) / (n - 1);
+  const y = v => H - PAD - v * (H - PAD * 2);
+  const path = s => s.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  let g = '<svg viewBox="0 0 ' + W + ' ' + (H + 12) + '" role="img" aria-label="odds over time">'
+    + '<line x1="0" y1="' + y(.5) + '" x2="' + W + '" y2="' + y(.5)
+    + '" stroke="#EDEFF3" stroke-width="1"/>'
+    + '<line x1="0" y1="' + y(0) + '" x2="' + W + '" y2="' + y(0) + '" stroke="#E6E9EF" stroke-width="1"/>';
+  for(const o of others){
+    g += '<path d="' + path(o) + '" fill="none" stroke="#DCE1E8" stroke-width="1"/>';
+  }
+  g += '<path d="' + path(series) + '" fill="none" stroke="var(--series-1)" stroke-width="2" '
+     + 'stroke-linejoin="round" stroke-linecap="round"/>';
+  series.forEach((v, i) => {
+    const lastOne = i === n - 1;
+    g += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="' + (lastOne ? 4 : 2.6)
+      + '" fill="var(--series-1)" stroke="#fff" stroke-width="2">'
+      + '<title>' + esc(pts[i].label) + ': ' + pct1(v) + '</title></circle>';
+  });
+  g += '<text x="0" y="' + (H + 10) + '" font-size="9" fill="#A6AEBA">' + esc(pts[0].label) + '</text>'
+     + '<text x="' + W + '" y="' + (H + 10) + '" font-size="9" fill="#A6AEBA" text-anchor="end">'
+     + esc(pts[n-1].label) + '</text></svg>';
+  return g;
+}
+
+function diffSnapshots(a, b){
+  const out = [];
+  const moved = settings.contenders.map(id => {
+    const was = (a._odds[id] || {}).pTop2 || 0, now = (b._odds[id] || {}).pTop2 || 0;
+    return { id, was, now, d: Math.round((now - was) * 1000) / 10 };
+  }).filter(m => Math.abs(m.d) >= 0.5).sort((x, y) => Math.abs(y.d) - Math.abs(x.d));
+  if(moved.length){
+    out.push('<div class="chg"><span class="tag">Odds</span>' + moved.map(m =>
+      esc(teamAbbr(m.id)) + ' ' + pct(m.was) + '→<b>' + pct(m.now) + '</b> <span class="'
+      + (m.d > 0 ? 'up' : 'down') + '">' + (m.d > 0 ? '▲' : '▼') + Math.abs(m.d).toFixed(1)
+      + '</span>').join(' &nbsp; ') + '</div>');
+  }
+  const gsA = {}, gsB = {};
+  (a.payload.games || []).forEach(g => gsA[g.id] = g);
+  (b.payload.games || []).forEach(g => gsB[g.id] = g);
+  const pA = {}, pB = {};
+  (a.payload.predictions || []).forEach(r => pA[r.game_id] = r);
+  (b.payload.predictions || []).forEach(r => pB[r.game_id] = r);
+
+  for(const id in gsB){
+    const g = gsB[id], was = gsA[id];
+    if(g.status === 'final' && (!was || was.status !== 'final') && g.winner_id){
+      const loser = g.winner_id === g.home_id ? g.away_id : g.home_id;
+      out.push('<div class="chg"><span class="tag res">Result</span><b>' + esc(teamName(g.winner_id))
+        + '</b> beat ' + esc(teamName(loser)) + (g.conference_game ? '' : ' <span class="muted">(non-conference)</span>') + '</div>');
+    }
+  }
+  for(const id in pB){
+    const nowP = pB[id], wasP = pA[id];
+    if(sameCall(wasP, nowP)) continue;
+    const g = gsB[id] || gsA[id];
+    if(!g || g.status === 'final') continue;
+    out.push('<div class="chg"><span class="tag pred">Call</span>'
+      + esc(teamName(g.away_id)) + ' at ' + esc(teamName(g.home_id)) + ': '
+      + callText(wasP, g) + ' → <b>' + callText(nowP, g) + '</b></div>');
+  }
+  for(const id in pA){
+    if(pB[id]) continue;
+    const g = gsB[id] || gsA[id];
+    if(!g || g.status === 'final') continue;
+    out.push('<div class="chg"><span class="tag pred">Call</span>'
+      + esc(teamName(g.away_id)) + ' at ' + esc(teamName(g.home_id)) + ': '
+      + callText(pA[id], g) + ' → <b>back to the line</b></div>');
+  }
+  if(!out.length) out.push('<div class="chg muted">Nothing moved.</div>');
+  return out;
+}
+function sameCall(x, y){
+  const k = r => !r || r.strength === 'auto' ? 'auto'
+    : r.strength === 'tossup' ? 'toss' : 'w:' + r.pick_team_id;
+  return k(x) === k(y);
+}
+function callText(r, g){
+  if(!r || r.strength === 'auto') return 'the line';
+  if(r.strength === 'tossup') return '50-50';
+  return teamName(r.pick_team_id) + ' likely';
+}
+
+/* ========================= snapshots ========================= */
+/* Self-contained on purpose: the results as they stood go in alongside the
+   predictions, so a saved week can be re-scored exactly as you saw it rather
+   than against games that had not been played yet. */
+function buildPayload(){
+  return {
+    v: 1, season,
+    likely_prob: settings.likely_prob,
+    contenders: settings.contenders.slice(),
+    predictions: Object.keys(preds).map(id => ({
+      game_id: id,
+      pick_team_id: preds[id].pick_team_id || null,
+      strength: preds[id].strength,
+      note: preds[id].note || null
+    })),
+    games: games.map(g => ({
+      id: g.id, week: g.week, conference_game: !!g.conference_game,
+      status: g.status, winner_id: g.winner_id || null,
+      home_id: g.home_id, away_id: g.away_id,
+      home_score: g.home_score, away_score: g.away_score,
+      home_spread: g.home_spread == null ? null : Number(g.home_spread)
+    }))
+  };
+}
+
+function openSnapshot(){
+  const w = currentWeek();
+  openModal('<h3>Save this week</h3>'
+    + '<p>Freezes the board exactly as it stands — every call you have made and every result so far — '
+    + 'so you can look back at it in November and see what you two were thinking.</p>'
+    + '<label style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;'
+    + 'color:var(--faint)">Label</label>'
+    + '<input type="text" id="snapLabel" value="Week ' + w + '" style="margin:6px 0 14px" />'
+    + '<label style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;'
+    + 'color:var(--faint)">Notes from this morning</label>'
+    + '<textarea class="big" id="snapNote" rows="4" style="margin-top:6px" '
+    + 'placeholder="Optional — what you argued about, who you moved and why"></textarea>'
+    + '<div class="row" style="margin-top:18px"><button class="btn" onclick="saveSnapshot()">Save it</button>'
+    + '<button class="btn ghost" onclick="closeModal()">Cancel</button></div>');
+}
+
+async function saveSnapshot(){
+  const label = ($('snapLabel').value || '').trim() || ('Week ' + currentWeek());
+  const note  = ($('snapNote').value || '').trim();
+  closeModal();
+  const { error } = await supa.from('b12_snapshots').insert({
+    season, week: currentWeek(), label, note: note || null, source: 'app',
+    taken_at: new Date().toISOString(), payload: buildPayload()
+  });
+  if(error) return toast('Could not save: ' + error.message, 4500);
+  await loadSnapshots();
+  toast('Saved. It is on the History tab.');
+  render();
+}
+
+async function delSnap(id){
+  if(!confirm('Delete this saved week? The history chart will lose that point.')) return false;
+  const { error } = await supa.from('b12_snapshots').delete().eq('id', id);
+  if(error) toast(error.message, 4000);
+  await loadSnapshots();
+  render();
+  return false;
+}
+
+/* ========================= settings sheets ========================= */
+async function saveSettings(){
+  const { error } = await supa.from('b12_settings').upsert({
+    season, contenders: settings.contenders, likely_prob: settings.likely_prob,
+    updated_at: new Date().toISOString()
+  });
+  if(error) toast('Could not save that: ' + error.message, 4000);
+}
+
+function openContenders(){
+  const rec = confRecords();
+  const list = members.slice().sort((a,b) =>
+    (sim.teams[b].pTop2 - sim.teams[a].pTop2) || teams[a].name.localeCompare(teams[b].name));
+  openModal('<h3>Who are we tracking?</h3>'
+    + '<p>The teams that get a row on the board. Everyone else still plays in the simulation — '
+    + 'this only decides who you are watching closely. Pick up to eight.</p>'
+    + '<div id="tlist">' + list.map(id => {
+        const t = teams[id], r = rec[id] || { w:0, l:0 };
+        const on = settings.contenders.includes(id);
+        return '<div class="tpick' + (on ? ' on' : '') + '" data-id="' + id + '">'
+          + (t.logo ? '<img src="' + esc(t.logo) + '" alt="">' : '')
+          + '<span class="nm">' + esc(t.name) + '</span>'
+          + '<span class="rc">' + r.w + '–' + r.l + ' · ' + pct(sim.teams[id].pTop2) + '</span></div>';
+      }).join('') + '</div>'
+    + '<div class="row" style="margin-top:18px"><button class="btn" onclick="saveContenders()">Done</button>'
+    + '<button class="btn ghost" onclick="closeModal()">Cancel</button></div>');
+
+  $('tlist').addEventListener('click', e => {
+    const row = e.target.closest('.tpick');
+    if(!row) return;
+    const on = row.classList.contains('on');
+    if(!on && $('tlist').querySelectorAll('.tpick.on').length >= 8)
+      return toast('Eight rows is plenty for one board');
+    row.classList.toggle('on', !on);
+  });
+}
+
+async function saveContenders(){
+  const picked = Array.from($('tlist').querySelectorAll('.tpick.on')).map(e => e.dataset.id);
+  if(!picked.length) return toast('Pick at least one team');
+  closeModal();
+  // Keep the order you already had; new teams go on the end.
+  settings.contenders = settings.contenders.filter(id => picked.includes(id))
+    .concat(picked.filter(id => !settings.contenders.includes(id)));
+  if(!settings.contenders.includes(focusId)) focusId = settings.contenders[0];
+  await saveSettings();
+  live(); render();
+}
+
+function openTuning(){
+  openModal('<h3>What does “likely” mean?</h3>'
+    + '<p>When you call a game likely, the simulation gives that team this chance of winning it. '
+    + 'Nudge it if your “likely” is more of a hedge, or more of a sure thing. It applies to every '
+    + 'call on the board, and to the saved history from here on.</p>'
+    + '<div style="text-align:center;font-size:38px;font-weight:800;letter-spacing:-.04em" '
+    + 'class="num" id="tuneV">' + Math.round(settings.likely_prob * 100) + '%</div>'
+    + '<input type="range" id="tune" min="55" max="95" step="1" style="width:100%;margin:14px 0 4px" '
+    + 'value="' + Math.round(settings.likely_prob * 100) + '" '
+    + 'oninput="document.getElementById(\'tuneV\').textContent=this.value+\'%\'" />'
+    + '<div class="row"><span class="muted" style="font-size:11.5px">55% — barely a lean</span>'
+    + '<div class="spacer"></div><span class="muted" style="font-size:11.5px">95% — a formality</span></div>'
+    + '<div class="row" style="margin-top:18px"><button class="btn" onclick="saveTuning()">Save</button>'
+    + '<button class="btn ghost" onclick="closeModal()">Cancel</button></div>');
+}
+async function saveTuning(){
+  settings.likely_prob = Number($('tune').value) / 100;
+  closeModal();
+  await saveSettings();
+  live(); render();
+}
+
+/* ========================= modal plumbing ========================= */
+function openModal(html){ $('sheet').innerHTML = html; $('modal').classList.add('on'); }
+function closeModal(){ $('modal').classList.remove('on'); }
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){ closeModal(); closePop(); }
+});
+</script>
+</body>
+</html>
