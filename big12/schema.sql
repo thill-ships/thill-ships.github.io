@@ -52,6 +52,7 @@ create table if not exists b12_settings (
 alter table b12_settings add column if not exists strong_prob numeric not null default 0.80;
 alter table b12_settings add column if not exists lean_prob   numeric not null default 0.65;
 
+
 -- One row per game you have an opinion about. A game with no row here falls
 -- back to the betting line, so an untouched board is already a real forecast.
 --
@@ -95,6 +96,85 @@ create index if not exists b12_snapshots_season_idx
 
 
 -- ---------------------------------------------------------------------------
+-- Season props: the once-a-year guesses about BYU.
+--
+-- These live in their OWN app at /props/, because this is the one part of the
+-- system where more than two people take part, and everybody needs their own
+-- answer. So unlike the rest of the board, /props/ has real accounts.
+--
+-- The War Room only ever reads them. It is a window, not a voting booth.
+--
+-- The questions are written by the War Room editors; the answers belong to the
+-- people who signed up.
+-- ---------------------------------------------------------------------------
+
+-- One row per person playing. Created by the props app on first sign-in.
+create table if not exists b12_prop_players (
+  user_id      uuid primary key references auth.users(id) on delete cascade,
+  display_name text not null,
+  email        text,
+  created_at   timestamptz not null default now()
+);
+
+-- One question. `auto` is the small set the app can answer for itself out of
+-- the schedule; everything else gets typed in as the season goes. `actual`
+-- doubles as "where it stands right now" until `settled` is set, at which point
+-- it stops moving and the closest answer wins.
+create table if not exists b12_props (
+  id        bigint generated always as identity primary key,
+  season    int  not null,
+  sort      int  not null default 0,
+  question  text not null,                  -- "LJ Martin rushing yards"
+  detail    text,                           -- an optional clarifier
+  kind      text not null default 'number'
+              check (kind in ('number','choice')),
+  unit      text,                           -- "yards", "TDs", "wins"
+  options   text[],                         -- the menu, when kind = 'choice'
+  auto      text                            -- null, or a key the app computes
+              check (auto is null or auto in
+                     ('wins','losses','conf_wins','conf_losses')),
+  actual    numeric,                        -- number props: the running total
+  actual_choice text,                       -- choice props: what happened
+  settled   boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists b12_props_season_idx on b12_props (season, sort, id);
+
+-- One row per person per question.
+create table if not exists b12_prop_picks (
+  user_id    uuid   not null references auth.users(id) on delete cascade,
+  prop_id    bigint not null references b12_props(id) on delete cascade,
+  value      numeric,                       -- number props
+  choice     text,                          -- choice props
+  updated_at timestamptz not null default now(),
+  primary key (user_id, prop_id)
+);
+
+-- Locking in is how you buy the right to see everyone else's numbers, and it
+-- is deliberately irreversible: there is no update or delete policy below.
+create table if not exists b12_prop_locks (
+  user_id   uuid not null references auth.users(id) on delete cascade,
+  season    int  not null,
+  locked_at timestamptz not null default now(),
+  primary key (user_id, season)
+);
+
+create or replace function b12_is_locked_in(p_user uuid, p_season int)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from b12_prop_locks
+                 where user_id = p_user and season = p_season);
+$$;
+
+-- The season each prop belongs to, for the policies below.
+create or replace function b12_prop_season(p_prop bigint)
+returns int
+language sql stable security definer set search_path = public as $$
+  select season from b12_props where id = p_prop;
+$$;
+
+
+-- ---------------------------------------------------------------------------
 -- Row Level Security
 --
 -- Everything is gated on the shared account. The service_role key used by the
@@ -105,12 +185,27 @@ create index if not exists b12_snapshots_season_idx
 alter table b12_settings    enable row level security;
 alter table b12_predictions enable row level security;
 alter table b12_snapshots   enable row level security;
+alter table b12_props        enable row level security;
+alter table b12_prop_picks   enable row level security;
+alter table b12_prop_players enable row level security;
+alter table b12_prop_locks   enable row level security;
 
 drop policy if exists b12_settings_all    on b12_settings;
 drop policy if exists b12_predictions_all on b12_predictions;
 drop policy if exists b12_snapshots_read  on b12_snapshots;
 drop policy if exists b12_snapshots_write on b12_snapshots;
 drop policy if exists b12_snapshots_del   on b12_snapshots;
+drop policy if exists b12_props_read      on b12_props;
+drop policy if exists b12_props_write     on b12_props;
+drop policy if exists b12_players_read    on b12_prop_players;
+drop policy if exists b12_players_write   on b12_prop_players;
+drop policy if exists b12_players_update  on b12_prop_players;
+drop policy if exists b12_picks_read      on b12_prop_picks;
+drop policy if exists b12_picks_insert    on b12_prop_picks;
+drop policy if exists b12_picks_update    on b12_prop_picks;
+drop policy if exists b12_picks_delete    on b12_prop_picks;
+drop policy if exists b12_locks_read      on b12_prop_locks;
+drop policy if exists b12_locks_insert    on b12_prop_locks;
 
 create policy b12_settings_all on b12_settings
   for all to authenticated using (b12_is_editor()) with check (b12_is_editor());
@@ -127,6 +222,68 @@ create policy b12_snapshots_write on b12_snapshots
 create policy b12_snapshots_del on b12_snapshots
   for delete to authenticated using (b12_is_editor());
 
+-- Anyone signed in can read the questions; only the War Room writes them.
+create policy b12_props_read on b12_props
+  for select to authenticated using (true);
+create policy b12_props_write on b12_props
+  for all to authenticated using (b12_is_editor()) with check (b12_is_editor());
+
+-- The field is public to the field: the results table needs everyone's name.
+create policy b12_players_read on b12_prop_players
+  for select to authenticated using (true);
+create policy b12_players_write on b12_prop_players
+  for insert to authenticated with check (auth.uid() = user_id);
+create policy b12_players_update on b12_prop_players
+  for update to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- You always see your own answers. You see somebody else's when you have BOTH
+-- locked in -- mutual disclosure, so nobody reads the room while their own
+-- numbers are still soft.
+--
+-- The War Room's shared login is the exception: it sees any answer that has
+-- been locked in, because it is the scoreboard. It cannot see a soft one.
+create policy b12_picks_read on b12_prop_picks
+  for select to authenticated using (
+    user_id = auth.uid()
+    or (
+      b12_is_locked_in(b12_prop_picks.user_id, b12_prop_season(prop_id))
+      and (
+        b12_is_editor()
+        or b12_is_locked_in(auth.uid(), b12_prop_season(prop_id))
+      )
+    )
+  );
+
+-- Your answers are yours, and only until you lock in.
+create policy b12_picks_insert on b12_prop_picks
+  for insert to authenticated with check (
+    user_id = auth.uid() and not b12_is_locked_in(auth.uid(), b12_prop_season(prop_id)));
+create policy b12_picks_update on b12_prop_picks
+  for update to authenticated
+  using      (user_id = auth.uid() and not b12_is_locked_in(auth.uid(), b12_prop_season(prop_id)))
+  with check (user_id = auth.uid() and not b12_is_locked_in(auth.uid(), b12_prop_season(prop_id)));
+create policy b12_picks_delete on b12_prop_picks
+  for delete to authenticated
+  using (user_id = auth.uid() and not b12_is_locked_in(auth.uid(), b12_prop_season(prop_id)));
+
+-- Who has locked in is public -- it is what gates everything else.
+create policy b12_locks_read on b12_prop_locks
+  for select to authenticated using (true);
+
+-- You may only lock yourself in, and only once every question is answered.
+-- Locking in with blanks is just volunteering for last place. There is
+-- deliberately no update or delete policy.
+create policy b12_locks_insert on b12_prop_locks
+  for insert to authenticated with check (
+    user_id = auth.uid()
+    and (select count(*) from b12_props p where p.season = b12_prop_locks.season)
+      = (select count(*) from b12_prop_picks pk
+         join b12_props p2 on p2.id = pk.prop_id
+         where pk.user_id = auth.uid() and p2.season = b12_prop_locks.season
+           and (pk.value is not null or pk.choice is not null))
+  );
+
 
 -- ---------------------------------------------------------------------------
 -- Realtime: when one of you flips a game, it moves on the other's screen.
@@ -140,6 +297,18 @@ begin
   end;
   begin
     alter publication supabase_realtime add table b12_settings;
+  exception when duplicate_object then null;
+  end;
+  begin
+    alter publication supabase_realtime add table b12_props;
+  exception when duplicate_object then null;
+  end;
+  begin
+    alter publication supabase_realtime add table b12_prop_picks;
+  exception when duplicate_object then null;
+  end;
+  begin
+    alter publication supabase_realtime add table b12_prop_locks;
   exception when duplicate_object then null;
   end;
 end $$;

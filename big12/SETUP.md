@@ -7,6 +7,7 @@ adds three tables and one weekly job. Nothing here costs money.
 | Piece | Where it runs | What it does |
 |---|---|---|
 | `big12/index.html` | GitHub Pages | The board the two of you use |
+| `props/index.html` | GitHub Pages | Season props — the one piece with real accounts |
 | Supabase | Free tier (the existing project) | Your predictions, your settings, the season's history |
 | `Pick'em — sync games` | GitHub Actions | Already running. Feeds this app the schedule, scores and betting lines |
 | `War Room — weekly snapshot` | GitHub Actions | Freezes the board every Monday at 6am Mountain |
@@ -78,7 +79,44 @@ Monday at 6am Mountain.
 If the log says *"Nobody has opened the board yet"*, open the app once first — the first
 visit writes the settings row.
 
-## 5. Choose your contenders
+## 5. Set up the season props
+
+The season props — *how many yards will LJ Martin run for*, *how many games do they win* — are
+a separate app at `props/`, and it is the one part of this system with **individual accounts**.
+That is deliberate. The board is two people arguing at one screen, so a shared password is
+right for it. The props are a group of people each committing to their own number, so they each
+need their own login.
+
+Nothing extra to set up: it uses the same Supabase project, and `schema.sql` already created its
+tables. Two things to know:
+
+- **Anyone can create an account** at `https://thill-ships.github.io/props/` with an email and
+  a password. No confirmation email, same as the pick'em.
+- **You write the questions, they answer them.** In the War Room, open **Season props → Add a
+  prop**, or hit *Start me off with nine* for a starter set to edit down.
+
+### How locking in works
+
+Answer every question, then hit **Lock in**. That is irreversible, and it is what buys you the
+sight of everyone else's numbers — you only ever see people who have also locked in. Nobody
+can read the room while their own numbers are still soft.
+
+The database enforces all of it, not the honour system: a policy refuses picks from anyone
+already locked in, refuses a lock with any question blank, and returns other people's answers
+only once both of you are locked.
+
+**One exception, worth knowing.** The shared War Room login can read any answer that has been
+locked in, because it is the scoreboard. So if you are playing too, lock your own numbers in
+before you go looking at the window.
+
+### Keeping score
+
+Four questions the app answers for itself off the schedule — wins, losses, Big 12 wins, Big 12
+losses. For the rest, type the running number into the *Where it stands* column in the War Room
+whenever you feel like it, and hit **Settle** when a number is final. Closest answer takes the
+prop; a tie splits it.
+
+## 6. Choose your contenders
 
 The board opens on **BYU, Arizona State, Texas Tech, Utah, Arizona and Houston**. Hit
 **Contenders** to change it: add a team, drop one, or move a row up and down. Eight rows is
@@ -87,6 +125,16 @@ schedule you are predicting week to week, so dropping a team that has fallen out
 costs you nothing.
 
 ---
+
+## The BYU tab
+
+Everything about our team on one screen: the record and where it is heading, the next game,
+the whole schedule (clickable, same as the board), and the props at a glance.
+
+The piece worth the price of admission is **What it takes** — finish the conference season on
+each record, and here is how often that is actually enough for the championship game, counting
+everything else that would plausibly be going on around them. It is the honest version of
+"so what do we need to do?", and it is usually more forgiving than it feels in October.
 
 ## The Monday routine
 
@@ -158,6 +206,8 @@ their swing is zero by construction. They're listed for completeness and for the
 | `b12_settings` | Your contenders, in board order, and what *should win* and *lean* are worth. One row per season. |
 | `b12_predictions` | One row per game you have an opinion about, stored **per game** as a direction plus a strength — so BYU–Utah can never be "BYU should win" on one row and "Utah should win" on the other. |
 | `b12_snapshots` | One row per saved week. Self-contained: the predictions *and* the results as they stood, so a week can be re-scored later exactly as you saw it. |
+| `b12_props` | The season-prop questions. Written in the War Room, answered in the props app. |
+| `b12_prop_players` / `b12_prop_picks` / `b12_prop_locks` | Who is playing, their answers, and who has locked in. These belong to the props app; the War Room only reads them. |
 
 The schedule itself is not duplicated — it's `pickem_games`, kept current by the job that was
 already running.
@@ -182,3 +232,5 @@ already running.
 | Every untouched game says "PK" or shows no line | ESPN returned no odds. Check the sync log's odds coverage line. |
 | A call won't save, "violates check constraint" | `schema.sql` is the three-level version. Re-run the current file; it widens the allowed strengths. |
 | No automatic snapshots | Actions → *War Room — weekly snapshot* → check the log; it prints why it skipped. |
+| Props tab shows names but no numbers | Those people have not locked in yet. Nothing shows until they do. |
+| "Lock in" stays greyed out | A question is still blank. The database refuses a lock with blanks, so the button does too. |
