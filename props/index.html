@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>BYU Season Props</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Props" />
+<meta name="theme-color" content="#FFFFFF" />
+<meta name="description" content="One set of season-long guesses about BYU. Lock yours in to see everyone else's." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="BYU Season Props" />
+<meta property="og:description" content="One set of season-long guesses about BYU. Lock yours in to see everyone else's." />
+<meta property="og:url" content="https://thill-ships.github.io/props/" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23002E5D'/%3E%3Ctext%20x='32'%20y='44'%20font-family='Helvetica,Arial'%20font-size='30'%20font-weight='bold'%20fill='%23fff'%20text-anchor='middle'%3E%3F%3C/text%3E%3C/svg%3E" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#F1F3F7; --card:#FFFFFF; --panel:#F4F6FA;
+    --ink:#14181F; --muted:#69727F; --faint:#A6AEBA; --line:#E6E9EF;
+    --navy:#002E5D; --navy-soft:#E7EEF6;
+    --win:#1B6E42; --win-bg:#E3F1E8; --loss:#B4322A;
+    --lift:0 1px 2px rgba(16,24,40,.04), 0 6px 18px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-size:15px;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  button{font:inherit;color:inherit;}
+  .wrap{max-width:560px;margin:0 auto;padding:0 15px 120px;}
+
+  .hd{background:var(--card);padding:calc(20px + env(safe-area-inset-top)) 18px 18px;}
+  .hd-in{max-width:560px;margin:0 auto;display:flex;align-items:flex-start;gap:12px;}
+  .hd-k{font-size:10.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#8A93A1;}
+  .hd-t{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-top:5px;}
+  .hd-s{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.45;}
+  .me{margin-left:auto;flex:none;display:flex;align-items:center;gap:7px;background:var(--bg);
+    border:none;border-radius:999px;padding:6px 12px 6px 7px;cursor:pointer;font-size:13px;font-weight:700;}
+  .av{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:grid;
+    place-items:center;font-size:11px;font-weight:800;}
+
+  .card{background:var(--card);border-radius:16px;box-shadow:var(--lift);margin-top:14px;padding:16px 17px;}
+  .card-t{font-size:15.5px;font-weight:800;letter-spacing:-.02em;}
+  .card-s{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5;}
+  .btn{border:none;border-radius:11px;background:var(--navy);color:#fff;font-weight:700;
+    padding:12px 18px;cursor:pointer;font-size:14.5px;}
+  .btn:disabled{opacity:.45;cursor:default;}
+  .btn.ghost{background:var(--panel);color:var(--ink);}
+  .btn.sm{padding:8px 13px;font-size:13px;border-radius:9px;}
+  .btn.wide{width:100%;}
+  input[type=text],input[type=email],input[type=password],input[type=number],select{
+    width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;font:inherit;
+    font-size:16px;background:var(--panel);color:var(--ink);}
+  input:focus,select:focus{outline:none;border-color:var(--navy);background:#fff;}
+  label.k{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:6px;}
+
+  .q{background:var(--card);border-radius:16px;box-shadow:var(--lift);margin-top:12px;padding:15px 17px 16px;}
+  .q-t{font-size:15.5px;font-weight:800;letter-spacing:-.015em;line-height:1.25;}
+  .q-d{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45;}
+  .q-in{margin-top:12px;display:flex;align-items:center;gap:10px;}
+  .q-in .unit{font-size:13px;color:var(--muted);font-weight:600;flex:none;}
+  .mine{font-size:26px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
+  .mine small{font-size:12px;font-weight:600;color:var(--muted);margin-left:6px;letter-spacing:0;}
+
+  .field{margin-top:13px;border-top:1px solid var(--line);padding-top:11px;}
+  .row{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13.5px;}
+  .row .nm{font-weight:600;}
+  .row .vv{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;}
+  .row.hit .nm,.row.hit .vv{color:var(--win);}
+  .row .badge{font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+    background:var(--win-bg);color:var(--win);border-radius:5px;padding:2px 6px;}
+  .now{margin-top:11px;background:var(--panel);border-radius:11px;padding:9px 12px;
+    display:flex;align-items:baseline;gap:8px;}
+  .now b{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .now span{font-size:12px;color:var(--muted);}
+
+  .bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);
+    border-top:1px solid var(--line);padding:13px 15px calc(13px + env(safe-area-inset-bottom));
+    box-shadow:0 -6px 20px rgba(16,24,40,.06);}
+  .bar-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:12px;}
+  .bar .t{font-size:13.5px;font-weight:700;}
+  .bar .s{font-size:11.5px;color:var(--muted);margin-top:2px;}
+
+  .lb{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .lb:last-child{border-bottom:none;}
+  .lb .pos{width:22px;height:22px;border-radius:6px;background:var(--panel);display:grid;
+    place-items:center;font-size:11px;font-weight:800;color:var(--muted);flex:none;}
+  .lb .pos.top{background:var(--navy);color:#fff;}
+  .lb .nm{font-weight:700;font-size:14px;}
+  .lb .sc{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;}
+
+  /* ---- entry mode: a form, and nothing but a form ---- */
+  .hint{font-size:11.5px;color:var(--faint);margin-top:7px;}
+  .err{font-size:12px;color:var(--loss);margin-top:7px;font-weight:600;}
+  .q.bad input,.q.bad select{border-color:var(--loss);background:#FDF2F1;}
+  .prog{height:6px;border-radius:999px;background:var(--panel);overflow:hidden;margin-top:10px;}
+  .prog i{display:block;height:100%;border-radius:999px;background:var(--navy);transition:width .25s;}
+
+  /* ---- locked mode: a dashboard ---- */
+  .hero{background:var(--navy);color:#fff;border-radius:16px;padding:18px 19px;margin-top:14px;
+    box-shadow:var(--lift);}
+  .hero .k{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    opacity:.62;}
+  .hero .v{font-size:30px;font-weight:800;letter-spacing:-.035em;margin-top:6px;line-height:1;}
+  .hero .s{font-size:12.5px;opacity:.75;margin-top:7px;line-height:1.45;}
+  .hero .split{display:flex;gap:22px;margin-top:15px;padding-top:14px;
+    border-top:1px solid rgba(255,255,255,.16);}
+  .hero .split div{flex:1;}
+  .hero .split .n{font-size:20px;font-weight:800;letter-spacing:-.02em;}
+  .hero .split .l{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    opacity:.62;margin-top:3px;}
+
+  .qv{background:var(--card);border-radius:16px;box-shadow:var(--lift);margin-top:12px;
+    padding:15px 17px 14px;}
+  .qv-hd{display:flex;align-items:flex-start;gap:12px;}
+  .qv-q{font-size:14.5px;font-weight:800;letter-spacing:-.015em;line-height:1.3;}
+  .qv-you{margin-left:auto;flex:none;text-align:right;}
+  .qv-you .n{font-size:23px;font-weight:800;letter-spacing:-.03em;line-height:1;
+    font-variant-numeric:tabular-nums;}
+  .qv-you .l{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);margin-top:3px;}
+  .act{display:inline-flex;align-items:baseline;gap:6px;background:var(--panel);border-radius:8px;
+    padding:5px 10px;margin-top:10px;}
+  .act b{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .act span{font-size:11px;color:var(--muted);}
+  .act.done{background:var(--win-bg);} .act.done b,.act.done span{color:var(--win);}
+
+  .bars{margin-top:12px;}
+  .ob{width:100%;border:none;background:none;padding:6px 0;display:block;cursor:pointer;text-align:left;}
+  .ob-r{display:flex;align-items:center;gap:9px;}
+  .ob-l{font-size:13px;font-weight:700;min-width:96px;flex:none;}
+  .ob-t{flex:1;height:22px;border-radius:6px;background:var(--panel);position:relative;overflow:hidden;}
+  .ob-t i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:#BBD3EE;}
+  .ob.mine .ob-t i{background:var(--navy);}
+  .ob.hit .ob-t i{background:var(--win);}
+  .ob-n{font-size:13px;font-weight:800;min-width:22px;text-align:right;font-variant-numeric:tabular-nums;}
+  .ob-tag{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--navy);margin-left:6px;}
+  .ob.hit .ob-tag{color:var(--win);}
+  .who{font-size:12.5px;color:var(--muted);line-height:1.55;padding:2px 0 6px 105px;}
+  .who b{color:var(--ink);font-weight:700;}
+
+  .strip{margin-top:12px;}
+  .strip svg{display:block;width:100%;height:auto;overflow:visible;}
+  .stats{display:flex;gap:16px;margin-top:9px;flex-wrap:wrap;}
+  .stats div{font-size:11.5px;color:var(--muted);}
+  .stats b{display:block;font-size:15px;font-weight:800;color:var(--ink);
+    font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .more{border:none;background:none;color:var(--navy);font-size:12.5px;font-weight:700;
+    cursor:pointer;padding:8px 0 2px;}
+  .list{margin-top:4px;}
+  .list .row{border-top:1px solid var(--line);}
+  .list .row:first-child{border-top:none;}
+  .list .row.you .nm,.list .row.you .vv{color:var(--navy);}
+
+  .empty{padding:26px 4px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6;}
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(12px);
+    background:#14181F;color:#fff;padding:11px 18px;border-radius:11px;font-size:13.5px;
+    font-weight:600;opacity:0;pointer-events:none;transition:.2s;z-index:80;}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+  .sheet-bg{position:fixed;inset:0;background:rgba(16,24,40,.4);display:none;z-index:70;
+    align-items:flex-end;justify-content:center;}
+  .sheet-bg.on{display:flex;}
+  .sheet{background:var(--card);border-radius:18px 18px 0 0;width:100%;max-width:560px;
+    padding:22px 20px calc(22px + env(safe-area-inset-bottom));}
+  .sheet h3{margin:0 0 6px;font-size:18px;font-weight:800;letter-spacing:-.02em;}
+  .sheet p{margin:0 0 16px;font-size:13px;color:var(--muted);line-height:1.55;}
+</style>
+</head>
+<body>
+
+<div id="gate" style="display:none">
+  <div class="wrap" style="padding-top:12vh">
+    <div class="card" style="padding:26px 24px">
+      <div class="hd-k">Big 12 War Room</div>
+      <h1 style="font-size:23px;font-weight:800;letter-spacing:-.025em;margin:6px 0 8px">BYU Season Props</h1>
+      <p class="card-s" id="authBlurb" style="margin-bottom:20px"></p>
+      <form onsubmit="return doAuth(event)">
+        <div id="nameWrap" style="display:none;margin-bottom:13px">
+          <label class="k" for="dname">Your name</label>
+          <input type="text" id="dname" autocomplete="name" placeholder="How you show up on the board" />
+        </div>
+        <div style="margin-bottom:13px">
+          <label class="k" for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" />
+        </div>
+        <div>
+          <label class="k" for="pw">Password</label>
+          <input type="password" id="pw" autocomplete="current-password" />
+        </div>
+        <button class="btn wide" id="authBtn" style="margin-top:18px">Sign in</button>
+      </form>
+      <div id="gateMsg" style="display:none;margin-top:14px;font-size:13px;line-height:1.5"></div>
+      <div style="margin-top:16px;text-align:center">
+        <button class="btn ghost sm" id="authSwap" onclick="swapAuth()">Create an account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="hd">
+    <div class="hd-in">
+      <div>
+        <div class="hd-k">Big 12 War Room</div>
+        <div class="hd-t">BYU Season Props</div>
+        <div class="hd-s" id="sub"></div>
+      </div>
+      <button class="me" onclick="openMe()"><span class="av" id="av">?</span><span id="meName">You</span></button>
+    </div>
+  </div>
+  <div class="wrap" id="body"></div>
+</div>
+
+<div class="bar" id="bar" style="display:none"><div class="bar-in">
+  <div><div class="t" id="barT"></div><div class="s" id="barS"></div></div>
+  <div style="flex:1"></div>
+  <button class="btn" id="barBtn" onclick="lockIn()">Lock in</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<div class="sheet-bg" id="sheetBg" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+/* ==========================================================================
+   BYU Season Props
+
+   The one part of the War Room where more than two people take part, so it is
+   the one part with real accounts. Answer every question, lock in, and locking
+   in is what buys you the sight of everyone else's numbers.
+
+   Same Supabase project as the War Room and the pick'em. The questions are
+   written over in the War Room; this app only ever answers them.
+   ========================================================================== */
+const CFG = {
+  url: 'https://yehpygarkxdopdvugifk.supabase.co',
+  key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
+};
+const BUILD = '2026-09-02.1';
+
+let supa = null, user = null, me = null;
+let season = null;
+let props = [], picks = {}, allPicks = [], players = {}, locks = [];
+let myLocked = false, byuRecord = { w:0, l:0, cw:0, cl:0, left:0 };
+let dirty = {};                 // prop_id -> pending value, before you lock in
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const seasonOf = () => { const d = new Date();
+  return d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1; };
+const initials = n => (n || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
+
+function toast(m, ms = 2800){
+  const t = $('toast'); t.textContent = m; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), ms);
+}
+
+/* The questions the app answers for itself off the shared schedule. */
+const AUTO = {
+  wins:        { of: () => byuRecord.w,  label: 'wins so far' },
+  losses:      { of: () => byuRecord.l,  label: 'losses so far' },
+  conf_wins:   { of: () => byuRecord.cw, label: 'Big 12 wins so far' },
+  conf_losses: { of: () => byuRecord.cl, label: 'Big 12 losses so far' },
+  blowouts:    { of: () => byuRecord.bl, label: 'so far, by 14+' }
+};
+
+/* ========================= boot ========================= */
+(function(){
+  if(!CFG.url.startsWith('http')){
+    document.body.innerHTML = '<div class="wrap"><div class="card">This app still needs its '
+      + 'Supabase keys — see <code>big12/SETUP.md</code>.</div></div>';
+    return;
+  }
+  supa = window.supabase.createClient(CFG.url, CFG.key);
+  supa.auth.getSession().then(({ data }) => {
+    if(data && data.session) signedIn(data.session.user); else showGate();
+  });
+  supa.auth.onAuthStateChange((_e, s) => {
+    if(s && s.user){ if(!user || user.id !== s.user.id) signedIn(s.user); }
+    else { user = null; showGate(); }
+  });
+})();
+
+let mode = 'signin';
+function showGate(){
+  $('gate').style.display = ''; $('app').style.display = 'none'; $('bar').style.display = 'none';
+  paintAuth();
+}
+function swapAuth(){ mode = mode === 'signin' ? 'signup' : 'signin'; paintAuth(); }
+function paintAuth(){
+  const up = mode === 'signup';
+  $('nameWrap').style.display = up ? '' : 'none';
+  $('authBlurb').textContent = up
+    ? 'Pick any password you like. There is no confirmation email to wait for.'
+    : 'Your own account, so your numbers are yours. This browser stays signed in all season.';
+  $('authBtn').textContent = up ? 'Create account' : 'Sign in';
+  $('authSwap').textContent = up ? 'I already have an account' : 'Create an account';
+  $('pw').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+  $('gateMsg').style.display = 'none';
+}
+
+async function doAuth(ev){
+  if(ev) ev.preventDefault();
+  const email = ($('email').value || '').trim();
+  const pw = $('pw').value || '';
+  const name = ($('dname').value || '').trim();
+  if(!email.includes('@')) return toast('Enter a valid email');
+  if(pw.length < 6) return toast('Password must be at least 6 characters');
+  if(mode === 'signup' && !name) return toast('Add the name you want on the board');
+
+  const btn = $('authBtn'); btn.disabled = true;
+  btn.textContent = mode === 'signup' ? 'Creating…' : 'Signing in…';
+  const { data, error } = mode === 'signup'
+    ? await supa.auth.signUp({ email, password: pw, options: { data: { display_name: name } } })
+    : await supa.auth.signInWithPassword({ email, password: pw });
+  btn.disabled = false; paintAuth();
+
+  if(error){
+    const m = $('gateMsg'); m.style.display = ''; m.style.color = 'var(--loss)';
+    m.textContent = /invalid login credentials/i.test(error.message || '')
+      ? (mode === 'signin'
+          ? "That email and password don't match. No account yet? Tap Create an account."
+          : error.message)
+      : error.message;
+    return;
+  }
+  if(mode === 'signup' && !(data && data.session)){
+    const m = $('gateMsg'); m.style.display = ''; m.style.color = 'var(--muted)';
+    m.innerHTML = '<b>Account created.</b> Check your email to confirm it, then sign in.';
+  }
+}
+function signOut(){ supa.auth.signOut(); }
+
+async function signedIn(u){
+  user = u;
+  season = seasonOf();
+  $('gate').style.display = 'none'; $('app').style.display = '';
+
+  const nameGuess = (u.user_metadata && u.user_metadata.display_name)
+    || (u.email || '').split('@')[0];
+  const { data: row } = await supa.from('b12_prop_players')
+    .select('*').eq('user_id', u.id).maybeSingle();
+  if(row) me = row;
+  else {
+    me = { user_id: u.id, display_name: nameGuess, email: u.email };
+    await supa.from('b12_prop_players').insert(me);
+  }
+  $('av').textContent = initials(me.display_name);
+  $('meName').textContent = me.display_name.split(' ')[0];
+
+  await loadAll();
+  supa.channel('props')
+    .on('postgres_changes', { event:'*', schema:'public', table:'b12_prop_picks' },
+        () => loadAll())
+    .on('postgres_changes', { event:'*', schema:'public', table:'b12_prop_locks' },
+        () => loadAll())
+    .subscribe();
+}
+
+async function loadAll(){
+  const [pr, pk, pl, lk, gm] = await Promise.all([
+    supa.from('b12_props').select('*').eq('season', season).order('sort').order('id'),
+    supa.from('b12_prop_picks').select('*'),
+    supa.from('b12_prop_players').select('*'),
+    supa.from('b12_prop_locks').select('*').eq('season', season),
+    supa.from('pickem_games')
+        .select('status,winner_id,conference_game,home_id,home_abbr,home_score,away_id,away_abbr,away_score')
+        .eq('season', season)
+  ]);
+  props = pr.data || [];
+  allPicks = pk.data || [];
+  picks = {};
+  allPicks.filter(r => r.user_id === user.id).forEach(r => { picks[r.prop_id] = r; });
+  players = {};
+  (pl.data || []).forEach(p => { players[p.user_id] = p; });
+  locks = lk.data || [];
+  myLocked = locks.some(l => l.user_id === user.id);
+  byuRecord = readRecord(gm.data || []);
+  render();
+}
+
+/* BYU's record, straight off the shared schedule the other apps use. */
+function readRecord(rows){
+  let byu = null;
+  for(const g of rows){
+    if((g.home_abbr || '').toUpperCase() === 'BYU') byu = g.home_id;
+    if((g.away_abbr || '').toUpperCase() === 'BYU') byu = g.away_id;
+    if(byu) break;
+  }
+  const r = { w:0, l:0, cw:0, cl:0, bl:0, left:0 };
+  if(!byu) return r;
+  for(const g of rows){
+    if(g.home_id !== byu && g.away_id !== byu) continue;
+    if(g.status === 'final' && g.winner_id){
+      const won = g.winner_id === byu;
+      won ? r.w++ : r.l++;
+      if(g.conference_game) won ? r.cw++ : r.cl++;
+      if(won && Math.abs((g.home_score || 0) - (g.away_score || 0)) >= 14) r.bl++;
+    } else r.left++;
+  }
+  return r;
+}
+
+/* ========================= shared bits ========================= */
+function nowOf(pr){
+  if(pr.auto && AUTO[pr.auto]) return { value: AUTO[pr.auto].of(), auto: true };
+  if(pr.kind === 'choice') return { choice: pr.actual_choice || null };
+  return { value: pr.actual == null ? null : Number(pr.actual) };
+}
+function myAnswer(pr){
+  if(dirty[pr.id] !== undefined) return dirty[pr.id];
+  const r = picks[pr.id];
+  if(!r) return null;
+  return pr.kind === 'choice' ? (r.choice || null)
+                              : (r.value == null ? null : Number(r.value));
+}
+function answerOf(uid, pr){
+  const r = allPicks.find(x => x.user_id === uid && x.prop_id === pr.id);
+  if(!r) return null;
+  return pr.kind === 'choice' ? (r.choice || null) : (r.value == null ? null : Number(r.value));
+}
+const nf = n => (Math.round(n * 100) / 100).toLocaleString();
+
+/* No letters in the yards box, and nobody wins ten Big 12 games. */
+function validate(pr, raw){
+  const v = String(raw == null ? '' : raw).trim();
+  if(v === '') return { empty: true };
+  if(pr.kind === 'choice'){
+    return (pr.options || []).indexOf(v) >= 0
+      ? { ok: true, value: v } : { msg: 'Pick one from the list' };
+  }
+  if(!/^-?\d+(\.\d+)?$/.test(v)) return { msg: 'Numbers only' };
+  const n = Number(v);
+  if(!isFinite(n)) return { msg: 'Numbers only' };
+  if(pr.whole !== false && !Number.isInteger(n)) return { msg: 'Whole numbers only' };
+  if(pr.min_val != null && n < Number(pr.min_val))
+    return { msg: 'Can’t be below ' + nf(pr.min_val) };
+  if(pr.max_val != null && n > Number(pr.max_val))
+    return { msg: 'Can’t be above ' + nf(pr.max_val) + (pr.unit ? ' ' + pr.unit : '') };
+  return { ok: true, value: n };
+}
+function rangeHint(pr){
+  if(pr.kind === 'choice') return '';
+  const lo = pr.min_val, hi = pr.max_val;
+  if(lo != null && hi != null) return 'Anything from ' + nf(lo) + ' to ' + nf(hi)
+    + (pr.unit ? ' ' + pr.unit : '');
+  if(hi != null) return 'Up to ' + nf(hi) + (pr.unit ? ' ' + pr.unit : '');
+  return pr.unit ? 'In ' + pr.unit : '';
+}
+function goodAnswers(){
+  return props.filter(p => validate(p, myAnswer(p)).ok).length;
+}
+
+/* Everyone locked in, you included. */
+function field(){
+  return locks.map(l => l.user_id).filter(id => players[id])
+    .sort((a,b) => players[a].display_name.localeCompare(players[b].display_name));
+}
+function leadersOf(pr){
+  const now = nowOf(pr);
+  const target = pr.kind === 'choice' ? now.choice : now.value;
+  if(target == null || target === '') return [];
+  const scored = field().map(id => ({ id, v: answerOf(id, pr) })).filter(x => x.v != null);
+  if(!scored.length) return [];
+  if(pr.kind === 'choice') return scored.filter(x => x.v === target).map(x => x.id);
+  const best = Math.min(...scored.map(x => Math.abs(x.v - target)));
+  return scored.filter(x => Math.abs(x.v - target) === best).map(x => x.id);
+}
+
+/* ========================= render ========================= */
+function render(){
+  if(!props.length){
+    $('sub').textContent = 'Waiting on the questions';
+    $('body').innerHTML = '<div class="card"><div class="card-t">No questions yet</div>'
+      + '<div class="card-s">The season props have not been written up yet. They get set in the '
+      + 'War Room — check back shortly.</div></div>';
+    $('bar').style.display = 'none';
+    return;
+  }
+  myLocked ? renderLocked() : renderEntry();
+}
+
+/* ---------------- entry: a form, and nothing else ----------------
+   No results, no actuals, nobody else's numbers. One job. */
+function renderEntry(){
+  const done = goodAnswers(), total = props.length;
+  $('sub').textContent = done + ' of ' + total + ' answered';
+
+  let h = '<div class="card"><div class="card-t">Put a number on every one</div>'
+    + '<div class="card-s">Nobody can see your answers while you can still change them — and '
+    + 'you cannot see theirs. Lock in when you are happy and the whole board opens up. '
+    + 'It cannot be undone, so take your time.</div>'
+    + '<div class="prog"><i style="width:' + (done / total * 100).toFixed(1) + '%"></i></div></div>';
+
+  if(nameLooksAuto()){
+    h += '<div class="card" style="border-left:4px solid var(--navy)">'
+      + '<div class="card-t">Set your name first</div>'
+      + '<div class="card-s">You are showing up as <b>' + esc(me.display_name) + '</b>. That is '
+      + 'what everyone else will see next to your numbers.</div>'
+      + '<button class="btn sm" style="margin-top:12px" onclick="openMe()">Change it</button></div>';
+  }
+
+  for(const pr of props){
+    const mine = myAnswer(pr), v = validate(pr, mine);
+    h += '<div class="q' + (v.msg ? ' bad' : '') + '"><div class="q-t">' + esc(pr.question) + '</div>'
+      + (pr.detail ? '<div class="q-d">' + esc(pr.detail) + '</div>' : '');
+    if(pr.kind === 'choice'){
+      h += '<div class="q-in"><select data-p="' + pr.id + '"><option value="">Pick one…</option>'
+        + (pr.options || []).map(o => '<option' + (o === mine ? ' selected' : '') + '>'
+            + esc(o) + '</option>').join('') + '</select></div>';
+    } else {
+      h += '<div class="q-in"><input type="number" inputmode="numeric" data-p="' + pr.id + '" '
+        + (pr.min_val != null ? 'min="' + pr.min_val + '" ' : '')
+        + (pr.max_val != null ? 'max="' + pr.max_val + '" ' : '')
+        + 'step="' + (pr.whole === false ? 'any' : '1') + '" '
+        + 'value="' + (mine == null ? '' : esc(String(mine))) + '" placeholder="Your number" />'
+        + (pr.unit ? '<span class="unit">' + esc(pr.unit) + '</span>' : '') + '</div>'
+        + (v.msg ? '<div class="err">' + esc(v.msg) + '</div>'
+                 : rangeHint(pr) ? '<div class="hint">' + esc(rangeHint(pr)) + '</div>' : '');
+    }
+    if(pr.kind === 'choice' && v.msg) h += '<div class="err">' + esc(v.msg) + '</div>';
+    h += '</div>';
+  }
+
+  $('body').innerHTML = h;
+  $('body').querySelectorAll('[data-p]').forEach(el => {
+    el.addEventListener('change', () => stash(el));
+    el.addEventListener('input', () => { dirty[el.dataset.p] = el.value; paintBar(); });
+  });
+  paintBar();
+}
+
+function nameLooksAuto(){
+  const local = (user.email || '').split('@')[0];
+  return me && me.display_name && me.display_name.toLowerCase() === local.toLowerCase();
+}
+
+function paintBar(){
+  if(myLocked){ $('bar').style.display = 'none'; return; }
+  const total = props.length, done = goodAnswers();
+  $('bar').style.display = '';
+  $('barT').textContent = done === total ? 'All ' + total + ' answered' : done + ' of ' + total + ' answered';
+  $('barS').textContent = done === total ? 'Locking in cannot be undone'
+    : 'Every question needs a valid answer';
+  $('barBtn').disabled = done !== total;
+  const p = $('body').querySelector('.prog i');
+  if(p) p.style.width = (done / total * 100).toFixed(1) + '%';
+}
+
+/* ---------------- locked: a dashboard ----------------
+   Nothing to fill in here. Your number, where it stands, and the whole field. */
+function renderLocked(){
+  const ids = field();
+  $('sub').textContent = 'Locked in · ' + ids.length + ' of '
+    + Object.keys(players).length + ' players are in';
+
+  const settled = props.filter(p => p.settled);
+  const board = standings(ids, settled);
+  const meRow = board.find(r => r.id === user.id);
+  const leadingNow = props.filter(p => !p.settled && leadersOf(p).indexOf(user.id) >= 0).length;
+
+  let h = '<div class="hero"><div class="k">Your season</div>'
+    + '<div class="v">' + (settled.length
+        ? (Math.round((meRow ? meRow.n : 0) * 10) / 10) + ' of ' + settled.length
+        : leadingNow + ' of ' + props.length)
+    + '</div><div class="s">' + (settled.length
+        ? 'props won so far, and you sit ' + ordinal(board.findIndex(r => r.id === user.id) + 1)
+          + ' of ' + board.length
+        : 'props where you are currently closest. Nothing is settled yet.')
+    + '</div><div class="split">'
+    + '<div><div class="n">' + ids.length + '</div><div class="l">locked in</div></div>'
+    + '<div><div class="n">' + settled.length + '</div><div class="l">settled</div></div>'
+    + '<div><div class="n">' + leadingNow + '</div><div class="l">leading now</div></div>'
+    + '</div></div>';
+
+  if(settled.length) h += standingsCard(board);
+
+  for(const pr of props){
+    const mine = myAnswer(pr), now = nowOf(pr), lead = leadersOf(pr);
+    const shown = pr.kind === 'choice' ? now.choice : now.value;
+    h += '<div class="qv"><div class="qv-hd"><div class="qv-q">' + esc(pr.question) + '</div>'
+      + '<div class="qv-you"><div class="n">' + (mine == null ? '—' : esc(String(mine)))
+      + '</div><div class="l">' + (lead.indexOf(user.id) >= 0 ? 'you · closest' : 'you') + '</div>'
+      + '</div></div>';
+    if(shown != null && shown !== ''){
+      // AUTO covers the questions the browser works out; anything else with an
+      // `auto` key is filled in by the stats job, and reads as a running total.
+      const label = pr.settled ? 'final'
+        : AUTO[pr.auto] ? AUTO[pr.auto].label
+        : pr.auto ? 'so far, kept automatically'
+        : 'so far';
+      h += '<div class="act' + (pr.settled ? ' done' : '') + '"><b>' + esc(String(shown)) + '</b>'
+        + '<span>' + esc(label) + '</span></div>';
+    }
+    h += pr.kind === 'choice' ? choiceBars(pr, ids, lead) : numberStrip(pr, ids, lead);
+    h += '</div>';
+  }
+  $('body').innerHTML = h;
+  $('body').querySelectorAll('[data-open]').forEach(el =>
+    el.addEventListener('click', () => {
+      const t = $('open-' + el.dataset.open);
+      if(t) t.style.display = t.style.display === 'none' ? '' : 'none';
+    }));
+  paintBar();
+}
+
+function ordinal(n){
+  const s = ['th','st','nd','rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function standings(ids, settled){
+  const tally = {};
+  ids.forEach(id => tally[id] = 0);
+  settled.forEach(pr => {
+    const win = leadersOf(pr);
+    win.forEach(id => { if(tally[id] !== undefined) tally[id] += 1 / win.length; });
+  });
+  return ids.map(id => ({ id, n: tally[id] }))
+    .sort((a,b) => b.n - a.n || players[a.id].display_name.localeCompare(players[b.id].display_name));
+}
+
+function standingsCard(rows){
+  return '<div class="card"><div class="card-t">Standings</div>'
+    + '<div class="card-s">Closest answer takes a prop; a tie splits it.</div>'
+    + '<div style="margin-top:10px">' + rows.map((r, i) =>
+        '<div class="lb"><span class="pos' + (i === 0 && r.n > 0 ? ' top' : '') + '">' + (i+1)
+        + '</span><span class="nm">' + esc(players[r.id].display_name)
+        + (r.id === user.id ? ' <span class="q-d" style="display:inline">(you)</span>' : '')
+        + '</span><span class="sc">' + (Math.round(r.n * 10) / 10) + '</span></div>').join('')
+    + '</div></div>';
+}
+
+/* How the room split, biggest pile first. Tap a bar for the names. */
+function choiceBars(pr, ids, lead){
+  const mine = myAnswer(pr);
+  const counts = (pr.options || []).map(o => ({
+    o, who: ids.filter(id => answerOf(id, pr) === o)
+  })).sort((a,b) => b.who.length - a.who.length);
+  const top = Math.max(1, ...counts.map(c => c.who.length));
+  const now = nowOf(pr);
+
+  let h = '<div class="bars">';
+  counts.forEach((c, i) => {
+    const isMine = c.o === mine, isHit = pr.settled && now.choice === c.o;
+    const key = pr.id + '-' + i;
+    h += '<button class="ob' + (isHit ? ' hit' : isMine ? ' mine' : '') + '" data-open="' + key + '">'
+      + '<div class="ob-r"><span class="ob-l">' + esc(c.o)
+      + (isMine ? '<span class="ob-tag">you</span>' : '') + '</span>'
+      + '<span class="ob-t"><i style="width:' + (c.who.length / top * 100).toFixed(1) + '%"></i></span>'
+      + '<span class="ob-n">' + c.who.length + '</span></div></button>'
+      + '<div class="who" id="open-' + key + '" style="display:none">'
+      + (c.who.length ? c.who.map(id => (id === user.id ? '<b>' : '')
+          + esc(players[id].display_name) + (id === user.id ? '</b>' : '')).join(' · ')
+        : 'Nobody') + '</div>';
+  });
+  return h + '</div>';
+}
+
+/* Where everyone landed on one line. Your dot is the dark one; the actual is
+   the marker. Dots that would sit on top of each other stack instead. */
+function numberStrip(pr, ids, lead){
+  const vals = ids.map(id => ({ id, v: answerOf(id, pr) })).filter(x => x.v != null);
+  if(!vals.length) return '';
+  const now = nowOf(pr), actual = now.value;
+  // The scale is the spread of guesses, not the actual. In September the real
+  // number is nowhere near anybody's answer, and letting it set the scale would
+  // squash every guess into one corner. When it falls outside, its marker pins
+  // to the edge with an arrow instead.
+  const nums = vals.map(x => x.v);
+  let lo = Math.min(...nums), hi = Math.max(...nums);
+  if(hi === lo){ hi = lo + 1; lo = lo - 1; }
+  const pad = (hi - lo) * 0.1;
+  lo -= pad; hi += pad;
+
+  const W = 300, R = 5;
+  const x = v => 10 + (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * (W - 20);
+  const outLeft  = actual != null && actual < lo;
+  const outRight = actual != null && actual > hi;
+
+  // Dots stack upward off the line when two answers nearly collide, so the
+  // drawing needs its headroom above, not below.
+  const seen = [];
+  const placed = vals.slice().sort((a,b) => a.v - b.v).map(d => {
+    let lvl = 0;
+    while(seen[lvl] != null && x(d.v) - seen[lvl] < R * 2.1) lvl++;
+    seen[lvl] = x(d.v);
+    return { id: d.id, v: d.v, lvl };
+  });
+  const stack = Math.max(0, ...placed.map(p => p.lvl)) * (R * 2.2);
+  const BASE = 20 + stack;                    // the line
+  const H = BASE + 26;                        // plus room for the end labels
+
+  let g = '<div class="strip"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" '
+    + 'aria-label="everyone’s answers"><line x1="10" y1="' + BASE + '" x2="' + (W-10)
+    + '" y2="' + BASE + '" stroke="#E6E9EF" stroke-width="2" stroke-linecap="round"/>';
+  if(actual != null){
+    const ax = x(actual), anchor = outLeft ? 'start' : outRight ? 'end' : 'middle';
+    g += '<line x1="' + ax.toFixed(1) + '" y1="' + (BASE - stack - 12) + '" x2="' + ax.toFixed(1)
+      + '" y2="' + (BASE + 8) + '" stroke="#14181F" stroke-width="2"'
+      + (outLeft || outRight ? ' stroke-dasharray="3 3"' : '') + '/>'
+      + '<text x="' + ax.toFixed(1) + '" y="' + (BASE - stack - 17)
+      + '" font-size="10" font-weight="700" fill="#14181F" text-anchor="' + anchor + '">'
+      + (outLeft ? '‹ ' : '') + esc(nf(actual)) + (outRight ? ' ›' : '') + '</text>';
+  }
+  for(const d of placed){
+    const you = d.id === user.id;
+    g += '<circle cx="' + x(d.v).toFixed(1) + '" cy="' + (BASE - d.lvl * R * 2.2).toFixed(1)
+      + '" r="' + (you ? R + 1.5 : R) + '" fill="' + (you ? '#002E5D' : '#2a78d6')
+      + '" stroke="#fff" stroke-width="2"><title>' + esc(players[d.id].display_name) + ': '
+      + esc(nf(d.v)) + '</title></circle>';
+  }
+  g += '<text x="10" y="' + (BASE + 20) + '" font-size="10" fill="#A6AEBA">' + esc(nf(lo + pad))
+    + '</text><text x="' + (W - 10) + '" y="' + (BASE + 20)
+    + '" font-size="10" fill="#A6AEBA" text-anchor="end">' + esc(nf(hi - pad))
+    + '</text></svg></div>';
+
+  const avg = nums.reduce((a,b) => a + b, 0) / nums.length;
+  const sorted = nums.slice().sort((a,b) => a - b);
+  const mine = myAnswer(pr);
+  const rank = mine == null ? null : sorted.filter(v => v > mine).length + 1;
+  g += '<div class="stats">'
+    + '<div><b>' + nf(sorted[0]) + '</b>lowest</div>'
+    + '<div><b>' + nf(Math.round(avg * 10) / 10) + '</b>average</div>'
+    + '<div><b>' + nf(sorted[sorted.length - 1]) + '</b>highest</div>'
+    + (rank ? '<div><b>' + ordinal(rank) + '</b>you, highest to lowest</div>' : '')
+    + '</div>';
+
+  const key = 'n' + pr.id;
+  g += '<button class="more" data-open="' + key + '">All ' + vals.length + ' answers</button>'
+    + '<div class="list" id="open-' + key + '" style="display:none">'
+    + vals.slice().sort((a,b) => b.v - a.v).map(d =>
+        '<div class="row' + (d.id === user.id ? ' you' : '') + '">'
+        + '<span class="nm">' + esc(players[d.id].display_name) + '</span>'
+        + (pr.settled && lead.indexOf(d.id) >= 0 ? '<span class="badge">closest</span>' : '')
+        + '<span class="vv">' + esc(nf(d.v)) + '</span></div>').join('')
+    + '</div>';
+  return g;
+}
+
+/* Saves as you go — an unlocked answer is private, so there is nothing to lose
+   by keeping it warm on the server. Invalid text is kept on screen but not sent. */
+async function stash(el){
+  const pr = props.find(p => String(p.id) === el.dataset.p);
+  const raw = (el.value || '').trim();
+  dirty[pr.id] = raw;
+  const v = validate(pr, raw);
+  renderEntry();
+  if(v.msg) return;                       // let them see the complaint, save nothing
+  const row = { user_id: user.id, prop_id: pr.id, value: null, choice: null,
+                updated_at: new Date().toISOString() };
+  if(pr.kind === 'choice') row.choice = v.ok ? v.value : null;
+  else row.value = v.ok ? v.value : null;
+  picks[pr.id] = row;
+  const { error } = await supa.from('b12_prop_picks').upsert(row);
+  if(error) toast('Could not save that: ' + error.message, 4000);
+}
+
+async function lockIn(){
+  const bad = props.filter(p => !validate(p, myAnswer(p)).ok);
+  if(bad.length) return toast(bad.length + ' still need a valid answer');
+  if(!confirm('Lock in all ' + props.length + ' answers? They are final after this — and the '
+    + 'whole board opens up.')) return;
+  const { error } = await supa.from('b12_prop_locks')
+    .insert({ user_id: user.id, season, locked_at: new Date().toISOString() });
+  if(error) return toast(error.message, 4500);
+  dirty = {};
+  await loadAll();
+  window.scrollTo(0, 0);
+  toast('Locked in. Good luck.');
+}
+
+/* ========================= me sheet ========================= */
+function openMe(){
+  $('sheet').innerHTML = '<h3>' + esc(me.display_name) + '</h3>'
+    + '<p>' + esc(user.email) + (myLocked ? ' · locked in' : ' · not locked in yet') + '</p>'
+    + '<label class="k">Name on the board</label>'
+    + '<input type="text" id="nm2" value="' + esc(me.display_name) + '" />'
+    + '<div style="display:flex;gap:9px;margin-top:16px">'
+    + '<button class="btn" onclick="saveName()">Save</button>'
+    + '<button class="btn ghost" onclick="closeSheet()">Close</button>'
+    + '<div style="flex:1"></div>'
+    + '<button class="btn ghost" onclick="signOut()">Sign out</button></div>'
+    + '<div class="card-s" style="margin-top:16px">Build ' + BUILD + '</div>';
+  $('sheetBg').classList.add('on');
+}
+function closeSheet(){ $('sheetBg').classList.remove('on'); }
+async function saveName(){
+  const v = ($('nm2').value || '').trim();
+  if(!v) return toast('Names cannot be blank');
+  me.display_name = v;
+  $('av').textContent = initials(v); $('meName').textContent = v.split(' ')[0];
+  closeSheet();
+  await supa.from('b12_prop_players').update({ display_name: v }).eq('user_id', user.id);
+  render();
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeSheet(); });
+</script>
+</body>
+</html>
