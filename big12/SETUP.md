@@ -11,6 +11,7 @@ adds three tables and one weekly job. Nothing here costs money.
 | Supabase | Free tier (the existing project) | Your predictions, your settings, the season's history |
 | `Pick'em — sync games` | GitHub Actions | Already running. Feeds this app the schedule, scores and betting lines |
 | `War Room — weekly snapshot` | GitHub Actions | Freezes the board every Monday at 6am Mountain |
+| `War Room — BYU player stats` | GitHub Actions | Reads BYU's box scores and answers the player props |
 
 ---
 
@@ -157,10 +158,29 @@ before you go looking at the window.
 
 ### Keeping score
 
-Five questions the app answers for itself off the schedule — wins, losses, Big 12 wins, Big 12
-losses, and wins by 14 or more. For the rest, type the running number into the *Where it stands* column in the War Room
-whenever you feel like it, and hit **Settle** when a number is final. Closest answer takes the
-prop; a tie splits it.
+**Eleven of the thirteen answer themselves.** Nobody types a yardage total.
+
+- **Three come off the schedule** — wins, Big 12 wins, and wins by 14 or more — worked out in
+  the browser from the games already syncing.
+- **Eight come off BYU's box scores.** `War Room — BYU player stats` walks every finished BYU
+  game, adds each player up, and writes the answer into the prop: Bachmeier's passing and
+  rushing touchdowns, Martin's rushing yards and longest run, and both leader races with the
+  numbers that go with them. It runs every six hours.
+
+Only the two postseason yes-or-nos are left by hand, and those are one click each in December.
+
+**Run it once by hand first, with *Dry run* set to `1`.** It writes nothing and prints exactly
+what it found — how many games it read, who it thinks leads each category, and which prop it
+would set to what. That is where you catch a misspelled player name.
+
+Players are matched forgivingly: `LJ Martin` finds `L.J. Martin`, and suffixes like `III` are
+ignored. If nobody matches, the log says so by name rather than silently writing a zero.
+
+**Settling stops the clock.** The job never touches a settled prop, so **Settle** is how you
+freeze a final number. Closest answer takes the prop; a tie splits it.
+
+If ESPN ever gets one wrong, open the prop in **Edit**, set *Can the app score it?* back to
+"we keep this one by hand", and the *Where it stands* box becomes typeable again.
 
 ## 6. Choose your contenders
 
@@ -278,6 +298,8 @@ already running.
 | Every untouched game says "PK" or shows no line | ESPN returned no odds. Check the sync log's odds coverage line. |
 | A call won't save, "violates check constraint" | `schema.sql` is the three-level version. Re-run the current file; it widens the allowed strengths. |
 | No automatic snapshots | Actions → *War Room — weekly snapshot* → check the log; it prints why it skipped. |
+| A player prop stays blank | Actions → *War Room — BYU player stats*. The log names any player it could not find — usually a spelling difference. Fix it in **Edit → Which player?**. |
+| A leader prop names somebody who isn't an option | The log flags this loudly. The question is broken as written and nobody can win it: add the option, or settle it as a void. |
 | Props tab shows a headcount but no numbers | Those people have not locked in yet. Nothing shows until they do. |
 | Somebody says their answer won't save | It is failing its bounds check — the app shows why under the box. Widen the range in **Edit** if the bound is wrong. |
 | "Lock in" stays greyed out | A question is still blank. The database refuses a lock with blanks, so the button does too. |

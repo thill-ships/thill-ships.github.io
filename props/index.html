@@ -592,9 +592,14 @@ function renderLocked(){
       + '</div><div class="l">' + (lead.indexOf(user.id) >= 0 ? 'you · closest' : 'you') + '</div>'
       + '</div></div>';
     if(shown != null && shown !== ''){
+      // AUTO covers the questions the browser works out; anything else with an
+      // `auto` key is filled in by the stats job, and reads as a running total.
+      const label = pr.settled ? 'final'
+        : AUTO[pr.auto] ? AUTO[pr.auto].label
+        : pr.auto ? 'so far, kept automatically'
+        : 'so far';
       h += '<div class="act' + (pr.settled ? ' done' : '') + '"><b>' + esc(String(shown)) + '</b>'
-        + '<span>' + (pr.settled ? 'final' : pr.auto ? esc(AUTO[pr.auto].label) : 'so far')
-        + '</span></div>';
+        + '<span>' + esc(label) + '</span></div>';
     }
     h += pr.kind === 'choice' ? choiceBars(pr, ids, lead) : numberStrip(pr, ids, lead);
     h += '</div>';

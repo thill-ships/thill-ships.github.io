@@ -1,0 +1,37 @@
+name: War Room — BYU player stats
+
+# Reads BYU's box scores and fills in every season prop that is about a player,
+# so nobody has to type a yardage total in by hand.
+on:
+  schedule:
+    - cron: '0 */6 * * *'      # four times a day is plenty for season totals
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season year (blank = current)'
+        required: false
+      dry_run:
+        description: 'Print what it found and write nothing'
+        required: false
+        default: '0'
+
+concurrency:
+  group: big12-stats
+  cancel-in-progress: false
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read the box scores
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SEASON: ${{ inputs.season }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: python .github/scripts/big12_stats.py

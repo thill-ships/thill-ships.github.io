@@ -1514,12 +1514,7 @@ function propsDigest(){
       h += '<div class="pq num">' + nfmt(sum.lo) + ' – ' + nfmt(sum.hi) + '</div>'
         + '<div class="pd">average ' + nfmt(Math.round(sum.avg * 10) / 10) + '</div>';
     }
-    h += '</td><td class="num">' + (pr.kind === 'choice'
-          ? (now.choice ? esc(now.choice) : '<span class="muted">—</span>')
-          : (now.value == null ? '<span class="muted">—</span>'
-             : '<b>' + now.value + '</b>' + (now.auto && now.left && now.projected != null
-                ? '<span class="pd">on pace for ' + now.projected.toFixed(1) + '</span>' : '')))
-      + '</td></tr>';
+    h += '</td><td class="num">' + nowCell(pr, now) + '</td></tr>';
   }
   return h + '</tbody></table></div></div>';
 }
@@ -1546,6 +1541,28 @@ const AUTO_PROPS = {
                  // No projection: a win probability says nothing about margin.
                  of: () => ({ value: blowouts(homeId()), projected: null,
                               left: projectedRecord(homeId(), false).left }) }
+};
+
+/* The rest are filled in by the stats job off BYU's box scores. The browser
+   never computes these; it just shows what the job wrote. */
+const JOB_PROPS = {
+  pass_yds:        { label: 'Passing yards',            player: true },
+  pass_td:         { label: 'Passing touchdowns',       player: true },
+  rush_yds:        { label: 'Rushing yards',            player: true },
+  rush_td:         { label: 'Rushing touchdowns',       player: true },
+  long_rush:       { label: 'Longest run',              player: true },
+  rec_yds:         { label: 'Receiving yards',          player: true },
+  rec_td:          { label: 'Receiving touchdowns',     player: true },
+  long_rec:        { label: 'Longest reception',        player: true },
+  ints:            { label: 'Interceptions',            player: true },
+  sacks:           { label: 'Sacks',                    player: true },
+  tackles:         { label: 'Tackles',                  player: true },
+  rec_leader:      { label: 'Who leads in receiving yards' },
+  rec_leader_yds:  { label: '…and how many yards' },
+  int_leader:      { label: 'Who leads in interceptions' },
+  int_leader_ints: { label: '…and how many' },
+  team_ints:       { label: 'Team interceptions' },
+  team_sacks:      { label: 'Team sacks' }
 };
 
 function rec(confOnly, side){
@@ -1721,10 +1738,7 @@ function renderProps(){
 
     h += '<td>';
     if(pr.auto){
-      h += '<div class="now"><b>' + now.value + '</b><span>now</span></div>'
-        + '<div class="pd">' + (!now.left ? 'final'
-            : now.projected == null ? 'so far' : 'on pace for ' + now.projected.toFixed(1))
-        + '</div>';
+      h += nowCell(pr, now);
     } else if(pr.kind === 'choice'){
       h += '<select class="pin" data-actual="' + pr.id + '"><option value="">not yet</option>'
         + (pr.options || []).map(o => '<option' + (o === now.choice ? ' selected' : '') + '>'
@@ -1751,6 +1765,26 @@ function renderProps(){
 }
 
 const nfmt = n => (Math.round(n * 100) / 100).toLocaleString();
+
+/* The "now" cell, shared by the props tab and the BYU digest. The note goes on
+   its own line — as an inline span it ran straight into the number. */
+function nowCell(pr, now){
+  if(pr.kind === 'choice'){
+    return now.choice ? '<div style="font-size:14px;font-weight:700">' + esc(now.choice) + '</div>'
+                        + (pr.auto ? '<div class="pd">kept automatically</div>' : '')
+                      : '<span class="muted">—</span>';
+  }
+  if(now.value == null){
+    return '<span class="muted">—</span>'
+      + (pr.auto ? '<div class="pd">waiting on the stats job</div>' : '');
+  }
+  const note = !now.auto ? (pr.auto ? 'kept automatically' : '')
+    : !now.left ? 'final'
+    : now.projected == null ? 'so far'
+    : 'on pace for ' + now.projected.toFixed(1);
+  return '<div style="font-size:16px;font-weight:800">' + esc(String(now.value)) + '</div>'
+    + (note ? '<div class="pd">' + note + '</div>' : '');
+}
 function togglePropRow(id){
   const el = $('pw-' + id);
   if(el) el.style.display = el.style.display === 'none' ? '' : 'none';
@@ -1778,9 +1812,14 @@ async function toggleSettled(id){
 /* ---- write or edit a question (the War Room's job, not the players') ---- */
 function openProp(id){
   const pr = id ? props.find(p => p.id === id) : null;
-  const autoOpts = ['<option value="">No — we keep this one by hand</option>'].concat(
-    Object.keys(AUTO_PROPS).map(k => '<option value="' + k + '"'
-      + (pr && pr.auto === k ? ' selected' : '') + '>' + AUTO_PROPS[k].label + '</option>'));
+  const opt = (k, label) => '<option value="' + k + '"'
+    + (pr && pr.auto === k ? ' selected' : '') + '>' + label + '</option>';
+  const autoOpts = ['<option value="">No — we keep this one by hand</option>',
+      '<optgroup label="Off the schedule">']
+    .concat(Object.keys(AUTO_PROPS).map(k => opt(k, AUTO_PROPS[k].label)))
+    .concat(['</optgroup>', '<optgroup label="Off BYU’s box scores">'])
+    .concat(Object.keys(JOB_PROPS).map(k => opt(k, JOB_PROPS[k].label)))
+    .concat(['</optgroup>']);
   const lab = t => '<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.1em;'
     + 'text-transform:uppercase;color:var(--faint);margin:14px 0 6px">' + t + '</label>';
 
@@ -1812,7 +1851,13 @@ function openProp(id){
     + '<input type="text" id="prO" value="' + esc(pr && pr.options ? pr.options.join(', ') : '')
     + '" placeholder="BYU, Texas Tech, Utah…" />'
     + lab('Can the app score it?')
-    + '<select id="prA" class="pin" style="width:100%">' + autoOpts.join('') + '</select>'
+    + '<select id="prA" class="pin" style="width:100%" onchange="propAutoChanged()">'
+    + autoOpts.join('') + '</select>'
+    + '<div id="prPlayerWrap" style="display:none">' + lab('Which player?')
+    + '<input type="text" id="prPlayer" value="' + esc(pr && pr.auto_player ? pr.auto_player : '')
+    + '" placeholder="Bear Bachmeier" />'
+    + '<div class="card-s" style="margin-top:6px">Spell it however ESPN does. Initials and '
+    + 'suffixes are forgiven — “LJ Martin” finds “L.J. Martin”.</div></div>'
     + '<div class="card-s" style="margin-top:14px">The bounds are what stops somebody typing '
     + '14 Big 12 wins, or letters in a yards box. Changing a question after people have locked '
     + 'in does not change the answers they already gave — so fix the wording early.</div>'
@@ -1822,6 +1867,12 @@ function openProp(id){
     + (pr ? '<div class="spacer"></div><button class="btn ghost sm" style="color:var(--loss)" '
             + 'onclick="deleteProp(' + pr.id + ')">Delete</button>' : '')
     + '</div>');
+  propAutoChanged();
+}
+
+function propAutoChanged(){
+  const k = $('prA').value;
+  $('prPlayerWrap').style.display = (JOB_PROPS[k] || {}).player ? '' : 'none';
 }
 
 async function saveProp(id){
@@ -1837,9 +1888,13 @@ async function saveProp(id){
     unit: ($('prU').value || '').trim() || null,
     options: opts.length ? opts : null,
     auto: $('prA').value || null,
+    auto_player: (JOB_PROPS[$('prA').value] || {}).player
+                 ? ($('prPlayer').value || '').trim() || null : null,
     min_val: num('prMin'), max_val: num('prMax'),
     whole: $('prWhole').checked
   };
+  if((JOB_PROPS[row.auto] || {}).player && !row.auto_player)
+    return toast('That one needs a player name');
   if(row.min_val != null && !isFinite(row.min_val)) return toast('The lowest allowed must be a number');
   if(row.max_val != null && !isFinite(row.max_val)) return toast('The highest allowed must be a number');
   if(row.min_val != null && row.max_val != null && row.min_val >= row.max_val)
@@ -1884,32 +1939,38 @@ const SEED_PROPS = [
     options: ['Yes', 'No'] },
 
   { question: 'Bear Bachmeier passing touchdowns',
-    detail: 'Regular season', unit: 'TDs', min: 0, max: 60 },
+    detail: 'Regular season', unit: 'TDs', min: 0, max: 60,
+    auto: 'pass_td', player: 'Bear Bachmeier' },
   { question: 'Bear Bachmeier rushing touchdowns',
-    detail: 'Regular season', unit: 'TDs', min: 0, max: 30 },
+    detail: 'Regular season', unit: 'TDs', min: 0, max: 30,
+    auto: 'rush_td', player: 'Bear Bachmeier' },
 
   { question: 'LJ Martin rushing yards',
-    detail: 'Regular season', unit: 'yards', min: 0, max: 3000 },
+    detail: 'Regular season', unit: 'yards', min: 0, max: 3000,
+    auto: 'rush_yds', player: 'LJ Martin' },
   { question: 'LJ Martin’s longest run of the season',
-    detail: 'Regular season', unit: 'yards', min: 0, max: 99 },
+    detail: 'Regular season', unit: 'yards', min: 0, max: 99,
+    auto: 'long_rush', player: 'LJ Martin' },
 
-  { question: 'Who leads BYU in receiving yards?', kind: 'choice',
+  { question: 'Who leads BYU in receiving yards?', kind: 'choice', auto: 'rec_leader',
     options: ['Kyler Kasper', 'JoJo Phillips', 'Tiger Bachmeier', 'Legend Glasker'] },
   { question: 'How many receiving yards does the leader finish with?',
-    detail: 'Whoever tops the team, regular season', unit: 'yards', min: 0, max: 2500 },
+    detail: 'Whoever tops the team, regular season', unit: 'yards', min: 0, max: 2500,
+    auto: 'rec_leader_yds' },
 
-  { question: 'Who leads BYU in interceptions?', kind: 'choice',
+  { question: 'Who leads BYU in interceptions?', kind: 'choice', auto: 'int_leader',
     options: ['Cade Uluave', 'Isaiah Glasker', 'Faletau Satuala', 'Evan Johnson',
               'Therrian Alexander III', 'Cannon DeVries'] },
   { question: 'How many interceptions does the leader finish with?',
-    detail: 'Whoever tops the team, regular season', unit: 'INTs', min: 0, max: 20 }
+    detail: 'Whoever tops the team, regular season', unit: 'INTs', min: 0, max: 20,
+    auto: 'int_leader_ints' }
 ];
 
 async function seedProps(){
   const rows = SEED_PROPS.map((r, i) => ({
     season, sort: i, question: r.question, detail: r.detail || null,
     kind: r.kind || 'number', unit: r.unit || null, options: r.options || null,
-    auto: r.auto || null,
+    auto: r.auto || null, auto_player: r.player || null,
     min_val: r.min == null ? null : r.min, max_val: r.max == null ? null : r.max,
     whole: true
   }));

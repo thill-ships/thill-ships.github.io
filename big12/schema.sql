@@ -130,9 +130,18 @@ create table if not exists b12_props (
               check (kind in ('number','choice')),
   unit      text,                           -- "yards", "TDs", "wins"
   options   text[],                         -- the menu, when kind = 'choice'
-  auto      text                            -- null, or a key the app computes
+  -- How this question answers itself. The first five come off the schedule and
+  -- are worked out in the browser. The rest are filled in by the stats job,
+  -- which reads BYU's box scores; those need auto_player, except the four
+  -- "leader" keys, which work out for themselves who is leading.
+  auto      text
               check (auto is null or auto in
-                     ('wins','losses','conf_wins','conf_losses','blowouts')),
+                     ('wins','losses','conf_wins','conf_losses','blowouts',
+                      'pass_yds','pass_td','rush_yds','rush_td','long_rush',
+                      'rec_yds','rec_td','long_rec','ints','sacks','tackles',
+                      'rec_leader','rec_leader_yds','int_leader','int_leader_ints',
+                      'team_ints','team_sacks')),
+  auto_player text,                         -- the athlete, as ESPN spells them
   min_val   numeric,                        -- sanity bounds for a number answer:
   max_val   numeric,                        -- nobody wins 14 Big 12 games
   whole     boolean not null default true,  -- whole numbers only?
@@ -146,6 +155,16 @@ create table if not exists b12_props (
 alter table b12_props add column if not exists min_val numeric;
 alter table b12_props add column if not exists max_val numeric;
 alter table b12_props add column if not exists whole   boolean not null default true;
+alter table b12_props add column if not exists auto_player text;
+
+-- Widening the set of things a question can answer for itself. Safe to re-run.
+alter table b12_props drop constraint if exists b12_props_auto_check;
+alter table b12_props add  constraint b12_props_auto_check check (auto is null or auto in
+  ('wins','losses','conf_wins','conf_losses','blowouts',
+   'pass_yds','pass_td','rush_yds','rush_td','long_rush',
+   'rec_yds','rec_td','long_rec','ints','sacks','tackles',
+   'rec_leader','rec_leader_yds','int_leader','int_leader_ints',
+   'team_ints','team_sacks'));
 create index if not exists b12_props_season_idx on b12_props (season, sort, id);
 
 -- One row per person per question.
