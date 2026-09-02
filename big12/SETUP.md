@@ -54,6 +54,9 @@ Supabase will warn that the query contains destructive operations. That is a key
 a column, or a row. **Re-run the whole file after pulling updates** — it is written to be safe
 to run repeatedly, and that is how new columns and rules get applied.
 
+> **After pulling the September 2026 update**, re-run `schema.sql` once more here too. It
+> withdraws the browser's right to read any props player's email address.
+
 ## 3. Claim the password
 
 Open `https://thill-ships.github.io/big12/`, type the password you want, and hit

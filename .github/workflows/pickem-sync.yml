@@ -24,6 +24,10 @@ concurrency:
   group: pickem-sync
   cancel-in-progress: false
 
+# The jobs only talk to Supabase and ESPN; the GitHub token needs nothing but checkout.
+permissions:
+  contents: read
+
 jobs:
   sync:
     runs-on: ubuntu-latest

@@ -313,6 +313,16 @@ create policy b12_locks_insert on b12_prop_locks
 
 
 -- ---------------------------------------------------------------------------
+-- Column privileges: nobody's email address leaves the database through the
+-- browser. The results table needs everyone's display name, not their address.
+-- The apps select explicit columns from b12_prop_players for this reason: a
+-- `select *` would be refused outright.
+-- ---------------------------------------------------------------------------
+
+revoke select on b12_prop_players from anon, authenticated;
+grant  select (user_id, display_name, created_at) on b12_prop_players to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Realtime: when one of you flips a game, it moves on the other's screen.
 -- ---------------------------------------------------------------------------
 

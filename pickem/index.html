@@ -299,7 +299,7 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-08-26.6';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-09-02.1';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
@@ -425,7 +425,7 @@ async function signedIn(u){
 }
 
 async function ensurePlayer(){
-  const { data } = await supa.from('pickem_players').select('*').eq('user_id',user.id).maybeSingle();
+  const { data } = await supa.from('pickem_players').select('user_id,display_name,notify').eq('user_id',user.id).maybeSingle();
   if(data){ player=data; }
   else{
     const guess=(user.email||'').split('@')[0].replace(/[._-]+/g,' ')

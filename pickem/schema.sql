@@ -253,6 +253,19 @@ create policy locks_insert on pickem_locks
 
 
 -- ---------------------------------------------------------------------------
+-- Column privileges: nobody's email address leaves the database through the
+-- browser. Row Level Security decides WHICH rows a signed-in person may read;
+-- this decides WHICH COLUMNS, and email is not one of them. The reminder job
+-- reads emails with the service_role key, which these grants do not bind.
+--
+-- The app selects explicit columns from pickem_players for this reason: a
+-- `select *` would be refused outright.
+-- ---------------------------------------------------------------------------
+
+revoke select on pickem_players from anon, authenticated;
+grant  select (user_id, display_name, notify, created_at) on pickem_players to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Views
 -- ---------------------------------------------------------------------------
 

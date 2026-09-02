@@ -19,6 +19,10 @@ concurrency:
   group: big12-stats
   cancel-in-progress: false
 
+# The jobs only talk to Supabase and ESPN; the GitHub token needs nothing but checkout.
+permissions:
+  contents: read
+
 jobs:
   stats:
     runs-on: ubuntu-latest

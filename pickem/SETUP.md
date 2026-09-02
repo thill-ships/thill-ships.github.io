@@ -48,6 +48,10 @@ The publishable key is *meant* to be public — it's in the page source of every
 app. Row Level Security in `schema.sql` is what actually protects the data. The
 **service_role** key is the dangerous one; that goes in GitHub Secrets and nowhere else.
 
+> **After pulling the September 2026 update**, re-run `schema.sql` once more. It withdraws
+> the browser's right to read anyone's email address; until it has run, the profile sheet
+> will fail to load because the page now asks for specific columns.
+
 ## 3. Configure sign-in (email + password)
 
 In Supabase → **Authentication**:

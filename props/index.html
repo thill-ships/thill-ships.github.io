@@ -244,7 +244,7 @@ const CFG = {
   url: 'https://yehpygarkxdopdvugifk.supabase.co',
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
-const BUILD = '2026-09-02.1';
+const BUILD = '2026-09-02.2';
 
 let supa = null, user = null, me = null;
 let season = null;
@@ -348,7 +348,7 @@ async function signedIn(u){
   const nameGuess = (u.user_metadata && u.user_metadata.display_name)
     || (u.email || '').split('@')[0];
   const { data: row } = await supa.from('b12_prop_players')
-    .select('*').eq('user_id', u.id).maybeSingle();
+    .select('user_id,display_name').eq('user_id', u.id).maybeSingle();
   if(row) me = row;
   else {
     me = { user_id: u.id, display_name: nameGuess, email: u.email };
@@ -370,7 +370,7 @@ async function loadAll(){
   const [pr, pk, pl, lk, gm] = await Promise.all([
     supa.from('b12_props').select('*').eq('season', season).order('sort').order('id'),
     supa.from('b12_prop_picks').select('*'),
-    supa.from('b12_prop_players').select('*'),
+    supa.from('b12_prop_players').select('user_id,display_name'),
     supa.from('b12_prop_locks').select('*').eq('season', season),
     supa.from('pickem_games')
         .select('status,winner_id,conference_game,home_id,home_abbr,home_score,away_id,away_abbr,away_score')

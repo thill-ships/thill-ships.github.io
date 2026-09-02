@@ -384,7 +384,7 @@ const CFG = {
   account: 'warroom@thill-ships.app'   // the one shared login. Must match schema.sql.
 };
 
-const BUILD = '2026-09-01.1';
+const BUILD = '2026-09-02.1';
 const SIMS  = 20000;    // Monte Carlo runs for the live view
 const SIMS_HIST = 4000; // fewer per point when redrawing the whole season's history
 const SIGMA = 16.0;     // std dev of a college football final margin, in points
@@ -574,7 +574,7 @@ async function loadProps(){
   const [pr, pk, pl, lk] = await Promise.all([
     supa.from('b12_props').select('*').eq('season', season).order('sort').order('id'),
     supa.from('b12_prop_picks').select('*'),
-    supa.from('b12_prop_players').select('*'),
+    supa.from('b12_prop_players').select('user_id,display_name'),
     supa.from('b12_prop_locks').select('*').eq('season', season)
   ]);
   props = pr.error ? [] : (pr.data || []);
