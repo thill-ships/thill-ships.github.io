@@ -1498,7 +1498,7 @@ function propsDigest(){
       + '<td class="num">' + (pr.kind === 'choice'
           ? (now.choice ? esc(now.choice) : '<span class="muted">—</span>')
           : (now.value == null ? '<span class="muted">—</span>'
-             : '<b>' + now.value + '</b>' + (now.auto && now.left
+             : '<b>' + now.value + '</b>' + (now.auto && now.left && now.projected != null
                 ? '<span class="pd">on pace for ' + now.projected.toFixed(1) + '</span>' : '')))
       + '</td></tr>';
   }
@@ -1511,13 +1511,34 @@ function propsDigest(){
    the same table, which is how it worked on paper anyway.
    ======================================================================== */
 
-/* Four of these the app can answer for itself out of the schedule. */
+/* The questions the app can answer for itself out of the schedule it already
+   syncs. Each returns where the number stands, and where it is heading if that
+   is a meaningful thing to say. */
 const AUTO_PROPS = {
-  wins:        { label: 'BYU wins (all games)',    conf: false, win: true  },
-  losses:      { label: 'BYU losses (all games)',  conf: false, win: false },
-  conf_wins:   { label: 'BYU Big 12 wins',         conf: true,  win: true  },
-  conf_losses: { label: 'BYU Big 12 losses',       conf: true,  win: false }
+  wins:        { label: 'BYU wins (all games)',
+                 of: () => rec(false, 'w') },
+  losses:      { label: 'BYU losses (all games)',
+                 of: () => rec(false, 'l') },
+  conf_wins:   { label: 'BYU Big 12 wins',
+                 of: () => rec(true, 'w') },
+  conf_losses: { label: 'BYU Big 12 losses',
+                 of: () => rec(true, 'l') },
+  blowouts:    { label: 'BYU wins by 14+ points',
+                 // No projection: a win probability says nothing about margin.
+                 of: () => ({ value: blowouts(homeId()), projected: null,
+                              left: projectedRecord(homeId(), false).left }) }
 };
+
+function rec(confOnly, side){
+  const r = projectedRecord(homeId(), confOnly);
+  return { value: side === 'w' ? r.w : r.l,
+           projected: side === 'w' ? r.projW : r.projL, left: r.left };
+}
+
+function blowouts(id){
+  return games.filter(g => g.status === 'final' && g.winner_id === id &&
+    Math.abs((g.home_score || 0) - (g.away_score || 0)) >= 14).length;
+}
 
 /* Record so far and where it is heading, over all games or conference only. */
 function projectedRecord(id, confOnly){
@@ -1535,10 +1556,7 @@ function projectedRecord(id, confOnly){
 /* Where a prop stands right now: computed for the auto ones, typed for the rest. */
 function propNow(pr){
   if(pr.auto && AUTO_PROPS[pr.auto]){
-    const a = AUTO_PROPS[pr.auto], r = projectedRecord(homeId(), a.conf);
-    return { value: a.win ? r.w : r.l,
-             projected: a.win ? r.projW : r.projL,
-             auto: true, left: r.left };
+    return Object.assign({ auto: true }, AUTO_PROPS[pr.auto].of());
   }
   if(pr.kind === 'choice') return { choice: pr.actual_choice || null, auto: false };
   return { value: pr.actual == null ? null : Number(pr.actual), auto: false };
@@ -1583,7 +1601,7 @@ function renderProps(){
   const waiting = Object.keys(propPlayers).filter(id => ids.indexOf(id) < 0);
 
   let h = '<div class="card"><div class="card-hd"><div class="row">'
-    + '<div><div class="card-t">Season props</div>'
+    + '<div style="max-width:72ch"><div class="card-t">Season props</div>'
     + '<div class="card-s">These are answered over in <a href="../props/" target="_blank" '
     + 'style="color:var(--navy)">the props app</a>, where everyone has their own login. '
     + 'This is a window on it — we write the questions and keep the actuals, but the answers '
@@ -1614,17 +1632,18 @@ function renderProps(){
   if(!props.length){
     $('v-props').innerHTML = h + '<div class="card"><div class="empty">'
       + 'No questions written yet.<br><br>'
-      + '<button class="btn" onclick="seedProps()">Start me off with nine</button>'
-      + '<div style="margin-top:14px;font-size:12.5px">Rushing yards, passing touchdowns, '
-      + 'interceptions, wins, final ranking, who takes the conference. Edit or bin any of them '
-      + 'afterwards.</div></div></div>';
+      + '<button class="btn" onclick="seedProps()">Put up the thirteen</button>'
+      + '<div style="margin-top:14px;font-size:12.5px;line-height:1.6">Receiving and '
+      + 'interception leaders, wins, blowouts, Bachmeier’s touchdowns, Martin’s yards and '
+      + 'longest run, and the two yes-or-nos. Edit or bin any of them afterwards — but do it '
+      + 'before anyone locks in.</div></div></div>';
     return;
   }
 
   h += '<div class="card"><div style="padding:8px 6px 10px;overflow-x:auto">'
     + '<table class="pgrid"><thead><tr><th class="l" style="min-width:230px">Prop</th>'
     + ids.map(id => '<th>' + esc(propPlayers[id].display_name) + '</th>').join('')
-    + '<th style="min-width:130px">Where it stands</th><th style="width:96px"></th>'
+    + '<th style="min-width:130px">Where it stands</th><th style="width:148px"></th>'
     + '</tr></thead><tbody>';
 
   for(const pr of props){
@@ -1644,7 +1663,8 @@ function renderProps(){
     h += '<td>';
     if(pr.auto){
       h += '<div class="now"><b>' + now.value + '</b><span>now</span></div>'
-        + '<div class="pd">' + (now.left ? 'on pace for ' + now.projected.toFixed(1) : 'final')
+        + '<div class="pd">' + (!now.left ? 'final'
+            : now.projected == null ? 'so far' : 'on pace for ' + now.projected.toFixed(1))
         + '</div>';
     } else if(pr.kind === 'choice'){
       h += '<select class="pin" data-actual="' + pr.id + '"><option value="">not yet</option>'
@@ -1760,22 +1780,41 @@ async function deleteProp(id){
   await loadProps(); render();
 }
 
-/* A starting nine, so nobody has to face a blank page. All editable after. */
+/* The thirteen. Written out here so the questions are identical for everyone
+   the first time the props app is opened; every one of them is editable, and
+   changing the wording later does not disturb answers already locked in. */
+const SEED_PROPS = [
+  { question: 'Who leads BYU in receiving yards?', kind: 'choice',
+    options: ['Kyler Kasper', 'JoJo Phillips', 'Tiger Bachmeier', 'Legend Glasker'] },
+  { question: 'How many receiving yards does the leader finish with?',
+    detail: 'Whoever tops the team, regular season', unit: 'yards' },
+
+  { question: 'Who leads BYU in interceptions?', kind: 'choice',
+    options: ['Cade Uluave', 'Isaiah Glasker', 'Faletau Satuala', 'Evan Johnson',
+              'Therrian Alexander III', 'Cannon DeVries'] },
+  { question: 'How many interceptions does the leader finish with?',
+    detail: 'Whoever tops the team, regular season', unit: 'INTs' },
+
+  { question: 'How many regular-season games does BYU win?',
+    detail: 'All games, before any bowl or playoff', unit: 'wins', auto: 'wins' },
+  { question: 'How many Big 12 games does BYU win?',
+    detail: 'The nine conference games', unit: 'wins', auto: 'conf_wins' },
+  { question: 'How many games does BYU win by 14 or more?',
+    detail: 'Regular season', unit: 'games', auto: 'blowouts' },
+
+  { question: 'Bear Bachmeier rushing touchdowns', unit: 'TDs' },
+  { question: 'Bear Bachmeier passing touchdowns', unit: 'TDs' },
+  { question: 'LJ Martin rushing yards', unit: 'yards' },
+  { question: 'LJ Martin’s longest run of the season', unit: 'yards' },
+
+  { question: 'Does BYU make the Big 12 championship game?', kind: 'choice',
+    options: ['Yes', 'No'] },
+  { question: 'Does BYU make the College Football Playoff?', kind: 'choice',
+    options: ['Yes', 'No'] }
+];
+
 async function seedProps(){
-  const seed = [
-    { question:'BYU wins',              detail:'Regular season, all games', unit:'wins', auto:'wins' },
-    { question:'BYU Big 12 wins',       detail:'Nine conference games',     unit:'wins', auto:'conf_wins' },
-    { question:'LJ Martin rushing yards', unit:'yards' },
-    { question:'Bear Bachmeier passing touchdowns', unit:'TDs' },
-    { question:'Bear Bachmeier rushing touchdowns', unit:'TDs' },
-    { question:'Defensive interceptions', detail:'The whole defence, regular season', unit:'INTs' },
-    { question:'Team sacks',            detail:'Regular season',            unit:'sacks' },
-    { question:'BYU’s final AP ranking', detail:'0 if they finish unranked', unit:'rank' },
-    { question:'Who wins the Big 12?',  kind:'choice',
-      options: members.slice().sort((a,b) => teams[a].name.localeCompare(teams[b].name))
-                 .map(id => teams[id].name) }
-  ];
-  const rows = seed.map((r, i) => ({
+  const rows = SEED_PROPS.map((r, i) => ({
     season, sort: i, question: r.question, detail: r.detail || null,
     kind: r.kind || 'number', unit: r.unit || null, options: r.options || null,
     auto: r.auto || null
@@ -1783,7 +1822,7 @@ async function seedProps(){
   const { error } = await supa.from('b12_props').insert(rows);
   if(error) return toast(error.message, 4500);
   await loadProps(); render();
-  toast('Nine questions added — edit or bin any of them');
+  toast('The thirteen are up — edit or bin any of them');
 }
 
 /* ------------------------------- history -------------------------------- */

@@ -200,12 +200,13 @@ function toast(m, ms = 2800){
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), ms);
 }
 
-/* The four questions the app can answer for itself. */
+/* The questions the app answers for itself off the shared schedule. */
 const AUTO = {
   wins:        { of: () => byuRecord.w,  label: 'wins so far' },
   losses:      { of: () => byuRecord.l,  label: 'losses so far' },
   conf_wins:   { of: () => byuRecord.cw, label: 'Big 12 wins so far' },
-  conf_losses: { of: () => byuRecord.cl, label: 'Big 12 losses so far' }
+  conf_losses: { of: () => byuRecord.cl, label: 'Big 12 losses so far' },
+  blowouts:    { of: () => byuRecord.bl, label: 'so far, by 14+' }
 };
 
 /* ========================= boot ========================= */
@@ -308,7 +309,7 @@ async function loadAll(){
     supa.from('b12_prop_players').select('*'),
     supa.from('b12_prop_locks').select('*').eq('season', season),
     supa.from('pickem_games')
-        .select('status,winner_id,conference_game,home_id,home_abbr,away_id,away_abbr')
+        .select('status,winner_id,conference_game,home_id,home_abbr,home_score,away_id,away_abbr,away_score')
         .eq('season', season)
   ]);
   props = pr.data || [];
@@ -331,7 +332,7 @@ function readRecord(rows){
     if((g.away_abbr || '').toUpperCase() === 'BYU') byu = g.away_id;
     if(byu) break;
   }
-  const r = { w:0, l:0, cw:0, cl:0, left:0 };
+  const r = { w:0, l:0, cw:0, cl:0, bl:0, left:0 };
   if(!byu) return r;
   for(const g of rows){
     if(g.home_id !== byu && g.away_id !== byu) continue;
@@ -339,6 +340,7 @@ function readRecord(rows){
       const won = g.winner_id === byu;
       won ? r.w++ : r.l++;
       if(g.conference_game) won ? r.cw++ : r.cl++;
+      if(won && Math.abs((g.home_score || 0) - (g.away_score || 0)) >= 14) r.bl++;
     } else r.left++;
   }
   return r;

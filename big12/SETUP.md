@@ -92,8 +92,28 @@ tables. Two things to know:
 
 - **Anyone can create an account** at `https://thill-ships.github.io/props/` with an email and
   a password. No confirmation email, same as the pick'em.
-- **You write the questions, they answer them.** In the War Room, open **Season props → Add a
-  prop**, or hit *Start me off with nine* for a starter set to edit down.
+- **You write the questions, they answer them.** In the War Room, open **Season props**, and
+  hit **Put up the thirteen** to post the agreed set:
+
+  | # | Question | Type |
+  |---|---|---|
+  | 1 | Who leads BYU in receiving yards? | Kasper · Phillips · Bachmeier · Glasker |
+  | 2 | How many receiving yards does the leader finish with? | number |
+  | 3 | Who leads BYU in interceptions? | Uluave · Glasker · Satuala · Johnson · Alexander · DeVries |
+  | 4 | How many interceptions does the leader finish with? | number |
+  | 5 | How many regular-season games does BYU win? | **scored automatically** |
+  | 6 | How many Big 12 games does BYU win? | **scored automatically** |
+  | 7 | How many games does BYU win by 14 or more? | **scored automatically** |
+  | 8 | Bear Bachmeier rushing touchdowns | number |
+  | 9 | Bear Bachmeier passing touchdowns | number |
+  | 10 | LJ Martin rushing yards | number |
+  | 11 | LJ Martin's longest run of the season | number |
+  | 12 | Does BYU make the Big 12 championship game? | Yes / No |
+  | 13 | Does BYU make the College Football Playoff? | Yes / No |
+
+  **Read the wording once before you send anyone the link.** Editing a question after people
+  have locked in does not change the answers they already gave, so the time to fix a name or
+  tighten a definition is now. **Add a prop** and **Edit** are there for exactly that.
 
 ### How locking in works
 
@@ -111,8 +131,8 @@ before you go looking at the window.
 
 ### Keeping score
 
-Four questions the app answers for itself off the schedule — wins, losses, Big 12 wins, Big 12
-losses. For the rest, type the running number into the *Where it stands* column in the War Room
+Five questions the app answers for itself off the schedule — wins, losses, Big 12 wins, Big 12
+losses, and wins by 14 or more. For the rest, type the running number into the *Where it stands* column in the War Room
 whenever you feel like it, and hit **Settle** when a number is final. Closest answer takes the
 prop; a tie splits it.
 

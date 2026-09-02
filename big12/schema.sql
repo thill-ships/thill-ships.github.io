@@ -132,7 +132,7 @@ create table if not exists b12_props (
   options   text[],                         -- the menu, when kind = 'choice'
   auto      text                            -- null, or a key the app computes
               check (auto is null or auto in
-                     ('wins','losses','conf_wins','conf_losses')),
+                     ('wins','losses','conf_wins','conf_losses','blowouts')),
   actual    numeric,                        -- number props: the running total
   actual_choice text,                       -- choice props: what happened
   settled   boolean not null default false,
