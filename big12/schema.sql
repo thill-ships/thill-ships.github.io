@@ -133,11 +133,19 @@ create table if not exists b12_props (
   auto      text                            -- null, or a key the app computes
               check (auto is null or auto in
                      ('wins','losses','conf_wins','conf_losses','blowouts')),
+  min_val   numeric,                        -- sanity bounds for a number answer:
+  max_val   numeric,                        -- nobody wins 14 Big 12 games
+  whole     boolean not null default true,  -- whole numbers only?
   actual    numeric,                        -- number props: the running total
   actual_choice text,                       -- choice props: what happened
   settled   boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- Added with the bounds; safe to re-run.
+alter table b12_props add column if not exists min_val numeric;
+alter table b12_props add column if not exists max_val numeric;
+alter table b12_props add column if not exists whole   boolean not null default true;
 create index if not exists b12_props_season_idx on b12_props (season, sort, id);
 
 -- One row per person per question.

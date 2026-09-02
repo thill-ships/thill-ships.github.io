@@ -238,6 +238,13 @@
   .pin:focus{outline:none;border-color:var(--navy);background:#fff;}
   .pin.win{border-color:var(--win-line);background:var(--c-sw);color:var(--t-win);font-weight:800;}
   select.pin{width:132px;text-align:left;}
+  .split{display:flex;flex-direction:column;gap:3px;}
+  .sr{display:flex;align-items:center;gap:8px;}
+  .sl{font-size:12px;font-weight:700;min-width:104px;}
+  .st2{flex:1;height:12px;border-radius:4px;background:var(--panel);position:relative;
+    overflow:hidden;max-width:120px;}
+  .st2 i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:#BBD3EE;}
+  .sn{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;min-width:18px;}
   .now{display:inline-flex;align-items:baseline;gap:5px;}
   .now b{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;}
   .now span{font-size:11px;color:var(--muted);}
@@ -1464,7 +1471,8 @@ function projSeed(id){
   return at + (['th','st','nd','rd'][at % 10 > 3 || (at > 10 && at < 14) ? 0 : at % 10]);
 }
 
-/* The props, boiled down for the BYU tab. Read-only, like the props tab. */
+/* The props, boiled down for the BYU tab. Read-only, and compact: with a dozen
+   players a column each is hopeless, so each row is how the field split. */
 function propsDigest(){
   const ids = lockedPlayers();
   if(!props.length){
@@ -1474,28 +1482,39 @@ function propsDigest(){
       + '<button class="btn sm" onclick="go(\'props\')">Write them</button></div></div>';
   }
   let h = '<div class="card"><div class="card-hd"><div class="row">'
-    + '<div><div class="card-t">Season props</div>'
+    + '<div style="max-width:70ch"><div class="card-t">Season props</div>'
     + '<div class="card-s">' + (ids.length
-        ? 'Everyone who has locked in, and where their number sits today.'
+        ? ids.length + ' locked in. Where the room landed, and where each number sits today.'
         : 'Nobody has locked in over at the props app yet — answers appear here as they do.')
     + '</div></div><div class="spacer"></div>'
     + '<button class="btn ghost sm" onclick="go(\'props\')">Open</button></div></div>';
   if(!ids.length) return h + '</div>';
 
   h += '<div style="padding:6px 6px 12px;overflow-x:auto"><table class="pgrid"><thead><tr>'
-    + '<th class="l" style="min-width:230px">Prop</th>'
-    + ids.map(id => '<th>' + esc(propPlayers[id].display_name) + '</th>').join('')
-    + '<th style="min-width:120px">Now</th></tr></thead><tbody>';
+    + '<th class="l" style="min-width:250px">Prop</th>'
+    + '<th class="l" style="min-width:260px">The field</th>'
+    + '<th style="min-width:130px">Now</th></tr></thead><tbody>';
   for(const pr of props){
-    const now = propNow(pr), lead = propLeaders(pr, ids);
+    const now = propNow(pr), sum = propSummary(pr, ids);
     h += '<tr><td class="l"><div class="pq">' + esc(pr.question) + '</div>'
       + (pr.settled ? '<div class="pd"><span class="settled">settled</span></div>' : '') + '</td>'
-      + ids.map(id => {
-          const v = answerOf(id, pr), on = pr.settled && lead.indexOf(id) >= 0;
-          return '<td class="num"' + (on ? ' style="font-weight:800;color:var(--t-win)"' : '')
-            + '>' + (v == null ? '<span class="muted">—</span>' : esc(String(v))) + '</td>';
-        }).join('')
-      + '<td class="num">' + (pr.kind === 'choice'
+      + '<td class="l">';
+    if(sum.empty){
+      h += '<span class="muted">—</span>';
+    } else if(sum.choice){
+      const top = Math.max(...sum.order.map(o => sum.counts[o]));
+      h += '<div class="split">' + sum.order.slice(0, 4).map(o =>
+          '<div class="sr"><span class="sl">' + esc(o) + '</span>'
+          + '<span class="st2"><i style="width:' + (sum.counts[o] / top * 100).toFixed(0)
+          + '%' + (pr.settled && now.choice === o ? ';background:var(--win)' : '') + '"></i></span>'
+          + '<span class="sn">' + sum.counts[o] + '</span></div>').join('')
+        + (sum.order.length > 4 ? '<div class="pd">+' + (sum.order.length - 4) + ' more</div>' : '')
+        + '</div>';
+    } else {
+      h += '<div class="pq num">' + nfmt(sum.lo) + ' – ' + nfmt(sum.hi) + '</div>'
+        + '<div class="pd">average ' + nfmt(Math.round(sum.avg * 10) / 10) + '</div>';
+    }
+    h += '</td><td class="num">' + (pr.kind === 'choice'
           ? (now.choice ? esc(now.choice) : '<span class="muted">—</span>')
           : (now.value == null ? '<span class="muted">—</span>'
              : '<b>' + now.value + '</b>' + (now.auto && now.left && now.projected != null
@@ -1596,6 +1615,20 @@ function propBoardStandings(ids){
     || propPlayers[a.id].display_name.localeCompare(propPlayers[b.id].display_name));
 }
 
+function propSummary(pr, ids){
+  const vals = ids.map(id => ({ id, v: answerOf(id, pr) })).filter(x => x.v != null);
+  if(!vals.length) return { empty: true, n: 0 };
+  if(pr.kind === 'choice'){
+    const counts = {};
+    vals.forEach(x => counts[x.v] = (counts[x.v] || 0) + 1);
+    const order = Object.keys(counts).sort((a,b) => counts[b] - counts[a] || a.localeCompare(b));
+    return { choice: true, n: vals.length, order, counts, vals };
+  }
+  const nums = vals.map(x => x.v).sort((a,b) => a - b);
+  return { n: vals.length, vals, lo: nums[0], hi: nums[nums.length-1],
+           avg: nums.reduce((a,b) => a + b, 0) / nums.length };
+}
+
 function renderProps(){
   const ids = lockedPlayers();
   const waiting = Object.keys(propPlayers).filter(id => ids.indexOf(id) < 0);
@@ -1612,8 +1645,8 @@ function renderProps(){
 
   if(Object.keys(propPlayers).length){
     h += '<div style="padding:2px 20px 16px" class="row">'
-      + ids.map(id => '<span class="pill" style="background:var(--c-sw);color:var(--t-win)">'
-          + esc(propPlayers[id].display_name) + ' · locked</span>').join('')
+      + '<span class="pill" style="background:var(--c-sw);color:var(--t-win)">'
+      + ids.length + ' locked in</span>'
       + waiting.map(id => '<span class="pill">' + esc(propPlayers[id].display_name)
           + ' · still deciding</span>').join('')
       + '</div>';
@@ -1621,7 +1654,8 @@ function renderProps(){
 
   const settledCount = props.filter(p => p.settled).length;
   if(settledCount && ids.length){
-    h += '<div class="tiles">' + propBoardStandings(ids).map(r =>
+    const board = propBoardStandings(ids).slice(0, 6);
+    h += '<div class="tiles">' + board.map(r =>
         '<div class="tile"><div class="k">' + esc(propPlayers[r.id].display_name) + '</div>'
         + '<div class="v">' + (Math.round(r.won * 10) / 10) + '</div>'
         + '<div class="s">of ' + settledCount + ' settled</div></div>').join('')
@@ -1633,32 +1667,57 @@ function renderProps(){
     $('v-props').innerHTML = h + '<div class="card"><div class="empty">'
       + 'No questions written yet.<br><br>'
       + '<button class="btn" onclick="seedProps()">Put up the thirteen</button>'
-      + '<div style="margin-top:14px;font-size:12.5px;line-height:1.6">Receiving and '
-      + 'interception leaders, wins, blowouts, Bachmeier’s touchdowns, Martin’s yards and '
-      + 'longest run, and the two yes-or-nos. Edit or bin any of them afterwards — but do it '
-      + 'before anyone locks in.</div></div></div>';
+      + '<div style="margin-top:14px;font-size:12.5px;line-height:1.6">Wins, Big 12 wins, '
+      + 'blowouts, the two yes-or-nos, Bachmeier’s touchdowns, Martin’s yards and longest run, '
+      + 'and the receiving and interception leaders. Edit or bin any of them afterwards — but '
+      + 'do it before anyone locks in.</div></div></div>';
     return;
   }
 
+  // A column per person stops working at a dozen people, so each row shows how
+  // the field split and opens up for the names.
   h += '<div class="card"><div style="padding:8px 6px 10px;overflow-x:auto">'
-    + '<table class="pgrid"><thead><tr><th class="l" style="min-width:230px">Prop</th>'
-    + ids.map(id => '<th>' + esc(propPlayers[id].display_name) + '</th>').join('')
+    + '<table class="pgrid"><thead><tr><th class="l" style="min-width:250px">Prop</th>'
+    + '<th class="l" style="min-width:280px">The field</th>'
     + '<th style="min-width:130px">Where it stands</th><th style="width:148px"></th>'
     + '</tr></thead><tbody>';
 
   for(const pr of props){
-    const now = propNow(pr), lead = propLeaders(pr, ids);
+    const now = propNow(pr), lead = propLeaders(pr, ids), sum = propSummary(pr, ids);
     h += '<tr><td class="l"><div class="pq">' + esc(pr.question)
       + (pr.settled ? ' <span class="settled">settled</span>' : '') + '</div>'
       + (pr.detail ? '<div class="pd">' + esc(pr.detail) + '</div>'
          : pr.auto ? '<div class="pd">kept automatically</div>' : '')
       + '</td>';
 
-    for(const id of ids){
-      const v = answerOf(id, pr), won = pr.settled && lead.indexOf(id) >= 0;
-      h += '<td class="num"' + (won ? ' style="font-weight:800;color:var(--t-win)"' : '') + '>'
-        + (v == null ? '<span class="muted">—</span>' : esc(String(v))) + '</td>';
+    h += '<td class="l">';
+    if(sum.empty){
+      h += '<span class="muted">nobody locked in yet</span>';
+    } else if(sum.choice){
+      const top = Math.max(...sum.order.map(o => sum.counts[o]));
+      h += '<div class="split">' + sum.order.map(o =>
+          '<div class="sr"><span class="sl">' + esc(o) + '</span>'
+          + '<span class="st2"><i style="width:' + (sum.counts[o] / top * 100).toFixed(0)
+          + '%' + (pr.settled && now.choice === o ? ';background:var(--win)' : '') + '"></i></span>'
+          + '<span class="sn">' + sum.counts[o] + '</span></div>').join('') + '</div>';
+    } else {
+      h += '<div class="pq num">' + nfmt(sum.lo) + ' – ' + nfmt(sum.hi) + '</div>'
+        + '<div class="pd">' + sum.n + ' answers · average ' + nfmt(Math.round(sum.avg * 10) / 10)
+        + '</div>';
     }
+    if(!sum.empty){
+      h += '<button class="mini" style="margin-top:7px" onclick="togglePropRow(' + pr.id
+        + ')">Who</button>'
+        + '<div id="pw-' + pr.id + '" class="pd" style="display:none;margin-top:7px;line-height:1.7">'
+        + sum.vals.slice().sort((a,b) => pr.kind === 'choice'
+              ? String(a.v).localeCompare(String(b.v)) : b.v - a.v)
+            .map(x => '<span style="white-space:nowrap' + (lead.indexOf(x.id) >= 0 && pr.settled
+                ? ';color:var(--t-win);font-weight:700' : '') + '">'
+              + esc(propPlayers[x.id].display_name) + ' <b>' + esc(String(x.v)) + '</b></span>')
+            .join(' &nbsp;·&nbsp; ')
+        + '</div>';
+    }
+    h += '</td>';
 
     h += '<td>';
     if(pr.auto){
@@ -1689,6 +1748,12 @@ function renderProps(){
   $('v-props').innerHTML = h;
   $('v-props').querySelectorAll('[data-actual]').forEach(el =>
     el.addEventListener('change', () => saveActual(el)));
+}
+
+const nfmt = n => (Math.round(n * 100) / 100).toLocaleString();
+function togglePropRow(id){
+  const el = $('pw-' + id);
+  if(el) el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
 async function saveActual(el){
@@ -1735,13 +1800,22 @@ function openProp(id){
     + '</select></div>'
     + '<div>' + lab('Units') + '<input type="text" id="prU" value="'
     + esc(pr && pr.unit ? pr.unit : '') + '" placeholder="yards" /></div></div>'
+    + '<div class="grid2" style="gap:14px">'
+    + '<div>' + lab('Lowest allowed') + '<input type="text" id="prMin" value="'
+    + esc(pr && pr.min_val != null ? pr.min_val : '') + '" placeholder="0" /></div>'
+    + '<div>' + lab('Highest allowed') + '<input type="text" id="prMax" value="'
+    + esc(pr && pr.max_val != null ? pr.max_val : '') + '" placeholder="9" /></div></div>'
+    + '<label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px">'
+    + '<input type="checkbox" id="prWhole"' + (!pr || pr.whole !== false ? ' checked' : '')
+    + ' style="width:auto" /> Whole numbers only</label>'
     + lab('Menu options, comma separated')
     + '<input type="text" id="prO" value="' + esc(pr && pr.options ? pr.options.join(', ') : '')
     + '" placeholder="BYU, Texas Tech, Utah…" />'
     + lab('Can the app score it?')
     + '<select id="prA" class="pin" style="width:100%">' + autoOpts.join('') + '</select>'
-    + '<div class="card-s" style="margin-top:14px">Changing a question after people have locked '
-    + 'in does not change their answers — so fix the wording early, or leave it be.</div>'
+    + '<div class="card-s" style="margin-top:14px">The bounds are what stops somebody typing '
+    + '14 Big 12 wins, or letters in a yards box. Changing a question after people have locked '
+    + 'in does not change the answers they already gave — so fix the wording early.</div>'
     + '<div class="row" style="margin-top:16px"><button class="btn" onclick="saveProp('
     + (pr ? pr.id : 'null') + ')">Save</button>'
     + '<button class="btn ghost" onclick="closeModal()">Cancel</button>'
@@ -1754,16 +1828,24 @@ async function saveProp(id){
   const question = ($('prQ').value || '').trim();
   if(!question) return toast('Give it a question');
   const opts = ($('prO').value || '').split(',').map(x => x.trim()).filter(Boolean);
+  const num = id => { const v = ($(id).value || '').trim();
+                      return v === '' ? null : Number(v); };
   const row = {
     season, question,
     detail: ($('prD').value || '').trim() || null,
     kind: $('prK').value,
     unit: ($('prU').value || '').trim() || null,
     options: opts.length ? opts : null,
-    auto: $('prA').value || null
+    auto: $('prA').value || null,
+    min_val: num('prMin'), max_val: num('prMax'),
+    whole: $('prWhole').checked
   };
+  if(row.min_val != null && !isFinite(row.min_val)) return toast('The lowest allowed must be a number');
+  if(row.max_val != null && !isFinite(row.max_val)) return toast('The highest allowed must be a number');
+  if(row.min_val != null && row.max_val != null && row.min_val >= row.max_val)
+    return toast('The highest allowed has to be above the lowest');
   if(row.kind === 'choice' && !row.options) return toast('A menu prop needs some options');
-  if(row.kind === 'choice') row.auto = null;
+  if(row.kind === 'choice'){ row.auto = null; row.min_val = null; row.max_val = null; }
   closeModal();
   const { error } = id
     ? await supa.from('b12_props').update(row).eq('id', id)
@@ -1784,40 +1866,52 @@ async function deleteProp(id){
    the first time the props app is opened; every one of them is editable, and
    changing the wording later does not disturb answers already locked in. */
 const SEED_PROPS = [
+  // Broad first, then narrower. Somebody filling this in on their phone should
+  // meet the easy ones while they still care.
+  { question: 'How many regular-season games does BYU win?',
+    detail: 'All games, before any bowl or playoff', unit: 'wins',
+    auto: 'wins', min: 0, max: 12 },
+  { question: 'How many Big 12 games does BYU win?',
+    detail: 'The nine conference games', unit: 'wins',
+    auto: 'conf_wins', min: 0, max: 9 },
+  { question: 'How many games does BYU win by 14 or more?',
+    detail: 'Regular season', unit: 'games',
+    auto: 'blowouts', min: 0, max: 12 },
+
+  { question: 'Does BYU make the Big 12 championship game?', kind: 'choice',
+    options: ['Yes', 'No'] },
+  { question: 'Does BYU make the College Football Playoff?', kind: 'choice',
+    options: ['Yes', 'No'] },
+
+  { question: 'Bear Bachmeier passing touchdowns',
+    detail: 'Regular season', unit: 'TDs', min: 0, max: 60 },
+  { question: 'Bear Bachmeier rushing touchdowns',
+    detail: 'Regular season', unit: 'TDs', min: 0, max: 30 },
+
+  { question: 'LJ Martin rushing yards',
+    detail: 'Regular season', unit: 'yards', min: 0, max: 3000 },
+  { question: 'LJ Martin’s longest run of the season',
+    detail: 'Regular season', unit: 'yards', min: 0, max: 99 },
+
   { question: 'Who leads BYU in receiving yards?', kind: 'choice',
     options: ['Kyler Kasper', 'JoJo Phillips', 'Tiger Bachmeier', 'Legend Glasker'] },
   { question: 'How many receiving yards does the leader finish with?',
-    detail: 'Whoever tops the team, regular season', unit: 'yards' },
+    detail: 'Whoever tops the team, regular season', unit: 'yards', min: 0, max: 2500 },
 
   { question: 'Who leads BYU in interceptions?', kind: 'choice',
     options: ['Cade Uluave', 'Isaiah Glasker', 'Faletau Satuala', 'Evan Johnson',
               'Therrian Alexander III', 'Cannon DeVries'] },
   { question: 'How many interceptions does the leader finish with?',
-    detail: 'Whoever tops the team, regular season', unit: 'INTs' },
-
-  { question: 'How many regular-season games does BYU win?',
-    detail: 'All games, before any bowl or playoff', unit: 'wins', auto: 'wins' },
-  { question: 'How many Big 12 games does BYU win?',
-    detail: 'The nine conference games', unit: 'wins', auto: 'conf_wins' },
-  { question: 'How many games does BYU win by 14 or more?',
-    detail: 'Regular season', unit: 'games', auto: 'blowouts' },
-
-  { question: 'Bear Bachmeier rushing touchdowns', unit: 'TDs' },
-  { question: 'Bear Bachmeier passing touchdowns', unit: 'TDs' },
-  { question: 'LJ Martin rushing yards', unit: 'yards' },
-  { question: 'LJ Martin’s longest run of the season', unit: 'yards' },
-
-  { question: 'Does BYU make the Big 12 championship game?', kind: 'choice',
-    options: ['Yes', 'No'] },
-  { question: 'Does BYU make the College Football Playoff?', kind: 'choice',
-    options: ['Yes', 'No'] }
+    detail: 'Whoever tops the team, regular season', unit: 'INTs', min: 0, max: 20 }
 ];
 
 async function seedProps(){
   const rows = SEED_PROPS.map((r, i) => ({
     season, sort: i, question: r.question, detail: r.detail || null,
     kind: r.kind || 'number', unit: r.unit || null, options: r.options || null,
-    auto: r.auto || null
+    auto: r.auto || null,
+    min_val: r.min == null ? null : r.min, max_val: r.max == null ? null : r.max,
+    whole: true
   }));
   const { error } = await supa.from('b12_props').insert(rows);
   if(error) return toast(error.message, 4500);

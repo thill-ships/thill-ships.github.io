@@ -95,6 +95,70 @@
   .lb .nm{font-weight:700;font-size:14px;}
   .lb .sc{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;}
 
+  /* ---- entry mode: a form, and nothing but a form ---- */
+  .hint{font-size:11.5px;color:var(--faint);margin-top:7px;}
+  .err{font-size:12px;color:var(--loss);margin-top:7px;font-weight:600;}
+  .q.bad input,.q.bad select{border-color:var(--loss);background:#FDF2F1;}
+  .prog{height:6px;border-radius:999px;background:var(--panel);overflow:hidden;margin-top:10px;}
+  .prog i{display:block;height:100%;border-radius:999px;background:var(--navy);transition:width .25s;}
+
+  /* ---- locked mode: a dashboard ---- */
+  .hero{background:var(--navy);color:#fff;border-radius:16px;padding:18px 19px;margin-top:14px;
+    box-shadow:var(--lift);}
+  .hero .k{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    opacity:.62;}
+  .hero .v{font-size:30px;font-weight:800;letter-spacing:-.035em;margin-top:6px;line-height:1;}
+  .hero .s{font-size:12.5px;opacity:.75;margin-top:7px;line-height:1.45;}
+  .hero .split{display:flex;gap:22px;margin-top:15px;padding-top:14px;
+    border-top:1px solid rgba(255,255,255,.16);}
+  .hero .split div{flex:1;}
+  .hero .split .n{font-size:20px;font-weight:800;letter-spacing:-.02em;}
+  .hero .split .l{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    opacity:.62;margin-top:3px;}
+
+  .qv{background:var(--card);border-radius:16px;box-shadow:var(--lift);margin-top:12px;
+    padding:15px 17px 14px;}
+  .qv-hd{display:flex;align-items:flex-start;gap:12px;}
+  .qv-q{font-size:14.5px;font-weight:800;letter-spacing:-.015em;line-height:1.3;}
+  .qv-you{margin-left:auto;flex:none;text-align:right;}
+  .qv-you .n{font-size:23px;font-weight:800;letter-spacing:-.03em;line-height:1;
+    font-variant-numeric:tabular-nums;}
+  .qv-you .l{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);margin-top:3px;}
+  .act{display:inline-flex;align-items:baseline;gap:6px;background:var(--panel);border-radius:8px;
+    padding:5px 10px;margin-top:10px;}
+  .act b{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .act span{font-size:11px;color:var(--muted);}
+  .act.done{background:var(--win-bg);} .act.done b,.act.done span{color:var(--win);}
+
+  .bars{margin-top:12px;}
+  .ob{width:100%;border:none;background:none;padding:6px 0;display:block;cursor:pointer;text-align:left;}
+  .ob-r{display:flex;align-items:center;gap:9px;}
+  .ob-l{font-size:13px;font-weight:700;min-width:96px;flex:none;}
+  .ob-t{flex:1;height:22px;border-radius:6px;background:var(--panel);position:relative;overflow:hidden;}
+  .ob-t i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:#BBD3EE;}
+  .ob.mine .ob-t i{background:var(--navy);}
+  .ob.hit .ob-t i{background:var(--win);}
+  .ob-n{font-size:13px;font-weight:800;min-width:22px;text-align:right;font-variant-numeric:tabular-nums;}
+  .ob-tag{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--navy);margin-left:6px;}
+  .ob.hit .ob-tag{color:var(--win);}
+  .who{font-size:12.5px;color:var(--muted);line-height:1.55;padding:2px 0 6px 105px;}
+  .who b{color:var(--ink);font-weight:700;}
+
+  .strip{margin-top:12px;}
+  .strip svg{display:block;width:100%;height:auto;overflow:visible;}
+  .stats{display:flex;gap:16px;margin-top:9px;flex-wrap:wrap;}
+  .stats div{font-size:11.5px;color:var(--muted);}
+  .stats b{display:block;font-size:15px;font-weight:800;color:var(--ink);
+    font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .more{border:none;background:none;color:var(--navy);font-size:12.5px;font-weight:700;
+    cursor:pointer;padding:8px 0 2px;}
+  .list{margin-top:4px;}
+  .list .row{border-top:1px solid var(--line);}
+  .list .row:first-child{border-top:none;}
+  .list .row.you .nm,.list .row.you .vv{color:var(--navy);}
+
   .empty{padding:26px 4px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6;}
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(12px);
     background:#14181F;color:#fff;padding:11px 18px;border-radius:11px;font-size:13.5px;
@@ -346,7 +410,7 @@ function readRecord(rows){
   return r;
 }
 
-/* ========================= render ========================= */
+/* ========================= shared bits ========================= */
 function nowOf(pr){
   if(pr.auto && AUTO[pr.auto]) return { value: AUTO[pr.auto].of(), auto: true };
   if(pr.kind === 'choice') return { choice: pr.actual_choice || null };
@@ -359,105 +423,114 @@ function myAnswer(pr){
   return pr.kind === 'choice' ? (r.choice || null)
                               : (r.value == null ? null : Number(r.value));
 }
-function answered(){ return props.filter(p => myAnswer(p) != null && myAnswer(p) !== '').length; }
-
-/* Whose numbers you are allowed to see: your own, plus everyone locked in —
-   but only once you have locked in too. */
-function visibleField(){
-  if(!myLocked) return [];
-  const lockedIds = locks.map(l => l.user_id);
-  return lockedIds.filter(id => id !== user.id && players[id])
-    .sort((a,b) => players[a].display_name.localeCompare(players[b].display_name));
-}
 function answerOf(uid, pr){
   const r = allPicks.find(x => x.user_id === uid && x.prop_id === pr.id);
   if(!r) return null;
   return pr.kind === 'choice' ? (r.choice || null) : (r.value == null ? null : Number(r.value));
 }
+const nf = n => (Math.round(n * 100) / 100).toLocaleString();
+
+/* No letters in the yards box, and nobody wins ten Big 12 games. */
+function validate(pr, raw){
+  const v = String(raw == null ? '' : raw).trim();
+  if(v === '') return { empty: true };
+  if(pr.kind === 'choice'){
+    return (pr.options || []).indexOf(v) >= 0
+      ? { ok: true, value: v } : { msg: 'Pick one from the list' };
+  }
+  if(!/^-?\d+(\.\d+)?$/.test(v)) return { msg: 'Numbers only' };
+  const n = Number(v);
+  if(!isFinite(n)) return { msg: 'Numbers only' };
+  if(pr.whole !== false && !Number.isInteger(n)) return { msg: 'Whole numbers only' };
+  if(pr.min_val != null && n < Number(pr.min_val))
+    return { msg: 'Can’t be below ' + nf(pr.min_val) };
+  if(pr.max_val != null && n > Number(pr.max_val))
+    return { msg: 'Can’t be above ' + nf(pr.max_val) + (pr.unit ? ' ' + pr.unit : '') };
+  return { ok: true, value: n };
+}
+function rangeHint(pr){
+  if(pr.kind === 'choice') return '';
+  const lo = pr.min_val, hi = pr.max_val;
+  if(lo != null && hi != null) return 'Anything from ' + nf(lo) + ' to ' + nf(hi)
+    + (pr.unit ? ' ' + pr.unit : '');
+  if(hi != null) return 'Up to ' + nf(hi) + (pr.unit ? ' ' + pr.unit : '');
+  return pr.unit ? 'In ' + pr.unit : '';
+}
+function goodAnswers(){
+  return props.filter(p => validate(p, myAnswer(p)).ok).length;
+}
+
+/* Everyone locked in, you included. */
+function field(){
+  return locks.map(l => l.user_id).filter(id => players[id])
+    .sort((a,b) => players[a].display_name.localeCompare(players[b].display_name));
+}
 function leadersOf(pr){
   const now = nowOf(pr);
   const target = pr.kind === 'choice' ? now.choice : now.value;
   if(target == null || target === '') return [];
-  const ids = locks.map(l => l.user_id).filter(id => players[id]);
-  const scored = ids.map(id => ({ id, v: answerOf(id, pr) })).filter(x => x.v != null);
+  const scored = field().map(id => ({ id, v: answerOf(id, pr) })).filter(x => x.v != null);
   if(!scored.length) return [];
   if(pr.kind === 'choice') return scored.filter(x => x.v === target).map(x => x.id);
   const best = Math.min(...scored.map(x => Math.abs(x.v - target)));
   return scored.filter(x => Math.abs(x.v - target) === best).map(x => x.id);
 }
 
+/* ========================= render ========================= */
 function render(){
-  const total = props.length, done = answered();
-  $('sub').textContent = myLocked
-    ? 'Locked in. ' + locks.length + ' of ' + Object.keys(players).length + ' players are in.'
-    : total ? done + ' of ' + total + ' answered' : 'Waiting on the questions';
-
-  if(!total){
+  if(!props.length){
+    $('sub').textContent = 'Waiting on the questions';
     $('body').innerHTML = '<div class="card"><div class="card-t">No questions yet</div>'
       + '<div class="card-s">The season props have not been written up yet. They get set in the '
       + 'War Room — check back shortly.</div></div>';
     $('bar').style.display = 'none';
     return;
   }
+  myLocked ? renderLocked() : renderEntry();
+}
 
-  let h = '';
-  if(!myLocked){
-    h += '<div class="card"><div class="card-t">Put a number on every one</div>'
-      + '<div class="card-s">Nobody can see your answers while you can still change them. '
-      + 'Lock in when you are happy and you will see everyone else who has locked in — '
-      + 'and they will see you. It cannot be undone, so take your time.</div></div>';
+/* ---------------- entry: a form, and nothing else ----------------
+   No results, no actuals, nobody else's numbers. One job. */
+function renderEntry(){
+  const done = goodAnswers(), total = props.length;
+  $('sub').textContent = done + ' of ' + total + ' answered';
+
+  let h = '<div class="card"><div class="card-t">Put a number on every one</div>'
+    + '<div class="card-s">Nobody can see your answers while you can still change them — and '
+    + 'you cannot see theirs. Lock in when you are happy and the whole board opens up. '
+    + 'It cannot be undone, so take your time.</div>'
+    + '<div class="prog"><i style="width:' + (done / total * 100).toFixed(1) + '%"></i></div></div>';
+
+  if(nameLooksAuto()){
+    h += '<div class="card" style="border-left:4px solid var(--navy)">'
+      + '<div class="card-t">Set your name first</div>'
+      + '<div class="card-s">You are showing up as <b>' + esc(me.display_name) + '</b>. That is '
+      + 'what everyone else will see next to your numbers.</div>'
+      + '<button class="btn sm" style="margin-top:12px" onclick="openMe()">Change it</button></div>';
   }
 
-  const settledAny = props.some(p => p.settled);
-  if(myLocked && settledAny) h += leaderboard();
-
-  const field = visibleField();
   for(const pr of props){
-    const mine = myAnswer(pr), now = nowOf(pr), lead = leadersOf(pr);
-    h += '<div class="q"><div class="q-t">' + esc(pr.question) + '</div>'
-      + (pr.detail ? '<div class="q-d">' + esc(pr.detail) + '</div>' : '')
-      + (pr.auto ? '<div class="q-d">Scored automatically off the schedule.</div>' : '');
-
-    if(myLocked){
-      h += '<div class="q-in"><span class="mine">'
-        + (mine == null || mine === '' ? '—' : esc(String(mine)))
-        + (pr.unit && mine != null ? '<small>' + esc(pr.unit) + '</small>' : '') + '</span>'
-        + '<span class="q-d" style="margin:0 0 0 auto">your call</span></div>';
-    } else if(pr.kind === 'choice'){
+    const mine = myAnswer(pr), v = validate(pr, mine);
+    h += '<div class="q' + (v.msg ? ' bad' : '') + '"><div class="q-t">' + esc(pr.question) + '</div>'
+      + (pr.detail ? '<div class="q-d">' + esc(pr.detail) + '</div>' : '');
+    if(pr.kind === 'choice'){
       h += '<div class="q-in"><select data-p="' + pr.id + '"><option value="">Pick one…</option>'
         + (pr.options || []).map(o => '<option' + (o === mine ? ' selected' : '') + '>'
             + esc(o) + '</option>').join('') + '</select></div>';
     } else {
-      h += '<div class="q-in"><input type="number" step="any" inputmode="decimal" data-p="' + pr.id
-        + '" value="' + (mine == null ? '' : esc(String(mine))) + '" placeholder="Your number" />'
-        + (pr.unit ? '<span class="unit">' + esc(pr.unit) + '</span>' : '') + '</div>';
+      h += '<div class="q-in"><input type="number" inputmode="numeric" data-p="' + pr.id + '" '
+        + (pr.min_val != null ? 'min="' + pr.min_val + '" ' : '')
+        + (pr.max_val != null ? 'max="' + pr.max_val + '" ' : '')
+        + 'step="' + (pr.whole === false ? 'any' : '1') + '" '
+        + 'value="' + (mine == null ? '' : esc(String(mine))) + '" placeholder="Your number" />'
+        + (pr.unit ? '<span class="unit">' + esc(pr.unit) + '</span>' : '') + '</div>'
+        + (v.msg ? '<div class="err">' + esc(v.msg) + '</div>'
+                 : rangeHint(pr) ? '<div class="hint">' + esc(rangeHint(pr)) + '</div>' : '');
     }
-
-    const shown = (pr.kind === 'choice' ? now.choice : now.value);
-    if(shown != null && shown !== ''){
-      h += '<div class="now"><b>' + esc(String(shown)) + '</b><span>'
-        + (pr.settled ? 'final' : pr.auto ? esc(AUTO[pr.auto].label) : 'where it stands')
-        + '</span></div>';
-    }
-
-    if(myLocked && field.length){
-      h += '<div class="field">';
-      for(const id of field){
-        const v = answerOf(id, pr), hit = lead.indexOf(id) >= 0 && pr.settled;
-        h += '<div class="row' + (hit ? ' hit' : '') + '"><span class="nm">'
-          + esc(players[id].display_name) + '</span>'
-          + (hit ? '<span class="badge">closest</span>' : '')
-          + '<span class="vv">' + (v == null ? '—' : esc(String(v))) + '</span></div>';
-      }
-      h += '</div>';
-    }
+    if(pr.kind === 'choice' && v.msg) h += '<div class="err">' + esc(v.msg) + '</div>';
     h += '</div>';
   }
 
-  if(myLocked && !field.length){
-    h += '<div class="card"><div class="card-s">You are the first one locked in. Everyone '
-      + 'else’s numbers appear here as they lock theirs.</div></div>';
-  }
   $('body').innerHTML = h;
   $('body').querySelectorAll('[data-p]').forEach(el => {
     el.addEventListener('change', () => stash(el));
@@ -466,19 +539,94 @@ function render(){
   paintBar();
 }
 
-function leaderboard(){
+function nameLooksAuto(){
+  const local = (user.email || '').split('@')[0];
+  return me && me.display_name && me.display_name.toLowerCase() === local.toLowerCase();
+}
+
+function paintBar(){
+  if(myLocked){ $('bar').style.display = 'none'; return; }
+  const total = props.length, done = goodAnswers();
+  $('bar').style.display = '';
+  $('barT').textContent = done === total ? 'All ' + total + ' answered' : done + ' of ' + total + ' answered';
+  $('barS').textContent = done === total ? 'Locking in cannot be undone'
+    : 'Every question needs a valid answer';
+  $('barBtn').disabled = done !== total;
+  const p = $('body').querySelector('.prog i');
+  if(p) p.style.width = (done / total * 100).toFixed(1) + '%';
+}
+
+/* ---------------- locked: a dashboard ----------------
+   Nothing to fill in here. Your number, where it stands, and the whole field. */
+function renderLocked(){
+  const ids = field();
+  $('sub').textContent = 'Locked in · ' + ids.length + ' of '
+    + Object.keys(players).length + ' players are in';
+
   const settled = props.filter(p => p.settled);
+  const board = standings(ids, settled);
+  const meRow = board.find(r => r.id === user.id);
+  const leadingNow = props.filter(p => !p.settled && leadersOf(p).indexOf(user.id) >= 0).length;
+
+  let h = '<div class="hero"><div class="k">Your season</div>'
+    + '<div class="v">' + (settled.length
+        ? (Math.round((meRow ? meRow.n : 0) * 10) / 10) + ' of ' + settled.length
+        : leadingNow + ' of ' + props.length)
+    + '</div><div class="s">' + (settled.length
+        ? 'props won so far, and you sit ' + ordinal(board.findIndex(r => r.id === user.id) + 1)
+          + ' of ' + board.length
+        : 'props where you are currently closest. Nothing is settled yet.')
+    + '</div><div class="split">'
+    + '<div><div class="n">' + ids.length + '</div><div class="l">locked in</div></div>'
+    + '<div><div class="n">' + settled.length + '</div><div class="l">settled</div></div>'
+    + '<div><div class="n">' + leadingNow + '</div><div class="l">leading now</div></div>'
+    + '</div></div>';
+
+  if(settled.length) h += standingsCard(board);
+
+  for(const pr of props){
+    const mine = myAnswer(pr), now = nowOf(pr), lead = leadersOf(pr);
+    const shown = pr.kind === 'choice' ? now.choice : now.value;
+    h += '<div class="qv"><div class="qv-hd"><div class="qv-q">' + esc(pr.question) + '</div>'
+      + '<div class="qv-you"><div class="n">' + (mine == null ? '—' : esc(String(mine)))
+      + '</div><div class="l">' + (lead.indexOf(user.id) >= 0 ? 'you · closest' : 'you') + '</div>'
+      + '</div></div>';
+    if(shown != null && shown !== ''){
+      h += '<div class="act' + (pr.settled ? ' done' : '') + '"><b>' + esc(String(shown)) + '</b>'
+        + '<span>' + (pr.settled ? 'final' : pr.auto ? esc(AUTO[pr.auto].label) : 'so far')
+        + '</span></div>';
+    }
+    h += pr.kind === 'choice' ? choiceBars(pr, ids, lead) : numberStrip(pr, ids, lead);
+    h += '</div>';
+  }
+  $('body').innerHTML = h;
+  $('body').querySelectorAll('[data-open]').forEach(el =>
+    el.addEventListener('click', () => {
+      const t = $('open-' + el.dataset.open);
+      if(t) t.style.display = t.style.display === 'none' ? '' : 'none';
+    }));
+  paintBar();
+}
+
+function ordinal(n){
+  const s = ['th','st','nd','rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function standings(ids, settled){
   const tally = {};
-  locks.forEach(l => { if(players[l.user_id]) tally[l.user_id] = 0; });
+  ids.forEach(id => tally[id] = 0);
   settled.forEach(pr => {
     const win = leadersOf(pr);
     win.forEach(id => { if(tally[id] !== undefined) tally[id] += 1 / win.length; });
   });
-  const rows = Object.keys(tally).map(id => ({ id, n: tally[id] }))
+  return ids.map(id => ({ id, n: tally[id] }))
     .sort((a,b) => b.n - a.n || players[a.id].display_name.localeCompare(players[b.id].display_name));
+}
+
+function standingsCard(rows){
   return '<div class="card"><div class="card-t">Standings</div>'
-    + '<div class="card-s">' + settled.length + ' prop' + (settled.length === 1 ? '' : 's')
-    + ' settled so far. Closest answer takes it; a tie splits it.</div>'
+    + '<div class="card-s">Closest answer takes a prop; a tie splits it.</div>'
     + '<div style="margin-top:10px">' + rows.map((r, i) =>
         '<div class="lb"><span class="pos' + (i === 0 && r.n > 0 ? ' top' : '') + '">' + (i+1)
         + '</span><span class="nm">' + esc(players[r.id].display_name)
@@ -487,40 +635,142 @@ function leaderboard(){
     + '</div></div>';
 }
 
-function paintBar(){
-  if(myLocked){ $('bar').style.display = 'none'; return; }
-  const total = props.length, done = answered();
-  $('bar').style.display = total ? '' : 'none';
-  $('barT').textContent = done === total ? 'All ' + total + ' answered' : done + ' of ' + total + ' answered';
-  $('barS').textContent = done === total ? 'Locking in cannot be undone' : 'Fill them all in to lock';
-  $('barBtn').disabled = done !== total;
+/* How the room split, biggest pile first. Tap a bar for the names. */
+function choiceBars(pr, ids, lead){
+  const mine = myAnswer(pr);
+  const counts = (pr.options || []).map(o => ({
+    o, who: ids.filter(id => answerOf(id, pr) === o)
+  })).sort((a,b) => b.who.length - a.who.length);
+  const top = Math.max(1, ...counts.map(c => c.who.length));
+  const now = nowOf(pr);
+
+  let h = '<div class="bars">';
+  counts.forEach((c, i) => {
+    const isMine = c.o === mine, isHit = pr.settled && now.choice === c.o;
+    const key = pr.id + '-' + i;
+    h += '<button class="ob' + (isHit ? ' hit' : isMine ? ' mine' : '') + '" data-open="' + key + '">'
+      + '<div class="ob-r"><span class="ob-l">' + esc(c.o)
+      + (isMine ? '<span class="ob-tag">you</span>' : '') + '</span>'
+      + '<span class="ob-t"><i style="width:' + (c.who.length / top * 100).toFixed(1) + '%"></i></span>'
+      + '<span class="ob-n">' + c.who.length + '</span></div></button>'
+      + '<div class="who" id="open-' + key + '" style="display:none">'
+      + (c.who.length ? c.who.map(id => (id === user.id ? '<b>' : '')
+          + esc(players[id].display_name) + (id === user.id ? '</b>' : '')).join(' · ')
+        : 'Nobody') + '</div>';
+  });
+  return h + '</div>';
+}
+
+/* Where everyone landed on one line. Your dot is the dark one; the actual is
+   the marker. Dots that would sit on top of each other stack instead. */
+function numberStrip(pr, ids, lead){
+  const vals = ids.map(id => ({ id, v: answerOf(id, pr) })).filter(x => x.v != null);
+  if(!vals.length) return '';
+  const now = nowOf(pr), actual = now.value;
+  // The scale is the spread of guesses, not the actual. In September the real
+  // number is nowhere near anybody's answer, and letting it set the scale would
+  // squash every guess into one corner. When it falls outside, its marker pins
+  // to the edge with an arrow instead.
+  const nums = vals.map(x => x.v);
+  let lo = Math.min(...nums), hi = Math.max(...nums);
+  if(hi === lo){ hi = lo + 1; lo = lo - 1; }
+  const pad = (hi - lo) * 0.1;
+  lo -= pad; hi += pad;
+
+  const W = 300, R = 5;
+  const x = v => 10 + (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * (W - 20);
+  const outLeft  = actual != null && actual < lo;
+  const outRight = actual != null && actual > hi;
+
+  // Dots stack upward off the line when two answers nearly collide, so the
+  // drawing needs its headroom above, not below.
+  const seen = [];
+  const placed = vals.slice().sort((a,b) => a.v - b.v).map(d => {
+    let lvl = 0;
+    while(seen[lvl] != null && x(d.v) - seen[lvl] < R * 2.1) lvl++;
+    seen[lvl] = x(d.v);
+    return { id: d.id, v: d.v, lvl };
+  });
+  const stack = Math.max(0, ...placed.map(p => p.lvl)) * (R * 2.2);
+  const BASE = 20 + stack;                    // the line
+  const H = BASE + 26;                        // plus room for the end labels
+
+  let g = '<div class="strip"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" '
+    + 'aria-label="everyone’s answers"><line x1="10" y1="' + BASE + '" x2="' + (W-10)
+    + '" y2="' + BASE + '" stroke="#E6E9EF" stroke-width="2" stroke-linecap="round"/>';
+  if(actual != null){
+    const ax = x(actual), anchor = outLeft ? 'start' : outRight ? 'end' : 'middle';
+    g += '<line x1="' + ax.toFixed(1) + '" y1="' + (BASE - stack - 12) + '" x2="' + ax.toFixed(1)
+      + '" y2="' + (BASE + 8) + '" stroke="#14181F" stroke-width="2"'
+      + (outLeft || outRight ? ' stroke-dasharray="3 3"' : '') + '/>'
+      + '<text x="' + ax.toFixed(1) + '" y="' + (BASE - stack - 17)
+      + '" font-size="10" font-weight="700" fill="#14181F" text-anchor="' + anchor + '">'
+      + (outLeft ? '‹ ' : '') + esc(nf(actual)) + (outRight ? ' ›' : '') + '</text>';
+  }
+  for(const d of placed){
+    const you = d.id === user.id;
+    g += '<circle cx="' + x(d.v).toFixed(1) + '" cy="' + (BASE - d.lvl * R * 2.2).toFixed(1)
+      + '" r="' + (you ? R + 1.5 : R) + '" fill="' + (you ? '#002E5D' : '#2a78d6')
+      + '" stroke="#fff" stroke-width="2"><title>' + esc(players[d.id].display_name) + ': '
+      + esc(nf(d.v)) + '</title></circle>';
+  }
+  g += '<text x="10" y="' + (BASE + 20) + '" font-size="10" fill="#A6AEBA">' + esc(nf(lo + pad))
+    + '</text><text x="' + (W - 10) + '" y="' + (BASE + 20)
+    + '" font-size="10" fill="#A6AEBA" text-anchor="end">' + esc(nf(hi - pad))
+    + '</text></svg></div>';
+
+  const avg = nums.reduce((a,b) => a + b, 0) / nums.length;
+  const sorted = nums.slice().sort((a,b) => a - b);
+  const mine = myAnswer(pr);
+  const rank = mine == null ? null : sorted.filter(v => v > mine).length + 1;
+  g += '<div class="stats">'
+    + '<div><b>' + nf(sorted[0]) + '</b>lowest</div>'
+    + '<div><b>' + nf(Math.round(avg * 10) / 10) + '</b>average</div>'
+    + '<div><b>' + nf(sorted[sorted.length - 1]) + '</b>highest</div>'
+    + (rank ? '<div><b>' + ordinal(rank) + '</b>you, highest to lowest</div>' : '')
+    + '</div>';
+
+  const key = 'n' + pr.id;
+  g += '<button class="more" data-open="' + key + '">All ' + vals.length + ' answers</button>'
+    + '<div class="list" id="open-' + key + '" style="display:none">'
+    + vals.slice().sort((a,b) => b.v - a.v).map(d =>
+        '<div class="row' + (d.id === user.id ? ' you' : '') + '">'
+        + '<span class="nm">' + esc(players[d.id].display_name) + '</span>'
+        + (pr.settled && lead.indexOf(d.id) >= 0 ? '<span class="badge">closest</span>' : '')
+        + '<span class="vv">' + esc(nf(d.v)) + '</span></div>').join('')
+    + '</div>';
+  return g;
 }
 
 /* Saves as you go — an unlocked answer is private, so there is nothing to lose
-   by keeping it warm on the server. */
+   by keeping it warm on the server. Invalid text is kept on screen but not sent. */
 async function stash(el){
   const pr = props.find(p => String(p.id) === el.dataset.p);
   const raw = (el.value || '').trim();
   dirty[pr.id] = raw;
+  const v = validate(pr, raw);
+  renderEntry();
+  if(v.msg) return;                       // let them see the complaint, save nothing
   const row = { user_id: user.id, prop_id: pr.id, value: null, choice: null,
                 updated_at: new Date().toISOString() };
-  if(pr.kind === 'choice') row.choice = raw || null;
-  else row.value = raw === '' ? null : Number(raw);
+  if(pr.kind === 'choice') row.choice = v.ok ? v.value : null;
+  else row.value = v.ok ? v.value : null;
   picks[pr.id] = row;
-  paintBar();
   const { error } = await supa.from('b12_prop_picks').upsert(row);
   if(error) toast('Could not save that: ' + error.message, 4000);
 }
 
 async function lockIn(){
-  if(answered() !== props.length) return;
-  if(!confirm('Lock in all ' + props.length + ' answers? They are final after this — and you '
-    + 'will be able to see everyone else who has locked in.')) return;
+  const bad = props.filter(p => !validate(p, myAnswer(p)).ok);
+  if(bad.length) return toast(bad.length + ' still need a valid answer');
+  if(!confirm('Lock in all ' + props.length + ' answers? They are final after this — and the '
+    + 'whole board opens up.')) return;
   const { error } = await supa.from('b12_prop_locks')
     .insert({ user_id: user.id, season, locked_at: new Date().toISOString() });
   if(error) return toast(error.message, 4500);
   dirty = {};
   await loadAll();
+  window.scrollTo(0, 0);
   toast('Locked in. Good luck.');
 }
 

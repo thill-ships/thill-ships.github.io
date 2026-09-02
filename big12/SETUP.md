@@ -91,7 +91,9 @@ Nothing extra to set up: it uses the same Supabase project, and `schema.sql` alr
 tables. Two things to know:
 
 - **Anyone can create an account** at `https://thill-ships.github.io/props/` with an email and
-  a password. No confirmation email, same as the pick'em.
+  a password. No confirmation email, same as the pick'em. Sign-up asks for the **name everyone
+  else sees**, changeable any time from the button in the top right — and if somebody ends up
+  with a name derived from their email, the app nags them to fix it before they lock in.
 - **You write the questions, they answer them.** In the War Room, open **Season props**, and
   hit **Put up the thirteen** to post the agreed set:
 
@@ -111,9 +113,33 @@ tables. Two things to know:
   | 12 | Does BYU make the Big 12 championship game? | Yes / No |
   | 13 | Does BYU make the College Football Playoff? | Yes / No |
 
+  Each number question also carries a **lowest** and **highest allowed**, set in the same
+  editor. That is what stops a fat finger putting 140 in the Big 12 wins box.
+
   **Read the wording once before you send anyone the link.** Editing a question after people
   have locked in does not change the answers they already gave, so the time to fix a name or
   tighten a definition is now. **Add a prop** and **Edit** are there for exactly that.
+
+### Two screens, on purpose
+
+**Before you lock in**, the app is a form and nothing else. No actuals, no standings, nobody
+else's numbers, nothing to browse. One job: put a number on every question. Each box knows
+what a sane answer looks like — nobody wins 14 Big 12 games, and letters don't go in a yards
+box — and it says so rather than silently accepting nonsense. An answer that fails its check
+is never saved, and the **Lock in** button stays dead until all thirteen pass.
+
+**After you lock in**, it flips into a dashboard. Every question shows your number, where the
+real one stands, and how the whole room split:
+
+- **Yes/no and pick-a-player questions** get a bar per option with a headcount. Tap one to see
+  exactly who.
+- **Number questions** get a dot for every player on one line, yours darkest, with the real
+  number marked. Underneath: lowest, average, highest, and where you sit. Tap *All 12 answers*
+  for the list.
+
+The scale on those dot strips is the spread of the *guesses*, not the actual — in September the
+real number is nowhere near anybody's answer, and letting it set the scale would squash every
+guess into one corner. When it falls outside, its marker pins to the edge with an arrow.
 
 ### How locking in works
 
@@ -252,5 +278,6 @@ already running.
 | Every untouched game says "PK" or shows no line | ESPN returned no odds. Check the sync log's odds coverage line. |
 | A call won't save, "violates check constraint" | `schema.sql` is the three-level version. Re-run the current file; it widens the allowed strengths. |
 | No automatic snapshots | Actions → *War Room — weekly snapshot* → check the log; it prints why it skipped. |
-| Props tab shows names but no numbers | Those people have not locked in yet. Nothing shows until they do. |
+| Props tab shows a headcount but no numbers | Those people have not locked in yet. Nothing shows until they do. |
+| Somebody says their answer won't save | It is failing its bounds check — the app shows why under the box. Widen the range in **Edit** if the bound is wrong. |
 | "Lock in" stays greyed out | A question is still blank. The database refuses a lock with blanks, so the button does too. |
