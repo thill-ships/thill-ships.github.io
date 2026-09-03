@@ -14,6 +14,9 @@ on:
         description: 'Print what it found and write nothing'
         required: false
         default: '0'
+      probe_season:
+        description: 'Rehearse against a past season, e.g. 2025. Writes nothing.'
+        required: false
 
 concurrency:
   group: big12-stats
@@ -34,4 +37,5 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SEASON: ${{ inputs.season }}
           DRY_RUN: ${{ inputs.dry_run }}
+          PROBE_SEASON: ${{ inputs.probe_season }}
         run: python .github/scripts/big12_stats.py

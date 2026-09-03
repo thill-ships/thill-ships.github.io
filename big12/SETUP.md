@@ -103,8 +103,26 @@ workflow** again in the little panel that drops down.
 | Run this | What to expect in the log |
 |---|---|
 | **Pick'em — sync games** | A line per week with a game count. This loads the season. It was probably already running for the pick'em; run it anyway so you know it is current. |
-| **War Room — BYU player stats** — set **Dry run** to `1` | How many BYU games it read, who it thinks leads each category, and which prop it would set to what. **It writes nothing.** |
+| **War Room — BYU player stats** — set **Dry run** to `1` | How many BYU games it read, who it thinks leads each category, and which prop it would set to what. **It writes nothing.** Before the season this will say *0 finished games* — see the rehearsal below. |
 | **War Room — weekly snapshot** | "Snapshot saved…" or a line saying why it skipped. |
+
+### Rehearsing before a ball is snapped
+
+Before the season, the dry run has nothing to chew on — it will simply say *0 finished games*.
+To find out whether any of it works, rehearse against a season that has already happened:
+
+**War Room — BYU player stats → Run workflow → Probe season: `2025`**
+
+It reads BYU's real 2025 box scores off ESPN, adds every player up, prints the whole season
+line, and shows what each of *this* year's questions would resolve to. **It writes nothing** —
+the probe forces itself read-only, so there is no way to dirty the season with it.
+
+What good looks like: a table of real BYU players with sane totals, a rushing leader in four
+figures, a quarterback with a plausible touchdown count.
+
+One thing not to panic about: the questions name 2026 players, and 2025 had a different roster,
+so some names will not match. The log says so and explains itself. You are checking the
+machinery, not the roster.
 
 **Read the dry-run log properly.** It is the one chance to catch a misspelled player name
 before anybody locks in. It will say things like:
@@ -251,7 +269,8 @@ Run through this once and you are done.
 - [ ] **Confirm email** is off in Supabase (step 2)
 - [ ] The War Room password gets you into `/big12/` (step 3)
 - [ ] The board has games on it — if it says "No 2026 Big 12 schedule", the sync has not run
-- [ ] The stats dry run named the right players, and you re-ran it for real (step 4)
+- [ ] The stats **probe against 2025** produced a believable BYU season (step 4)
+- [ ] Once BYU has played, the dry run named the right players and you re-ran it for real
 - [ ] **Season props** shows thirteen questions
 - [ ] `/props/` lets you create a test account and answer them
 - [ ] You sent the props link round

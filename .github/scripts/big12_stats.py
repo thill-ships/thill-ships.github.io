@@ -26,6 +26,11 @@ Env:
   SUPABASE_SERVICE_KEY   service_role key (bypasses RLS -- never ship to browser)
   SEASON                 optional, defaults to the current football season
   DRY_RUN                optional, "1" to print what it found and write nothing
+  PROBE_SEASON           optional, e.g. "2025". Reads that season's real box
+                         scores straight from ESPN instead of this season's
+                         schedule, prints everything it worked out, and writes
+                         NOTHING. The way to find out whether this all works
+                         before BYU has played a game.
 """
 
 import json
@@ -40,10 +45,14 @@ from datetime import datetime, timezone
 
 SUMMARY = ("https://site.api.espn.com/apis/site/v2/sports/football/"
            "college-football/summary")
+SCHEDULE = ("https://site.api.espn.com/apis/site/v2/sports/football/"
+            "college-football/teams/{team}/schedule")
+BYU_FALLBACK = "252"
 
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 DRY_RUN = os.environ.get("DRY_RUN", "") == "1"
+PROBE = (os.environ.get("PROBE_SEASON") or "").strip()
 
 HEADERS = {
     "apikey": SERVICE_KEY,
@@ -110,6 +119,24 @@ def espn(url, tries=3):
                 return None
             print(f"  retry {attempt}/{tries}: {exc.__class__.__name__}")
     return None
+
+
+def espn_schedule(team_id, year):
+    """A past season's finished games, straight from ESPN. Used only by probe
+    mode -- normally the schedule comes out of the database like everything
+    else."""
+    data = espn(f"{SCHEDULE.format(team=team_id)}?season={year}&seasontype=2")
+    out = []
+    for e in (data or {}).get("events") or []:
+        done = False
+        for c in e.get("competitions") or []:
+            status = (c.get("status") or {}).get("type") or {}
+            done = done or bool(status.get("completed"))
+        if done and e.get("id"):
+            out.append({"id": str(e["id"]),
+                        "week": ((e.get("week") or {}).get("number")) or 0})
+    out.sort(key=lambda g: g["week"])
+    return out
 
 
 def norm(name):
@@ -196,7 +223,14 @@ def tidy(v):
 
 def main():
     season = int(os.environ.get("SEASON") or football_season())
-    print(f"BYU player stats for {season}" + ("  (dry run)" if DRY_RUN else ""))
+    probe = int(PROBE) if PROBE else None
+    dry = DRY_RUN or probe is not None
+    if probe:
+        print(f"PROBE against the real {probe} season. Nothing will be written.\n"
+              f"Props are read from {season}, so you can see how this year's "
+              f"questions would resolve against a season that has actually happened.")
+    else:
+        print(f"BYU player stats for {season}" + ("  (dry run)" if dry else ""))
 
     props = get(f"b12_props?select=*&season=eq.{season}&auto=not.is.null")
     wanted = [p for p in props
@@ -216,15 +250,26 @@ def main():
         if byu:
             break
     if not byu:
-        print("!! No BYU game found in pickem_games. Run the pick'em sync first.")
-        sys.exit(1)
+        if not probe:
+            print("!! No BYU game found in pickem_games. Run the pick'em sync first.")
+            sys.exit(1)
+        byu = BYU_FALLBACK
+        print(f"No {season} schedule in the database; using BYU = {byu}.")
 
-    finals = [g for g in games
-              if g.get("status") == "final" and byu in (g.get("home_id"), g.get("away_id"))]
-    finals.sort(key=lambda g: g.get("week") or 0)
-    print(f"BYU is team {byu}; {len(finals)} finished games to read.")
+    if probe:
+        finals = espn_schedule(byu, probe)
+        print(f"\nBYU is team {byu}; {len(finals)} finished games in {probe}.")
+    else:
+        finals = [g for g in games
+                  if g.get("status") == "final" and byu in (g.get("home_id"), g.get("away_id"))]
+        finals.sort(key=lambda g: g.get("week") or 0)
+        print(f"BYU is team {byu}; {len(finals)} finished games to read.")
     if not finals:
         print("Nothing has been played yet.")
+        if not probe:
+            print("\nTo find out whether this works before the season starts, run this "
+                  "workflow again with Probe season set to 2025. It reads a season that "
+                  "really happened and writes nothing.")
         return
 
     per_game = {}
@@ -254,6 +299,20 @@ def main():
         who, v = leader(stat)
         if who:
             print(f"  leader {stat:>9}: {who} ({tidy(v)})")
+
+    if probe:
+        # The whole point of a probe is seeing the raw season line, so print it.
+        print(f"\n  Every BYU player with a counting stat in {probe}:")
+        print(f"  {'player':<26} {'rush':>6} {'long':>5} {'rec':>6} {'pTD':>4} "
+              f"{'rTD':>4} {'INT':>4} {'sack':>5}")
+        rows = sorted(season_line.items(),
+                      key=lambda kv: -(kv[1].get("rush_yds", 0) + kv[1].get("rec_yds", 0)
+                                       + kv[1].get("pass_td", 0) * 40))
+        for who, row in rows[:22]:
+            print(f"  {who[:26]:<26} {tidy(row.get('rush_yds', 0)):>6} "
+                  f"{tidy(row.get('long_rush', 0)):>5} {tidy(row.get('rec_yds', 0)):>6} "
+                  f"{tidy(row.get('pass_td', 0)):>4} {tidy(row.get('rush_td', 0)):>4} "
+                  f"{tidy(row.get('ints', 0)):>4} {tidy(row.get('sacks', 0)):>5}")
 
     updates, notes = [], []
     for p in wanted:
@@ -308,13 +367,20 @@ def main():
         was = p.get("actual_choice") if "actual_choice" in body else p.get("actual")
         now = body.get("actual_choice", body.get("actual"))
         print(f"  {p['question'][:52]:<54} {str(was):>10} -> {now}")
-        if not DRY_RUN:
+        if not dry:
             patch(f"b12_props?id=eq.{p['id']}", body)
     if not updates:
         print("  every automatic prop is already up to date.")
     for n in notes:
         print(n)
-    print(f"\n{len(updates)} prop(s) {'would be' if DRY_RUN else ''} updated.")
+    print(f"\n{len(updates)} prop(s) {'would be' if dry else ''} updated.")
+    if probe:
+        print("Nothing was written -- this was a probe. If those numbers look like a real "
+              f"BYU {probe} season, the job works.")
+        if any("!!" in n for n in notes):
+            print("A name that does not match is not necessarily a bug here: the questions "
+                  f"name {season} players, and this ran against {probe}, when some of them "
+                  "were somewhere else. Judge the machinery, not the roster.")
 
 
 if __name__ == "__main__":
