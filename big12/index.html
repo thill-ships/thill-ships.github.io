@@ -1712,6 +1712,7 @@ function renderProps(){
       + (pr.settled ? ' <span class="settled">settled</span>' : '') + '</div>'
       + (pr.detail ? '<div class="pd">' + esc(pr.detail) + '</div>'
          : pr.auto ? '<div class="pd">kept automatically</div>' : '')
+      + (pr.last_year ? '<div class="pd">last season: <b>' + esc(pr.last_year) + '</b></div>' : '')
       + '</td>';
 
     h += '<td class="l">';
@@ -1854,6 +1855,9 @@ function openProp(id){
     + '<label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px">'
     + '<input type="checkbox" id="prWhole"' + (!pr || pr.whole !== false ? ' checked' : '')
     + ' style="width:auto" /> Whole numbers only</label>'
+    + lab('Last season, for context')
+    + '<input type="text" id="prLY" value="' + esc(pr && pr.last_year ? pr.last_year : '')
+    + '" placeholder="filled in by the stats job" />'
     + lab('Menu options, comma separated')
     + '<input type="text" id="prO" value="' + esc(pr && pr.options ? pr.options.join(', ') : '')
     + '" placeholder="BYU, Texas Tech, Utah…" />'
@@ -1898,7 +1902,8 @@ async function saveProp(id){
     auto_player: (JOB_PROPS[$('prA').value] || {}).player
                  ? ($('prPlayer').value || '').trim() || null : null,
     min_val: num('prMin'), max_val: num('prMax'),
-    whole: $('prWhole').checked
+    whole: $('prWhole').checked,
+    last_year: ($('prLY').value || '').trim() || null
   };
   if((JOB_PROPS[row.auto] || {}).player && !row.auto_player)
     return toast('That one needs a player name');

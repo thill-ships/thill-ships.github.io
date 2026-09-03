@@ -124,6 +124,26 @@ One thing not to panic about: the questions name 2026 players, and 2025 had a di
 so some names will not match. The log says so and explains itself. You are checking the
 machinery, not the roster.
 
+### Putting last season under each question
+
+People guess better with a reference point, and typing fifteen 2025 figures in by hand is
+exactly the chore this whole thing exists to avoid. The job will work them out:
+
+**War Room — BYU player stats → Run workflow → Backfill last year: `1`**
+
+It reads BYU's 2025 season the same way it reads this one and writes what happened into each
+question's *last season* line — the record, the blowouts, the interceptions, the yardage, who
+led receiving. That line then shows up under the question in the props app, right above the box
+people are about to fill in.
+
+It only ever writes that one field. This season's numbers are untouched, including on questions
+you have already settled.
+
+The two December yes-or-nos it cannot answer, and it says so in the log. Type those in yourself
+under **Season props → Edit → Last season, for context** — or leave them blank.
+
+Do this **before you send the link round**, so the context is there when people answer.
+
 **Read the dry-run log properly.** It is the one chance to catch a misspelled player name
 before anybody locks in. It will say things like:
 
@@ -285,6 +305,7 @@ Run through this once and you are done.
 - [ ] The War Room password gets you into `/big12/` (step 3)
 - [ ] The board has games on it — if it says "No 2026 Big 12 schedule", the sync has not run
 - [ ] The stats **probe against 2025** produced a believable BYU season (step 4)
+- [ ] **Backfill last year** run, so each question carries its 2025 figure
 - [ ] Once BYU has played, the dry run named the right players and you re-ran it for real
 - [ ] **Season props** shows fifteen questions
 - [ ] `/props/` lets you create a test account and answer them

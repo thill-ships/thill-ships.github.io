@@ -145,6 +145,7 @@ create table if not exists b12_props (
   min_val   numeric,                        -- sanity bounds for a number answer:
   max_val   numeric,                        -- nobody wins 14 Big 12 games
   whole     boolean not null default true,  -- whole numbers only?
+  last_year text,                           -- last season's answer, for context
   actual    numeric,                        -- number props: the running total
   actual_choice text,                       -- choice props: what happened
   settled   boolean not null default false,
@@ -156,6 +157,7 @@ alter table b12_props add column if not exists min_val numeric;
 alter table b12_props add column if not exists max_val numeric;
 alter table b12_props add column if not exists whole   boolean not null default true;
 alter table b12_props add column if not exists auto_player text;
+alter table b12_props add column if not exists last_year   text;
 
 -- Widening the set of things a question can answer for itself. Safe to re-run.
 alter table b12_props drop constraint if exists b12_props_auto_check;

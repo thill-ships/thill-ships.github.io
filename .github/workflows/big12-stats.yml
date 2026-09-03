@@ -17,6 +17,10 @@ on:
       probe_season:
         description: 'Rehearse against a past season, e.g. 2025. Writes nothing.'
         required: false
+      backfill_last_year:
+        description: 'Fill in last season under each question, as context. 1 to run.'
+        required: false
+        default: '0'
 
 concurrency:
   group: big12-stats
@@ -38,4 +42,5 @@ jobs:
           SEASON: ${{ inputs.season }}
           DRY_RUN: ${{ inputs.dry_run }}
           PROBE_SEASON: ${{ inputs.probe_season }}
+          BACKFILL_LAST_YEAR: ${{ inputs.backfill_last_year }}
         run: python .github/scripts/big12_stats.py

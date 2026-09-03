@@ -31,6 +31,12 @@ Env:
                          schedule, prints everything it worked out, and writes
                          NOTHING. The way to find out whether this all works
                          before BYU has played a game.
+  BACKFILL_LAST_YEAR     optional, "1". Same reading, but writes each answer
+                         into the prop's `last_year` column instead, so every
+                         question carries what actually happened last season as
+                         context. Never touches this season's numbers. Combine
+                         with PROBE_SEASON to choose which season counts as
+                         "last" (defaults to the one before this).
 """
 
 import json
@@ -53,6 +59,7 @@ SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 DRY_RUN = os.environ.get("DRY_RUN", "") == "1"
 PROBE = (os.environ.get("PROBE_SEASON") or "").strip()
+BACKFILL = os.environ.get("BACKFILL_LAST_YEAR", "") == "1"
 
 HEADERS = {
     "apikey": SERVICE_KEY,
@@ -92,6 +99,9 @@ LEADERS = {
 }
 TEAM_TOTALS = {"team_ints": "ints", "team_sacks": "sacks",
                "team_def_st_td": "def_st_td"}
+# These come off the results rather than the box scores. The browser works them
+# out for the live season; the job only needs them when filling in last year.
+SCHEDULE_KEYS = {"wins", "losses", "conf_wins", "conf_losses", "blowouts"}
 
 
 def football_season(now=None):
@@ -236,6 +246,43 @@ def derive_def_st_td(box):
     return box
 
 
+def read_result(summary, team_id):
+    """Did we win, by how much, and did it count in the conference?"""
+    header = (summary or {}).get("header") or {}
+    comps = header.get("competitions") or []
+    if not comps:
+        return None
+    comp = comps[0]
+    mine = them = None
+    for c in comp.get("competitors") or []:
+        if str(((c.get("team") or {}).get("id")) or "") == str(team_id):
+            mine = c
+        else:
+            them = c
+    if not mine or not them:
+        return None
+    ours, theirs = as_num(mine.get("score")), as_num(them.get("score"))
+    return {"won": bool(mine.get("winner")) or ours > theirs,
+            "margin": ours - theirs,
+            "conference": bool(comp.get("conferenceCompetition"))}
+
+
+def tally_results(results):
+    t = {k: 0 for k in SCHEDULE_KEYS}
+    for r in results:
+        if r["won"]:
+            t["wins"] += 1
+            if r["conference"]:
+                t["conf_wins"] += 1
+            if r["margin"] >= 14:
+                t["blowouts"] += 1
+        else:
+            t["losses"] += 1
+            if r["conference"]:
+                t["conf_losses"] += 1
+    return t
+
+
 def combine(per_game):
     """Season line per player: sums, except the 'long' stats, which take a max."""
     season = {}
@@ -255,11 +302,22 @@ def tidy(v):
     return int(v) if float(v).is_integer() else round(float(v), 1)
 
 
+def fmt(v):
+    """For the last-season line, which is read rather than compared."""
+    v = tidy(v)
+    return f"{v:,}" if isinstance(v, int) else f"{v:,.1f}"
+
+
 def main():
     season = int(os.environ.get("SEASON") or football_season())
     probe = int(PROBE) if PROBE else None
-    dry = DRY_RUN or probe is not None
-    if probe:
+    if BACKFILL and probe is None:
+        probe = season - 1              # "last season" unless told otherwise
+    dry = DRY_RUN or (probe is not None and not BACKFILL)
+    if BACKFILL:
+        print(f"Filling in what happened in {probe}, as context under each {season} "
+              f"question. This season's numbers are not touched.")
+    elif probe:
         print(f"PROBE against the real {probe} season. Nothing will be written.\n"
               f"Props are read from {season}, so you can see how this year's "
               f"questions would resolve against a season that has actually happened.")
@@ -267,8 +325,10 @@ def main():
         print(f"BYU player stats for {season}" + ("  (dry run)" if dry else ""))
 
     props = get(f"b12_props?select=*&season=eq.{season}&auto=not.is.null")
-    wanted = [p for p in props
-              if p["auto"] in STATS or p["auto"] in LEADERS or p["auto"] in TEAM_TOTALS]
+    ok = set(STATS) | set(LEADERS) | set(TEAM_TOTALS)
+    if BACKFILL:
+        ok |= SCHEDULE_KEYS          # the browser handles these live; not last year
+    wanted = [p for p in props if p["auto"] in ok]
     if not wanted:
         print("No props are asking for player stats. Nothing to do.")
         return
@@ -306,9 +366,12 @@ def main():
                   "really happened and writes nothing.")
         return
 
-    per_game = {}
+    per_game, results = {}, []
     for g in finals:
         data = espn(f"{SUMMARY}?event={g['id']}")
+        outcome = read_result(data, byu)
+        if outcome:
+            results.append(outcome)
         box = derive_def_st_td(read_box(data, byu))
         if not box:
             print(f"  week {g['week']:>2}: no box score yet")
@@ -351,15 +414,23 @@ def main():
                   f"{tidy(row.get('pass_td', 0)):>4} {tidy(row.get('rush_td', 0)):>4} "
                   f"{tidy(row.get('ints', 0)):>4} {tidy(row.get('sacks', 0)):>5}")
 
+    record = tally_results(results)
+    if BACKFILL:
+        print(f"\n  {probe} record: {record['wins']}-{record['losses']} overall, "
+              f"{record['conf_wins']}-{record['conf_losses']} in the Big 12, "
+              f"{record['blowouts']} wins by 14+")
+
     updates, notes = [], []
     for p in wanted:
         key, target = p["auto"], p.get("auto_player")
-        if p.get("settled"):
+        if p.get("settled") and not BACKFILL:
             notes.append(f"  skipped (settled): {p['question']}")
             continue
 
         value, choice = None, None
-        if key in TEAM_TOTALS:
+        if key in SCHEDULE_KEYS:
+            value = record[key]
+        elif key in TEAM_TOTALS:
             stat = TEAM_TOTALS[key]
             value = sum(row.get(stat, 0) for row in season_line.values())
         elif key in LEADERS:
@@ -389,7 +460,12 @@ def main():
             value = season_line[who].get(key, 0)
 
         body = {}
-        if choice is not None:
+        if BACKFILL:
+            # One text column, because it is read rather than compared.
+            shown = choice if choice is not None else (fmt(value) if value is not None else None)
+            if shown is not None and shown != p.get("last_year"):
+                body["last_year"] = shown
+        elif choice is not None:
             if choice != p.get("actual_choice"):
                 body["actual_choice"] = choice
         elif value is not None:
@@ -401,8 +477,11 @@ def main():
 
     print()
     for p, body in updates:
-        was = p.get("actual_choice") if "actual_choice" in body else p.get("actual")
-        now = body.get("actual_choice", body.get("actual"))
+        if "last_year" in body:
+            was, now = p.get("last_year"), body["last_year"]
+        else:
+            was = p.get("actual_choice") if "actual_choice" in body else p.get("actual")
+            now = body.get("actual_choice", body.get("actual"))
         print(f"  {p['question'][:52]:<54} {str(was):>10} -> {now}")
         if not dry:
             patch(f"b12_props?id=eq.{p['id']}", body)
@@ -410,8 +489,15 @@ def main():
         print("  every automatic prop is already up to date.")
     for n in notes:
         print(n)
-    print(f"\n{len(updates)} prop(s) {'would be' if dry else ''} updated.")
-    if probe:
+    what = "last-season line" if BACKFILL else "prop"
+    verb = "would be updated" if dry else "updated"
+    print(f"\n{len(updates)} {what}(s) {verb}.")
+    if BACKFILL:
+        blank = [p for p in props if not p.get("last_year") and p["auto"] not in ok]
+        for p in blank:
+            print(f"  no last-season figure for: {p['question']} "
+                  f"(type one in yourself if you want one)")
+    if probe and not BACKFILL:
         print("Nothing was written -- this was a probe. If those numbers look like a real "
               f"BYU {probe} season, the job works.")
         if any("!!" in n for n in notes):

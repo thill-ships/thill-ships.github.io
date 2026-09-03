@@ -63,6 +63,13 @@
   .q{background:var(--card);border-radius:16px;box-shadow:var(--lift);margin-top:12px;padding:15px 17px 16px;}
   .q-t{font-size:15.5px;font-weight:800;letter-spacing:-.015em;line-height:1.25;}
   .q-d{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45;}
+  /* Last season, as a reference point while you decide. Quiet enough not to
+     anchor everybody onto the same number, present enough to be useful. */
+  .ly{display:inline-flex;align-items:baseline;gap:6px;margin-top:9px;
+    background:var(--panel);border-radius:8px;padding:5px 10px;}
+  .ly b{font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .ly span{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--faint);}
   .q-in{margin-top:12px;display:flex;align-items:center;gap:10px;}
   .q-in .unit{font-size:13px;color:var(--muted);font-weight:600;flex:none;}
   .mine{font-size:26px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
@@ -410,6 +417,14 @@ function readRecord(rows){
   return r;
 }
 
+/* Last season's answer, if the stats job worked one out. */
+function lastYear(pr){
+  const v = (pr.last_year || '').trim();
+  if(!v) return '';
+  return '<div class="ly"><span>last season</span><b>' + esc(v) + '</b>'
+    + (pr.unit && pr.kind !== 'choice' ? '<span>' + esc(pr.unit) + '</span>' : '') + '</div>';
+}
+
 /* ========================= shared bits ========================= */
 function nowOf(pr){
   if(pr.auto && AUTO[pr.auto]) return { value: AUTO[pr.auto].of(), auto: true };
@@ -512,7 +527,8 @@ function renderEntry(){
   for(const pr of props){
     const mine = myAnswer(pr), v = validate(pr, mine);
     h += '<div class="q' + (v.msg ? ' bad' : '') + '"><div class="q-t">' + esc(pr.question) + '</div>'
-      + (pr.detail ? '<div class="q-d">' + esc(pr.detail) + '</div>' : '');
+      + (pr.detail ? '<div class="q-d">' + esc(pr.detail) + '</div>' : '')
+      + lastYear(pr);
     if(pr.kind === 'choice'){
       h += '<div class="q-in"><select data-p="' + pr.id + '"><option value="">Pick one…</option>'
         + (pr.options || []).map(o => '<option' + (o === mine ? ' selected' : '') + '>'
@@ -591,6 +607,7 @@ function renderLocked(){
       + '<div class="qv-you"><div class="n">' + (mine == null ? '—' : esc(String(mine)))
       + '</div><div class="l">' + (lead.indexOf(user.id) >= 0 ? 'you · closest' : 'you') + '</div>'
       + '</div></div>';
+    if(pr.last_year) h += lastYear(pr);
     if(shown != null && shown !== ''){
       // AUTO covers the questions the browser works out; anything else with an
       // `auto` key is filled in by the stats job, and reads as a running total.
