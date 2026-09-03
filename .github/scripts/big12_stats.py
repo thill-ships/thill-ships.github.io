@@ -141,21 +141,45 @@ def espn(url, tries=3):
     return None
 
 
+def season_type_of(event):
+    """1 pre, 2 regular, 3 post. None when ESPN does not say."""
+    for path in (("seasonType", "type"), ("seasonType", "id"), ("season", "type")):
+        node = event
+        for k in path:
+            node = (node or {}).get(k) if isinstance(node, dict) else None
+        if node is not None:
+            try:
+                return int(node)
+            except (TypeError, ValueError):
+                pass
+    return None
+
+
 def espn_schedule(team_id, year):
-    """A past season's finished games, straight from ESPN. Used only by probe
-    mode -- normally the schedule comes out of the database like everything
-    else."""
+    """A past season's finished REGULAR-season games, straight from ESPN.
+
+    The seasontype=2 query parameter is not always honoured -- a conference
+    championship or a bowl can still come back in the list -- and every question
+    here says "regular season", so anything ESPN labels otherwise is dropped. A
+    game it declines to label is kept, on the grounds that most of them are
+    ordinary.
+    """
     data = espn(f"{SCHEDULE.format(team=team_id)}?season={year}&seasontype=2")
-    out = []
+    out, skipped = [], []
     for e in (data or {}).get("events") or []:
         done = False
         for c in e.get("competitions") or []:
             status = (c.get("status") or {}).get("type") or {}
             done = done or bool(status.get("completed"))
-        if done and e.get("id"):
-            out.append({"id": str(e["id"]),
-                        "week": ((e.get("week") or {}).get("number")) or 0})
+        if not done or not e.get("id"):
+            continue
+        kind = season_type_of(e)
+        row = {"id": str(e["id"]), "week": ((e.get("week") or {}).get("number")) or 0,
+               "name": e.get("shortName") or e.get("name") or e["id"]}
+        (skipped if (kind is not None and kind != 2) else out).append(row)
     out.sort(key=lambda g: g["week"])
+    for g in skipped:
+        print(f"  skipping {g['name']} -- ESPN does not file it as a regular-season game")
     return out
 
 
