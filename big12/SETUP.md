@@ -158,7 +158,7 @@ tables. Two things to know:
   else sees**, changeable any time from the button in the top right — and if somebody ends up
   with a name derived from their email, the app nags them to fix it before they lock in.
 - **You write the questions, they answer them.** In the War Room, open **Season props**, and
-  hit **Put up the thirteen** to post the agreed set:
+  hit **Put up the standard 15** to post the agreed set:
 
   | # | Question | Answered by |
   |---|---|---|
@@ -167,16 +167,23 @@ tables. Two things to know:
   | 3 | How many games does BYU win by 14 or more? | **the schedule** |
   | 4 | Does BYU make the Big 12 championship game? | you, in December |
   | 5 | Does BYU make the College Football Playoff? | you, in December |
-  | 6 | Bear Bachmeier passing touchdowns | **box scores** |
-  | 7 | Bear Bachmeier rushing touchdowns | **box scores** |
-  | 8 | LJ Martin rushing yards | **box scores** |
-  | 9 | LJ Martin's longest run of the season | **box scores** |
-  | 10 | Who leads BYU in receiving yards? | **box scores** |
-  | 11 | How many receiving yards does the leader finish with? | **box scores** |
-  | 12 | Who leads BYU in interceptions? | **box scores** |
-  | 13 | How many interceptions does the leader finish with? | **box scores** |
+  | 6 | How many interceptions will the defence have? | **box scores** |
+  | 7 | How many touchdowns will the defence and special teams score? | **box scores** |
+  | 8 | Bear Bachmeier passing touchdowns | **box scores** |
+  | 9 | Bear Bachmeier rushing touchdowns | **box scores** |
+  | 10 | LJ Martin rushing yards | **box scores** |
+  | 11 | LJ Martin's longest run of the season | **box scores** |
+  | 12 | Who leads BYU in receiving yards? | **box scores** |
+  | 13 | How many receiving yards does the leader finish with? | **box scores** |
+  | 14 | Who leads BYU in interceptions? | **box scores** |
+  | 15 | How many interceptions does the leader finish with? | **box scores** |
 
-  Eleven of the thirteen keep themselves. Only the two December yes-or-nos are yours.
+  Thirteen of the fifteen keep themselves. Only the two December yes-or-nos are yours.
+
+  **The button is additive.** If a question joins the standard set later, press it again: it
+  puts up only what is missing, never a duplicate, and shuffles the existing ones back into
+  this order so the new one lands where it belongs. Once they are all up, the button
+  disappears.
 
   **Read the wording once before you send anyone the link.** Editing a question after people
   have locked in does not change the answers they already gave, so the time to fix a name or
@@ -219,14 +226,22 @@ before you go looking at the window.
 
 ### Keeping score
 
-**Eleven of the thirteen answer themselves.** Nobody types a yardage total.
+**Thirteen of the fifteen answer themselves.** Nobody types a yardage total.
 
 - **Three come off the schedule** — wins, Big 12 wins, and wins by 14 or more — worked out in
   the browser from the games already syncing.
-- **Eight come off BYU's box scores.** `War Room — BYU player stats` walks every finished BYU
-  game, adds each player up, and writes the answer into the prop: Bachmeier's passing and
-  rushing touchdowns, Martin's rushing yards and longest run, and both leader races with the
-  numbers that go with them. It runs every six hours.
+- **Ten come off BYU's box scores.** `War Room — BYU player stats` walks every finished BYU
+  game, adds each player up, and writes the answer into the prop: the defence's interceptions
+  and its touchdowns, Bachmeier's passing and rushing touchdowns, Martin's rushing yards and
+  longest run, and both leader races with the numbers that go with them. It runs every six
+  hours.
+
+  The defence-and-special-teams touchdown count is the fiddly one, and it is careful about it.
+  ESPN reports a pick six twice — once as a defensive touchdown, once as an interception
+  touchdown — so the job takes the larger of the pair rather than adding them, which survives
+  ESPN filling in only one and never counts a play twice. Kick and punt return touchdowns sit
+  in their own categories and cannot overlap, so they simply add. Kicking is excluded
+  entirely: no extra points, no field goals.
 
 Only the two postseason yes-or-nos are left by hand, and those are one click each in December.
 
@@ -271,7 +286,7 @@ Run through this once and you are done.
 - [ ] The board has games on it — if it says "No 2026 Big 12 schedule", the sync has not run
 - [ ] The stats **probe against 2025** produced a believable BYU season (step 4)
 - [ ] Once BYU has played, the dry run named the right players and you re-ran it for real
-- [ ] **Season props** shows thirteen questions
+- [ ] **Season props** shows fifteen questions
 - [ ] `/props/` lets you create a test account and answer them
 - [ ] You sent the props link round
 
