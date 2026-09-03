@@ -74,6 +74,15 @@ STATS = {
     "ints":      ("interceptions", ["interceptions", "INT"],          "sum"),
     "sacks":     ("defensive",     ["sacks", "SACKS"],                "sum"),
     "tackles":   ("defensive",     ["totalTackles", "TOT"],           "sum"),
+    # The pieces of a defensive/special-teams touchdown. Kept separate because
+    # a pick six lands in BOTH "defensive" and "interceptions" and must not be
+    # counted twice -- see derive_def_st_td().
+    "def_td":    ("defensive",     ["defensiveTouchdowns", "TD"],     "sum"),
+    "int_td":    ("interceptions", ["interceptionTouchdowns", "TD"],  "sum"),
+    "kr_td":     ("kickReturns",   ["kickReturnTouchdowns", "TD"],    "sum"),
+    "pr_td":     ("puntReturns",   ["puntReturnTouchdowns", "TD"],    "sum"),
+    # Not read from any category; built per game from the four above.
+    "def_st_td": ("__derived__",   [],                                "sum"),
 }
 LEADERS = {
     "rec_leader":      ("rec_yds", "who"),
@@ -81,7 +90,8 @@ LEADERS = {
     "int_leader":      ("ints",    "who"),
     "int_leader_ints": ("ints",    "how many"),
 }
-TEAM_TOTALS = {"team_ints": "ints", "team_sacks": "sacks"}
+TEAM_TOTALS = {"team_ints": "ints", "team_sacks": "sacks",
+               "team_def_st_td": "def_st_td"}
 
 
 def football_season(now=None):
@@ -188,7 +198,9 @@ def read_box(summary, team_id):
                 values = athlete.get("stats") or []
                 line = out.setdefault(who, {})
                 for stat, (want_cat, names, _agg) in STATS.items():
-                    if want_cat != cat_name:
+                    # cat_name is lowercased; the table spells them as ESPN
+                    # does ("kickReturns"), so fold both sides.
+                    if want_cat.lower() != cat_name:
                         continue
                     idx = None
                     for n in names:
@@ -200,6 +212,28 @@ def read_box(summary, team_id):
                         continue
                     line[stat] = line.get(stat, []) + [as_num(values[idx])]
     return out
+
+
+def derive_def_st_td(box):
+    """Defence + special teams touchdowns, for one game, without double counting.
+
+    A pick six is reported in the `defensive` category as a defensive touchdown
+    AND in the `interceptions` category as an interception touchdown -- the same
+    play, twice. ESPN is not always consistent about filling both, so take the
+    larger of the two rather than the sum: it survives either one being blank,
+    and never counts a play twice. Return touchdowns live in their own
+    categories and cannot overlap with those, so they simply add.
+
+    Kicking is deliberately absent: no extra points, no field goals.
+    """
+    for line in box.values():
+        defensive = sum(line.get("def_td", []))
+        picks = sum(line.get("int_td", []))
+        returns = sum(line.get("kr_td", [])) + sum(line.get("pr_td", []))
+        total = max(defensive, picks) + returns
+        if total:
+            line["def_st_td"] = [total]
+    return box
 
 
 def combine(per_game):
@@ -275,7 +309,7 @@ def main():
     per_game = {}
     for g in finals:
         data = espn(f"{SUMMARY}?event={g['id']}")
-        box = read_box(data, byu)
+        box = derive_def_st_td(read_box(data, byu))
         if not box:
             print(f"  week {g['week']:>2}: no box score yet")
             continue
@@ -299,6 +333,9 @@ def main():
         who, v = leader(stat)
         if who:
             print(f"  leader {stat:>9}: {who} ({tidy(v)})")
+    for key, stat in sorted(TEAM_TOTALS.items()):
+        total = sum(row.get(stat, 0) for row in season_line.values())
+        print(f"  team {key[5:]:>12}: {tidy(total)}")
 
     if probe:
         # The whole point of a probe is seeing the raw season line, so print it.

@@ -140,7 +140,7 @@ create table if not exists b12_props (
                       'pass_yds','pass_td','rush_yds','rush_td','long_rush',
                       'rec_yds','rec_td','long_rec','ints','sacks','tackles',
                       'rec_leader','rec_leader_yds','int_leader','int_leader_ints',
-                      'team_ints','team_sacks')),
+                      'team_ints','team_sacks','team_def_st_td')),
   auto_player text,                         -- the athlete, as ESPN spells them
   min_val   numeric,                        -- sanity bounds for a number answer:
   max_val   numeric,                        -- nobody wins 14 Big 12 games
@@ -164,7 +164,7 @@ alter table b12_props add  constraint b12_props_auto_check check (auto is null o
    'pass_yds','pass_td','rush_yds','rush_td','long_rush',
    'rec_yds','rec_td','long_rec','ints','sacks','tackles',
    'rec_leader','rec_leader_yds','int_leader','int_leader_ints',
-   'team_ints','team_sacks'));
+   'team_ints','team_sacks','team_def_st_td'));
 create index if not exists b12_props_season_idx on b12_props (season, sort, id);
 
 -- One row per person per question.
