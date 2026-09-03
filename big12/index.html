@@ -1562,7 +1562,8 @@ const JOB_PROPS = {
   int_leader:      { label: 'Who leads in interceptions' },
   int_leader_ints: { label: '…and how many' },
   team_ints:       { label: 'Team interceptions' },
-  team_sacks:      { label: 'Team sacks' }
+  team_sacks:      { label: 'Team sacks' },
+  team_def_st_td:  { label: 'Defence + special-teams touchdowns' }
 };
 
 function rec(confOnly, side){
@@ -1657,6 +1658,10 @@ function renderProps(){
     + 'This is a window on it — we write the questions and keep the actuals, but the answers '
     + 'belong to whoever put them in, and only show up here once that person has locked in.'
     + '</div></div><div class="spacer"></div>'
+    + (props.length && missingStandard().length
+        ? '<button class="btn ghost sm" onclick="seedProps()">Add ' + missingStandard().length
+          + ' standard question' + (missingStandard().length === 1 ? '' : 's') + '</button>'
+        : '')
     + '<button class="btn sm" onclick="openProp()">Add a prop</button>'
     + '</div></div>';
 
@@ -1683,11 +1688,13 @@ function renderProps(){
   if(!props.length){
     $('v-props').innerHTML = h + '<div class="card"><div class="empty">'
       + 'No questions written yet.<br><br>'
-      + '<button class="btn" onclick="seedProps()">Put up the thirteen</button>'
+      + '<button class="btn" onclick="seedProps()">Put up the standard '
+      + SEED_PROPS.length + '</button>'
       + '<div style="margin-top:14px;font-size:12.5px;line-height:1.6">Wins, Big 12 wins, '
-      + 'blowouts, the two yes-or-nos, Bachmeier’s touchdowns, Martin’s yards and longest run, '
-      + 'and the receiving and interception leaders. Edit or bin any of them afterwards — but '
-      + 'do it before anyone locks in.</div></div></div>';
+      + 'blowouts, the two yes-or-nos, the defence’s interceptions and touchdowns, '
+      + 'Bachmeier’s touchdowns, Martin’s yards and longest run, and the receiving and '
+      + 'interception leaders. Edit or bin any of them afterwards — but do it before anyone '
+      + 'locks in.</div></div></div>';
     return;
   }
 
@@ -1705,6 +1712,7 @@ function renderProps(){
       + (pr.settled ? ' <span class="settled">settled</span>' : '') + '</div>'
       + (pr.detail ? '<div class="pd">' + esc(pr.detail) + '</div>'
          : pr.auto ? '<div class="pd">kept automatically</div>' : '')
+      + (pr.last_year ? '<div class="pd">last season: <b>' + esc(pr.last_year) + '</b></div>' : '')
       + '</td>';
 
     h += '<td class="l">';
@@ -1847,6 +1855,9 @@ function openProp(id){
     + '<label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px">'
     + '<input type="checkbox" id="prWhole"' + (!pr || pr.whole !== false ? ' checked' : '')
     + ' style="width:auto" /> Whole numbers only</label>'
+    + lab('Last season, for context')
+    + '<input type="text" id="prLY" value="' + esc(pr && pr.last_year ? pr.last_year : '')
+    + '" placeholder="filled in by the stats job" />'
     + lab('Menu options, comma separated')
     + '<input type="text" id="prO" value="' + esc(pr && pr.options ? pr.options.join(', ') : '')
     + '" placeholder="BYU, Texas Tech, Utah…" />'
@@ -1891,7 +1902,8 @@ async function saveProp(id){
     auto_player: (JOB_PROPS[$('prA').value] || {}).player
                  ? ($('prPlayer').value || '').trim() || null : null,
     min_val: num('prMin'), max_val: num('prMax'),
-    whole: $('prWhole').checked
+    whole: $('prWhole').checked,
+    last_year: ($('prLY').value || '').trim() || null
   };
   if((JOB_PROPS[row.auto] || {}).player && !row.auto_player)
     return toast('That one needs a player name');
@@ -1938,6 +1950,13 @@ const SEED_PROPS = [
   { question: 'Does BYU make the College Football Playoff?', kind: 'choice',
     options: ['Yes', 'No'] },
 
+  { question: 'How many interceptions will the defence have?',
+    detail: 'The whole defence, regular season', unit: 'INTs',
+    auto: 'team_ints', min: 0, max: 30 },
+  { question: 'How many touchdowns will the defence and special teams score?',
+    detail: 'Pick sixes, scoop-and-scores, punt and kick returns. Not extra points or field goals.',
+    unit: 'TDs', auto: 'team_def_st_td', min: 0, max: 15 },
+
   { question: 'Bear Bachmeier passing touchdowns',
     detail: 'Regular season', unit: 'TDs', min: 0, max: 60,
     auto: 'pass_td', player: 'Bear Bachmeier' },
@@ -1966,9 +1985,21 @@ const SEED_PROPS = [
     auto: 'int_leader_ints' }
 ];
 
+const propKey = q => String(q || '').trim().toLowerCase();
+function missingStandard(){
+  const have = new Set(props.map(p => propKey(p.question)));
+  return SEED_PROPS.filter(r => !have.has(propKey(r.question)));
+}
+
+/* Additive on purpose: pressing this again after we have added a question to
+   the standard set puts up only the new ones, and never a duplicate. It also
+   renumbers the standard questions back into their intended order, so a late
+   arrival lands where it belongs rather than on the end. */
 async function seedProps(){
-  const rows = SEED_PROPS.map((r, i) => ({
-    season, sort: i, question: r.question, detail: r.detail || null,
+  const missing = missingStandard();
+  if(!missing.length) return toast('Every standard question is already up');
+  const rows = missing.map(r => ({
+    season, sort: SEED_PROPS.indexOf(r), question: r.question, detail: r.detail || null,
     kind: r.kind || 'number', unit: r.unit || null, options: r.options || null,
     auto: r.auto || null, auto_player: r.player || null,
     min_val: r.min == null ? null : r.min, max_val: r.max == null ? null : r.max,
@@ -1976,8 +2007,17 @@ async function seedProps(){
   }));
   const { error } = await supa.from('b12_props').insert(rows);
   if(error) return toast(error.message, 4500);
+
+  // Put the ones already up back in the canonical order too.
+  const byKey = {};
+  SEED_PROPS.forEach((r, i) => { byKey[propKey(r.question)] = i; });
+  await Promise.all(props.filter(p => byKey[propKey(p.question)] !== undefined
+                                   && p.sort !== byKey[propKey(p.question)])
+    .map(p => supa.from('b12_props').update({ sort: byKey[propKey(p.question)] })
+                  .eq('id', p.id)));
+
   await loadProps(); render();
-  toast('The thirteen are up — edit or bin any of them');
+  toast(missing.length + ' question' + (missing.length === 1 ? '' : 's') + ' added');
 }
 
 /* ------------------------------- history -------------------------------- */

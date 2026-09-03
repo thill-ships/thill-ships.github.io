@@ -140,11 +140,12 @@ create table if not exists b12_props (
                       'pass_yds','pass_td','rush_yds','rush_td','long_rush',
                       'rec_yds','rec_td','long_rec','ints','sacks','tackles',
                       'rec_leader','rec_leader_yds','int_leader','int_leader_ints',
-                      'team_ints','team_sacks')),
+                      'team_ints','team_sacks','team_def_st_td')),
   auto_player text,                         -- the athlete, as ESPN spells them
   min_val   numeric,                        -- sanity bounds for a number answer:
   max_val   numeric,                        -- nobody wins 14 Big 12 games
   whole     boolean not null default true,  -- whole numbers only?
+  last_year text,                           -- last season's answer, for context
   actual    numeric,                        -- number props: the running total
   actual_choice text,                       -- choice props: what happened
   settled   boolean not null default false,
@@ -156,6 +157,7 @@ alter table b12_props add column if not exists min_val numeric;
 alter table b12_props add column if not exists max_val numeric;
 alter table b12_props add column if not exists whole   boolean not null default true;
 alter table b12_props add column if not exists auto_player text;
+alter table b12_props add column if not exists last_year   text;
 
 -- Widening the set of things a question can answer for itself. Safe to re-run.
 alter table b12_props drop constraint if exists b12_props_auto_check;
@@ -164,7 +166,7 @@ alter table b12_props add  constraint b12_props_auto_check check (auto is null o
    'pass_yds','pass_td','rush_yds','rush_td','long_rush',
    'rec_yds','rec_td','long_rec','ints','sacks','tackles',
    'rec_leader','rec_leader_yds','int_leader','int_leader_ints',
-   'team_ints','team_sacks'));
+   'team_ints','team_sacks','team_def_st_td'));
 create index if not exists b12_props_season_idx on b12_props (season, sort, id);
 
 -- One row per person per question.

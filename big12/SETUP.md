@@ -1,8 +1,10 @@
 # Big 12 War Room — setup
 
-About ten minutes, and most of the work is already done: this app rides on the same
-Supabase project and the same schedule sync the [pick'em](../pickem/SETUP.md) app uses. It
-adds three tables and one weekly job. Nothing here costs money.
+About twenty minutes, most of it waiting. Everything rides on the same Supabase project and
+the same schedule sync the [pick'em](../pickem/SETUP.md) app already uses, so there are no new
+accounts to open, no keys to paste, and nothing here costs money.
+
+**Follow the numbered steps in order.** Steps 1 to 4 are the whole setup.
 
 | Piece | Where it runs | What it does |
 |---|---|---|
@@ -15,72 +17,152 @@ adds three tables and one weekly job. Nothing here costs money.
 
 ---
 
-## 1. Pick the shared password's address
+## Before you start
 
-There are no individual accounts. You both sign in with **one** email and password, and
-that one address is the entire access rule.
+Everything below happens in three places. These links go straight to yours:
 
-Open **`big12/schema.sql`** and look at the top:
+- **Supabase** — [SQL editor](https://supabase.com/dashboard/project/yehpygarkxdopdvugifk/sql/new)
+  · [Auth providers](https://supabase.com/dashboard/project/yehpygarkxdopdvugifk/auth/providers)
+  · [Users](https://supabase.com/dashboard/project/yehpygarkxdopdvugifk/auth/users)
+- **GitHub Actions** — [the repo's Actions tab](https://github.com/thill-ships/thill-ships.github.io/actions)
+- **The apps** — `https://thill-ships.github.io/big12/` and `https://thill-ships.github.io/props/`
 
-```sql
-create or replace function b12_is_editor()
-...
-    'warroom@thill-ships.app'          -- <-- the shared account
+**There is nothing to edit in any file.** The Supabase keys and the shared account address are
+already filled in and already match each other. Skip to step 1.
+
+---
+
+## 1. Run the schema
+
+1. Open the [SQL editor](https://supabase.com/dashboard/project/yehpygarkxdopdvugifk/sql/new).
+2. Open `big12/schema.sql` from this repo, select all of it, copy it.
+3. Paste it into the query box and press **Run** (bottom right, or Ctrl/Cmd+Enter).
+
+Supabase will warn that the query contains destructive operations. That warning is a keyword
+match on `drop policy`; the file drops policies only so it can recreate them, and never drops a
+table, a column, or a row. Say yes.
+
+You should see **Success. No rows returned**. If you see an error instead, copy it and stop
+here — everything else depends on this step.
+
+> **Re-run this whole file after pulling updates.** It is written to be safe to run repeatedly,
+> and that is how new columns and rules get applied. It has changed several times already.
+
+## 2. Check that sign-up doesn't need email confirmation
+
+This one matters more than it looks: a dozen people are about to create accounts on the props
+app, and if Supabase is waiting on confirmation emails, every one of them gets stuck.
+
+1. Open [Auth → Providers](https://supabase.com/dashboard/project/yehpygarkxdopdvugifk/auth/providers).
+2. Click **Email**.
+3. **Confirm email** must be **off**. If it is on, turn it off and **Save**.
+
+With it off, creating an account is instant and no email is ever sent. (You very likely did
+this already when you set up the pick'em — check anyway.)
+
+## 3. Create the War Room login
+
+The board has one shared password. Both of you use it; there are no separate accounts. The
+address it signs in with is **`warroom@thill-ships.app`** — already set in the code, in both
+places it needs to be. **It does not need to be a real mailbox.** No mail is ever sent to it.
+It exists only because Supabase wants sign-ins to look like an email address.
+
+Do it in the dashboard — it takes 30 seconds and avoids any chance of a stranger claiming the
+password first:
+
+1. Open [Auth → Users](https://supabase.com/dashboard/project/yehpygarkxdopdvugifk/auth/users).
+2. Click **Add user** (top right) → **Create new user**.
+3. **Email address:** `warroom@thill-ships.app`
+4. **Password:** whatever you two will use. Six characters minimum.
+5. Tick **Auto Confirm User**. This matters — without it the account cannot sign in.
+6. Click **Create user**.
+
+Then go to `https://thill-ships.github.io/big12/`, type that password, and hit **Open the
+board**. You are in, and that browser stays signed in all season.
+
+<details>
+<summary>The other way, if you would rather not touch the dashboard</summary>
+
+Go to `https://thill-ships.github.io/big12/`, type the password you want, and hit **Open the
+board**. It will tell you the password did not work and offer a button reading **set this as
+the password**. Click that and the account is created with whatever you typed.
+
+This only works once, and only while nobody has claimed it — so do it immediately, not next
+week.
+</details>
+
+**To change the password later:** [Auth → Users](https://supabase.com/dashboard/project/yehpygarkxdopdvugifk/auth/users),
+find the row, use the "..." menu on the right → **Reset password** or **Send magic link**.
+
+## 4. Run the three jobs once
+
+Open [the Actions tab](https://github.com/thill-ships/thill-ships.github.io/actions). Each of
+these is in the left-hand list; click it, then **Run workflow** on the right, then **Run
+workflow** again in the little panel that drops down.
+
+| Run this | What to expect in the log |
+|---|---|
+| **Pick'em — sync games** | A line per week with a game count. This loads the season. It was probably already running for the pick'em; run it anyway so you know it is current. |
+| **War Room — BYU player stats** — set **Dry run** to `1` | How many BYU games it read, who it thinks leads each category, and which prop it would set to what. **It writes nothing.** Before the season this will say *0 finished games* — see the rehearsal below. |
+| **War Room — weekly snapshot** | "Snapshot saved…" or a line saying why it skipped. |
+
+### Rehearsing before a ball is snapped
+
+Before the season, the dry run has nothing to chew on — it will simply say *0 finished games*.
+To find out whether any of it works, rehearse against a season that has already happened:
+
+**War Room — BYU player stats → Run workflow → Probe season: `2025`**
+
+It reads BYU's real 2025 box scores off ESPN, adds every player up, prints the whole season
+line, and shows what each of *this* year's questions would resolve to. **It writes nothing** —
+the probe forces itself read-only, so there is no way to dirty the season with it.
+
+What good looks like: a table of real BYU players with sane totals, a rushing leader in four
+figures, a quarterback with a plausible touchdown count.
+
+One thing not to panic about: the questions name 2026 players, and 2025 had a different roster,
+so some names will not match. The log says so and explains itself. You are checking the
+machinery, not the roster.
+
+### Putting last season under each question
+
+People guess better with a reference point, and typing fifteen 2025 figures in by hand is
+exactly the chore this whole thing exists to avoid. The job will work them out:
+
+**War Room — BYU player stats → Run workflow → Backfill last year: `1`**
+
+It reads BYU's 2025 season the same way it reads this one and writes what happened into each
+question's *last season* line — the record, the blowouts, the interceptions, the yardage, who
+led receiving. That line then shows up under the question in the props app, right above the box
+people are about to fill in.
+
+It only ever writes that one field. This season's numbers are untouched, including on questions
+you have already settled.
+
+The two December yes-or-nos it cannot answer, and it says so in the log. Type those in yourself
+under **Season props → Edit → Last season, for context** — or leave them blank.
+
+Do this **before you send the link round**, so the context is there when people answer.
+
+**Read the dry-run log properly.** It is the one chance to catch a misspelled player name
+before anybody locks in. It will say things like:
+
+```
+  leader   rec_yds: Kyler Kasper (237)
+  !! no player matching "LJ Martin" has appeared in a box score yet: LJ Martin rushing yards
 ```
 
-It does **not** need to be a real mailbox — no confirmation email is ever sent — but it does
-need to look like an email address. Use whatever you like, or leave it as it is. If you want
-your own personal login to work too, add it to the array as a second entry.
+The first is fine. The second means the name in the prop does not match how ESPN spells it —
+fix it in the War Room under **Season props → Edit → Which player?**. (Early in the season
+"has not appeared yet" may simply be true, if they have not played.)
 
-Then open **`big12/index.html`**, find the `CFG` block, and make `account` match:
+When the log looks right, run **War Room — BYU player stats** again with **Dry run** left at
+`0` so it actually writes.
 
-```js
-const CFG = {
-  url:     'https://yehpygarkxdopdvugifk.supabase.co',
-  key:     'sb_publishable_...',
-  account: 'warroom@thill-ships.app'   // <-- same address as schema.sql
-};
-```
+After this, all three run on their own: the sync every two hours, the stats every six, the
+snapshot every Monday at 6am Mountain.
 
-The URL and key are the pick'em app's, already filled in. The publishable key is *meant* to
-be public; Row Level Security is what actually protects the data.
-
-## 2. Run the schema
-
-Supabase → **SQL Editor → New query** → paste the whole of `big12/schema.sql` → **Run**.
-
-Supabase will warn that the query contains destructive operations. That is a keyword match on
-`drop policy`; the file drops policies only so it can recreate them, and never drops a table,
-a column, or a row. **Re-run the whole file after pulling updates** — it is written to be safe
-to run repeatedly, and that is how new columns and rules get applied.
-
-## 3. Claim the password
-
-Open `https://thill-ships.github.io/big12/`, type the password you want, and hit
-**Open the board**. It will tell you no account exists yet and offer to set that password.
-Do it once, tell your boss the password, and you are both in — that browser stays signed in
-all season.
-
-> Do this promptly after step 2. Until the password is claimed, anyone who found the URL
-> could claim it. Afterwards the page is just a wrong-password box. If you would rather not
-> race anyone, create the user yourself first in Supabase under
-> **Authentication → Users → Add user** (email + password, "auto confirm" on), and skip the
-> claim.
-
-If you ever need to change it: **Authentication → Users**, find the account, and set a new
-password from the row menu.
-
-## 4. Turn on the weekly snapshot
-
-Nothing to configure — `War Room — weekly snapshot` uses the same `SUPABASE_URL` and
-`SUPABASE_SERVICE_KEY` secrets the pick'em jobs already use. Go to the **Actions** tab, find
-it, and **Run workflow** once by hand to confirm it works. After that it runs itself every
-Monday at 6am Mountain.
-
-If the log says *"Nobody has opened the board yet"*, open the app once first — the first
-visit writes the settings row.
-
-## 5. Set up the season props
+## 5. Put up the questions
 
 The season props — *how many yards will LJ Martin run for*, *how many games do they win* — are
 a separate app at `props/`, and it is the one part of this system with **individual accounts**.
@@ -96,26 +178,32 @@ tables. Two things to know:
   else sees**, changeable any time from the button in the top right — and if somebody ends up
   with a name derived from their email, the app nags them to fix it before they lock in.
 - **You write the questions, they answer them.** In the War Room, open **Season props**, and
-  hit **Put up the thirteen** to post the agreed set:
+  hit **Put up the standard 15** to post the agreed set:
 
-  | # | Question | Type |
+  | # | Question | Answered by |
   |---|---|---|
-  | 1 | Who leads BYU in receiving yards? | Kasper · Phillips · Bachmeier · Glasker |
-  | 2 | How many receiving yards does the leader finish with? | number |
-  | 3 | Who leads BYU in interceptions? | Uluave · Glasker · Satuala · Johnson · Alexander · DeVries |
-  | 4 | How many interceptions does the leader finish with? | number |
-  | 5 | How many regular-season games does BYU win? | **scored automatically** |
-  | 6 | How many Big 12 games does BYU win? | **scored automatically** |
-  | 7 | How many games does BYU win by 14 or more? | **scored automatically** |
-  | 8 | Bear Bachmeier rushing touchdowns | number |
-  | 9 | Bear Bachmeier passing touchdowns | number |
-  | 10 | LJ Martin rushing yards | number |
-  | 11 | LJ Martin's longest run of the season | number |
-  | 12 | Does BYU make the Big 12 championship game? | Yes / No |
-  | 13 | Does BYU make the College Football Playoff? | Yes / No |
+  | 1 | How many regular-season games does BYU win? | **the schedule** |
+  | 2 | How many Big 12 games does BYU win? | **the schedule** |
+  | 3 | How many games does BYU win by 14 or more? | **the schedule** |
+  | 4 | Does BYU make the Big 12 championship game? | you, in December |
+  | 5 | Does BYU make the College Football Playoff? | you, in December |
+  | 6 | How many interceptions will the defence have? | **box scores** |
+  | 7 | How many touchdowns will the defence and special teams score? | **box scores** |
+  | 8 | Bear Bachmeier passing touchdowns | **box scores** |
+  | 9 | Bear Bachmeier rushing touchdowns | **box scores** |
+  | 10 | LJ Martin rushing yards | **box scores** |
+  | 11 | LJ Martin's longest run of the season | **box scores** |
+  | 12 | Who leads BYU in receiving yards? | **box scores** |
+  | 13 | How many receiving yards does the leader finish with? | **box scores** |
+  | 14 | Who leads BYU in interceptions? | **box scores** |
+  | 15 | How many interceptions does the leader finish with? | **box scores** |
 
-  Each number question also carries a **lowest** and **highest allowed**, set in the same
-  editor. That is what stops a fat finger putting 140 in the Big 12 wins box.
+  Thirteen of the fifteen keep themselves. Only the two December yes-or-nos are yours.
+
+  **The button is additive.** If a question joins the standard set later, press it again: it
+  puts up only what is missing, never a duplicate, and shuffles the existing ones back into
+  this order so the new one lands where it belongs. Once they are all up, the button
+  disappears.
 
   **Read the wording once before you send anyone the link.** Editing a question after people
   have locked in does not change the answers they already gave, so the time to fix a name or
@@ -158,14 +246,22 @@ before you go looking at the window.
 
 ### Keeping score
 
-**Eleven of the thirteen answer themselves.** Nobody types a yardage total.
+**Thirteen of the fifteen answer themselves.** Nobody types a yardage total.
 
 - **Three come off the schedule** — wins, Big 12 wins, and wins by 14 or more — worked out in
   the browser from the games already syncing.
-- **Eight come off BYU's box scores.** `War Room — BYU player stats` walks every finished BYU
-  game, adds each player up, and writes the answer into the prop: Bachmeier's passing and
-  rushing touchdowns, Martin's rushing yards and longest run, and both leader races with the
-  numbers that go with them. It runs every six hours.
+- **Ten come off BYU's box scores.** `War Room — BYU player stats` walks every finished BYU
+  game, adds each player up, and writes the answer into the prop: the defence's interceptions
+  and its touchdowns, Bachmeier's passing and rushing touchdowns, Martin's rushing yards and
+  longest run, and both leader races with the numbers that go with them. It runs every six
+  hours.
+
+  The defence-and-special-teams touchdown count is the fiddly one, and it is careful about it.
+  ESPN reports a pick six twice — once as a defensive touchdown, once as an interception
+  touchdown — so the job takes the larger of the pair rather than adding them, which survives
+  ESPN filling in only one and never counts a play twice. Kick and punt return touchdowns sit
+  in their own categories and cannot overlap, so they simply add. Kicking is excluded
+  entirely: no extra points, no field goals.
 
 Only the two postseason yes-or-nos are left by hand, and those are one click each in December.
 
@@ -182,7 +278,15 @@ freeze a final number. Closest answer takes the prop; a tie splits it.
 If ESPN ever gets one wrong, open the prop in **Edit**, set *Can the app score it?* back to
 "we keep this one by hand", and the *Where it stands* box becomes typeable again.
 
-## 6. Choose your contenders
+## 6. Send everyone the link
+
+`https://thill-ships.github.io/props/` — that is the only link the wider group needs. They
+create an account, answer thirteen questions, lock in.
+
+Tell them two things: **locking in is final**, and it is what lets them see everyone else's
+numbers.
+
+## 7. Choose your contenders
 
 The board opens on **BYU, Arizona State, Texas Tech, Utah, Arizona and Houston**. Hit
 **Contenders** to change it: add a team, drop one, or move a row up and down. Eight rows is
@@ -191,6 +295,21 @@ schedule you are predicting week to week, so dropping a team that has fallen out
 costs you nothing.
 
 ---
+
+## Are you live?
+
+Run through this once and you are done.
+
+- [ ] `schema.sql` ran clean (step 1)
+- [ ] **Confirm email** is off in Supabase (step 2)
+- [ ] The War Room password gets you into `/big12/` (step 3)
+- [ ] The board has games on it — if it says "No 2026 Big 12 schedule", the sync has not run
+- [ ] The stats **probe against 2025** produced a believable BYU season (step 4)
+- [ ] **Backfill last year** run, so each question carries its 2025 figure
+- [ ] Once BYU has played, the dry run named the right players and you re-ran it for real
+- [ ] **Season props** shows fifteen questions
+- [ ] `/props/` lets you create a test account and answer them
+- [ ] You sent the props link round
 
 ## The BYU tab
 
