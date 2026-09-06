@@ -299,7 +299,7 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-08-26.6';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-09-06.1';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
@@ -425,16 +425,30 @@ async function signedIn(u){
 }
 
 async function ensurePlayer(){
-  const { data } = await supa.from('pickem_players').select('*').eq('user_id',user.id).maybeSingle();
-  if(data){ player=data; }
-  else{
-    const guess=(user.email||'').split('@')[0].replace(/[._-]+/g,' ')
-      .replace(/\b\w/g,c=>c.toUpperCase()).slice(0,28);
-    player={ user_id:user.id, display_name:guess||'New player', email:user.email, notify:true };
-    await supa.from('pickem_players').insert(player);
-    setTimeout(()=>{ openProfile(); toast('Set your name for the leaderboard'); },700);
+  const { data, error } = await supa.from('pickem_players')
+    .select('*').eq('user_id',user.id).maybeSingle();
+
+  // A failed lookup is not the same as a new player. Treating it as one opened
+  // the profile sheet on every single load, which is also how people ended up
+  // hitting Sign out by accident.
+  if(error){
+    console.warn('profile lookup failed', error);
+    player={ user_id:user.id, email:user.email, notify:true,
+             display_name:(user.email||'You').split('@')[0] };
+    paintMe(); return;
   }
+  if(data){ player=data; paintMe(); return; }
+
+  const guess=(user.email||'').split('@')[0].replace(/[._-]+/g,' ')
+    .replace(/\b\w/g,c=>c.toUpperCase()).slice(0,28);
+  player={ user_id:user.id, display_name:guess||'New player', email:user.email, notify:true };
+  // upsert, not insert: a row that already exists must not look like a failure
+  const { error:saveErr } = await supa.from('pickem_players')
+    .upsert(player,{ onConflict:'user_id' });
   paintMe();
+  if(saveErr){ console.warn('profile create failed', saveErr); return; }
+  // Only a genuinely new player gets asked to name themselves.
+  setTimeout(()=>{ openProfile(); toast('Set your name for the leaderboard'); },700);
 }
 function paintMe(){
   const n=(player&&player.display_name)||'You';
@@ -453,9 +467,14 @@ async function loadAll(){
   $('kicker').textContent='Big 12 · '+season;
 
   if(week==null || !weeks.some(w=>w.week===week)){
+    // Open on the week actually being played. Picking the next week whose
+    // deadline is still ahead jumped to next week the moment this one locked,
+    // so from Thursday kickoff onward you were looking at games four days out.
+    // The week you are in is the last one whose window has opened; the next
+    // week takes over when its own window opens, Sunday at 6am.
     const now=Date.now();
-    const next=weeks.find(w=>w.lock_at && new Date(w.lock_at).getTime()>now);
-    week = next ? next.week : weeks[weeks.length-1].week;
+    const started=weeks.filter(w=>w.open_at && new Date(w.open_at).getTime()<=now);
+    week = started.length ? started[started.length-1].week : weeks[0].week;
   }
   await loadStandings();
   await loadWeek(true);
@@ -788,7 +807,12 @@ async function toggleNotify(){
   toast(next?'Reminders on':'Reminders off');
 }
 
-async function signOut(){ await supa.auth.signOut(); location.reload(); }
+async function signOut(){
+  // One session covers the pick'em, the war room and props, so this is not a
+  // small button. Ask before throwing all three away.
+  if(!confirm('Sign out?\n\nThis signs you out of the war room and props too.')) return;
+  await supa.auth.signOut(); location.reload();
+}
 
 /* ========================= realtime ========================= */
 function realtime(){

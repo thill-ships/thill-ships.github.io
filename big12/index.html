@@ -505,7 +505,24 @@ async function signedIn(u){
   user = u;
   $('gate').style.display = 'none';
   $('app').style.display = '';
+  await ensurePropPlayer(u);
   await loadAll();
+}
+
+// The war room builds its roster purely from b12_prop_players, so anyone who
+// arrives here with a pick'em account and has never opened /props/ has no row
+// and simply does not appear. Create it on the way in, the way /props/ does.
+async function ensurePropPlayer(u){
+  const { data, error } = await supa.from('b12_prop_players')
+    .select('user_id').eq('user_id', u.id).maybeSingle();
+  if(error || data) return;
+  const name = (u.user_metadata && u.user_metadata.display_name)
+    || (u.email || '').split('@')[0].replace(/[._-]+/g,' ')
+       .replace(/\b\w/g, c => c.toUpperCase());
+  const { error: saveErr } = await supa.from('b12_prop_players')
+    .upsert({ user_id:u.id, display_name:name || 'New player', email:u.email },
+            { onConflict:'user_id' });
+  if(saveErr) console.warn('war room roster row failed', saveErr);
 }
 
 /* ========================= loading ========================= */

@@ -260,8 +260,60 @@ def week_range():
     return range(int(spec), int(spec) + 1)
 
 
+def sync_scores_only(season):
+    """Fast path for game days: one request, scores only, no odds.
+
+    ESPN's scoreboard with no week parameter returns whatever is on right now,
+    so this is a single call rather than the sixteen a full sync makes. It
+    writes only the columns that move during a game, which means it can run
+    every few minutes without any risk of disturbing a frozen line.
+    """
+    url = f"{ESPN}?groups={BIG12_GROUP}&limit=200"
+    data = get_json(url)
+    events = data.get("events") or []
+
+    rows, live_now, finals = [], 0, 0
+    for event in events:
+        full = parse_event(event, 0, season)
+        if not full:
+            continue
+        rows.append({
+            "id": full["id"],
+            "status": full["status"],
+            "home_score": full["home_score"],
+            "away_score": full["away_score"],
+            "winner_id": full["winner_id"],
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        })
+        if full["status"] == "in":
+            live_now += 1
+        elif full["status"] == "final":
+            finals += 1
+
+    if not rows:
+        print("No games on the board right now. Nothing to update.")
+        return
+
+    for i in range(0, len(rows), 100):
+        upsert(rows[i:i + 100])
+
+    print(f"Score sync: {len(rows)} games touched "
+          f"({live_now} in progress, {finals} final).")
+    for event in events:
+        comp = (event.get("competitions") or [{}])[0]
+        st = ((comp.get("status") or {}).get("type") or {})
+        if st.get("state") == "in":
+            print(f"  LIVE  {event.get('shortName')}  {st.get('detail') or ''}")
+
+
 def main():
     season = as_int(os.environ.get("SEASON")) or football_season()
+
+    if os.environ.get("LIVE") == "1":
+        print(f"Live score sync for the {season} season")
+        sync_scores_only(season)
+        return
+
     print(f"Syncing Big 12 games for the {season} season")
 
     all_rows, seen = [], set()
