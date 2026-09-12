@@ -299,7 +299,7 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-09-06.1';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-09-12.1';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
@@ -614,6 +614,11 @@ function renderGames(){
 
   $('games').innerHTML = games.map(g=>{
     const mine=picks[g.id], final=g.status==='final', live=g.status==='in';
+    // During a deadline extension the week is open but individual games that
+    // have already kicked off stay shut. The database enforces this; the card
+    // just has to stop inviting a tap it would refuse.
+    const started = new Date(g.kickoff).getTime() <= Date.now();
+    const shut = lk || started;
 
     const when = new Date(g.kickoff)
       .toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
@@ -621,6 +626,7 @@ function renderGames(){
     let flag, cls;
     if(final){ flag='Final'; cls=''; }
     else if(live){ flag='Live'; cls='in'; }
+    else if(started){ flag='Started'; cls=''; }
     else if(lk){ flag='Locked'; cls=''; }
     else if(mine){ flag='Picked'; cls='in'; }
     else { flag='Needs you'; cls='todo'; }
@@ -638,7 +644,7 @@ function renderGames(){
       let badge='';
       if(isMine && final) badge='<span class="fav '+(won?'hit':'miss')+'">'+(won?'&#10003;':'&#10007;')+'</span>';
       else if(isMine)     badge='<span class="fav">&#10003;</span>';
-      else if(!lk)        badge='<span class="fav">&#10003;</span>';
+      else if(!shut)      badge='<span class="fav">&#10003;</span>';
 
       // Underdogs advertise their payout before you pick.
       const pv = pointsFor(g, id);
@@ -649,7 +655,7 @@ function renderGames(){
         ? '<span class="sc">'+sc+'</span>'
         : (meta ? '<span class="sub">'+esc(meta)+'</span>' : '<span class="sub">&nbsp;</span>');
 
-      return '<button class="'+c+'" data-team="'+esc(id)+'"'+(lk?' disabled':'')+
+      return '<button class="'+c+'" data-team="'+esc(id)+'"'+(shut?' disabled':'')+
         ' onclick="setPick(\''+g.id+'\',\''+id+'\')">'+badge+
         '<span class="side">'+(side==='away'?'Away':'Home')+'</span>'+
         '<span class="logo">'+(logo

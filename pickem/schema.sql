@@ -55,6 +55,25 @@ create table if not exists pickem_locks (
   primary key (user_id, season, week)
 );
 
+-- A deadline extension, used when someone misses the window and the league
+-- agrees to reopen it. Only ever pushes a deadline later, never earlier.
+-- Delete the row to put the normal deadline back.
+create table if not exists pickem_week_overrides (
+  season     int not null,
+  week       int not null,
+  lock_at    timestamptz not null,
+  reason     text,
+  created_at timestamptz not null default now(),
+  primary key (season, week)
+);
+alter table pickem_week_overrides enable row level security;
+drop policy if exists overrides_read on pickem_week_overrides;
+-- Readable so the app can show the extended deadline. Writing is service-role
+-- only: no policy for insert or update means nobody can grant themselves time.
+create policy overrides_read on pickem_week_overrides
+  for select to authenticated using (true);
+
+
 -- One row per person per game.
 create table if not exists pickem_picks (
   user_id    uuid not null references auth.users(id) on delete cascade,
@@ -78,10 +97,17 @@ create table if not exists pickem_reminders (
 -- Lock rule: every pick for a week locks at that week's FIRST kickoff.
 -- ---------------------------------------------------------------------------
 
+-- Normally the first kickoff of the week. GREATEST ignores NULLs, so with no
+-- override row this is unchanged, and an override can only move it later.
 create or replace function pickem_lock_at(p_season int, p_week int)
 returns timestamptz
 language sql stable security definer set search_path = public as $$
-  select min(kickoff) from pickem_games where season = p_season and week = p_week;
+  select greatest(
+    (select min(kickoff) from pickem_games
+      where season = p_season and week = p_week),
+    (select lock_at from pickem_week_overrides
+      where season = p_season and week = p_week)
+  );
 $$;
 
 -- Underdog scoring. A correct pick is worth more the bigger the upset.
@@ -149,6 +175,11 @@ language sql stable security definer set search_path = public as $$
   select coalesce(
     (select now() <  pickem_open_at(g.season, g.week)
           or now() >= pickem_lock_at(g.season, g.week)
+          -- Belt and braces, and the whole point during an extension: a game
+          -- that has already kicked off is never pickable, whatever the
+          -- week's deadline says. Without an override this never fires,
+          -- because the week locks at the earliest kickoff anyway.
+          or now() >= g.kickoff
           or pickem_is_locked_in(auth.uid(), g.season, g.week)
      from pickem_games g where g.id = p_game_id),
     true
@@ -263,7 +294,7 @@ drop view if exists pickem_weeks cascade;
 create view pickem_weeks with (security_invoker = true) as
 select season,
        week,
-       min(kickoff)                             as lock_at,
+       pickem_lock_at(season, week)             as lock_at,
        pickem_open_at(season, week)             as open_at,
        max(kickoff)                             as last_kickoff,
        count(*)::int                            as games,
