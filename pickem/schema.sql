@@ -82,6 +82,9 @@ create table if not exists pickem_picks (
   updated_at timestamptz not null default now(),
   primary key (user_id, game_id)
 );
+-- True when the deadline passed with this game unpicked and the favourite was
+-- assigned on that player's behalf. Shown in the app so nobody is surprised.
+alter table pickem_picks add column if not exists auto boolean not null default false;
 
 -- Bookkeeping so the reminder job never nags the same person twice in a week.
 create table if not exists pickem_reminders (
@@ -332,6 +335,11 @@ do $$
 begin
   begin
     alter publication supabase_realtime add table pickem_picks;
+  exception when duplicate_object then null;
+  end;
+  -- So someone else locking in reveals their picks to you without a reload.
+  begin
+    alter publication supabase_realtime add table pickem_locks;
   exception when duplicate_object then null;
   end;
   begin

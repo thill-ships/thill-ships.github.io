@@ -119,6 +119,8 @@
   .pk.on .fav{background:var(--navy);color:#fff;}
   .pk .fav.hit{background:var(--green);color:#fff;}
   .pk .fav.miss{background:var(--red);color:#fff;}
+  .auto{position:absolute;bottom:9px;right:9px;font-size:9px;font-weight:800;letter-spacing:.06em;
+    text-transform:uppercase;background:#E7EAF0;color:var(--muted);padding:2px 6px;border-radius:999px;}
   .pts{position:absolute;top:9px;left:9px;font-size:9.5px;font-weight:800;letter-spacing:.03em;
     background:#FFF1DC;color:var(--amber);padding:3px 6px;border-radius:999px;}
   .lin{margin:16px 15px 0;background:var(--card);border-radius:20px;padding:18px 17px;
@@ -251,7 +253,12 @@
               line are worth 1.</li>
           <li><b>You have from Sunday 6am to the first kickoff.</b> Picks open at the same
               time every week and close when the week's earliest game starts &mdash; usually
-              Thursday evening. Miss it and those games are zeroes.</li>
+              Thursday evening.</li>
+          <li><b>Forget to pick and you get the favourite.</b> After the deadline, any game
+              you left blank is filled in with the favourite for you, marked <b>Auto</b> on
+              the card. A favourite is only ever worth 1 point, so forgetting still costs
+              you the shot at an underdog &mdash; it just doesn't cost you the whole week.
+              A game with no posted line has no favourite, so it stays blank.</li>
           <li><b>Lock in early if you want to see everyone else.</b> Once all your games are
               picked you can lock in before the deadline. Your picks go final immediately, and
               in exchange you see the picks of everyone else who has locked in &mdash; and only
@@ -299,11 +306,12 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-10-01.1';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-10-01.2';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
 let locks=[], myLocked=false;
+let picksAuto={};   // game_id -> true when the favourite was assigned for you
 let season=null, week=null, lockAt=null, openAt=null, ticker=null;
 
 const $ = id => document.getElementById(id);
@@ -499,8 +507,11 @@ async function loadWeek(scrollWeeks){
     const { data:p } = await supa.from('pickem_picks').select('*').in('game_id',games.map(x=>x.id));
     allPicks=p||[];
   }
-  picks={};
-  allPicks.filter(p=>p.user_id===user.id).forEach(p=>{ picks[p.game_id]=p.team_id; });
+  picks={}; picksAuto={};
+  allPicks.filter(p=>p.user_id===user.id).forEach(p=>{
+    picks[p.game_id]=p.team_id;
+    if(p.auto) picksAuto[p.game_id]=true;
+  });
 
   const { data:lk } = await supa.from('pickem_locks').select('*')
     .eq('season',season).eq('week',week);
@@ -655,6 +666,8 @@ function renderGames(){
       // Underdogs advertise their payout before you pick.
       const pv = pointsFor(g, id);
       if(pv > 1) badge += '<span class="pts">'+pv+' PTS</span>';
+      // Be upfront when a pick was assigned rather than chosen.
+      if(isMine && picksAuto[g.id]) badge += '<span class="auto">Auto</span>';
 
       const meta = [rank?'#'+rank:'', rec||''].filter(Boolean).join(' · ');
       const bottom = (final||live) && sc!=null

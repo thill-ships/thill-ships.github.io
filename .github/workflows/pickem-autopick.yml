@@ -1,0 +1,42 @@
+name: Pick'em — assign favourites to anyone who forgot
+
+# Runs after a week's deadline and fills blank picks with the favourite,
+# using the spread frozen when picks opened. Idempotent: a game that already
+# has a pick is left alone.
+on:
+  schedule:
+    # Deadlines land on the week's first kickoff, which in practice is
+    # Thursday through Saturday. Quarter-hourly so an assignment is recorded
+    # close to the deadline rather than hours later.
+    - cron: '*/15 * * * 4,5,6,0'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Report what would be assigned, without writing'
+        type: boolean
+        required: false
+        default: true
+      season:
+        description: 'Season year (blank = current)'
+        required: false
+
+concurrency:
+  group: pickem-autopick
+  cancel-in-progress: false
+
+jobs:
+  autopick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assign favourites
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SEASON: ${{ inputs.season }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: python .github/scripts/pickem_autopick.py
