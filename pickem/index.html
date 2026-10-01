@@ -299,7 +299,7 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-09-12.1';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-10-01.1';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
@@ -338,7 +338,12 @@ function toast(m, ms=2600){
       '<code>pickem/SETUP.md</code>.</p></div>';
     return;
   }
-  supa = window.supabase.createClient(CFG.url, CFG.key);
+  supa = window.supabase.createClient(CFG.url, CFG.key, {
+    // Sessions are stored per app rather than per origin. Without this every
+    // app on the site shared one token, so signing into one switched the
+    // others to the same account. The pick'em now holds its own.
+    auth: { storageKey: 'sb-pickem-auth' }
+  });
 
   // Surface a bad/expired magic link instead of silently doing nothing.
   const h = new URLSearchParams(location.hash.replace(/^#/,''));
@@ -504,6 +509,7 @@ async function loadWeek(scrollWeeks){
 
   $('lockBar')._built=false;   // week changed, rebuild the bar from scratch
   renderWeeks(scrollWeeks); renderLock(); renderGames(); renderLockIn();
+  startLiveScores();
   clearInterval(ticker); ticker=setInterval(renderLock,1000);
 }
 
@@ -625,7 +631,7 @@ function renderGames(){
 
     let flag, cls;
     if(final){ flag='Final'; cls=''; }
-    else if(live){ flag='Live'; cls='in'; }
+    else if(live){ flag = g._clock || 'Live'; cls='in'; }
     else if(started){ flag='Started'; cls=''; }
     else if(lk){ flag='Locked'; cls=''; }
     else if(mine){ flag='Picked'; cls='in'; }
@@ -819,6 +825,73 @@ async function signOut(){
   if(!confirm('Sign out?\n\nThis signs you out of the war room and props too.')) return;
   await supa.auth.signOut(); location.reload();
 }
+
+/* ===================== live scores (client side) =====================
+   The sync job writes scores every few minutes, but a GitHub schedule drifts
+   and that is a long time to stare at a stale number. While a game is actually
+   in progress the browser asks ESPN directly, which costs nothing and is as
+   live as it gets.
+
+   Deliberately narrow: it only ever touches the score, the in-progress flag
+   and the clock, and only for games the database does not yet call final.
+   Winners and points still come from the sync job, so nothing here can move
+   the leaderboard.                                                        */
+
+const ESPN_LIVE = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
+                  'college-football/scoreboard?groups=4&limit=200';
+let livePoll = null, liveOff = false;
+
+function anyGameLive(){
+  const now = Date.now();
+  return games.some(g => g.status === 'in' ||
+    (g.status !== 'final' && new Date(g.kickoff).getTime() <= now));
+}
+
+function startLiveScores(){
+  clearInterval(livePoll); livePoll = null;
+  if(liveOff || document.hidden || !anyGameLive()) return;
+  pollLive();
+  livePoll = setInterval(pollLive, 30000);
+}
+
+async function pollLive(){
+  if(liveOff || document.hidden) return;
+  try{
+    const res = await fetch(ESPN_LIVE, { cache:'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    let changed = false;
+
+    (data.events || []).forEach(ev => {
+      const g = games.find(x => x.id === String(ev.id));
+      if(!g || g.status === 'final') return;   // a final is the sync job's to call
+      const comp = (ev.competitions || [])[0]; if(!comp) return;
+      const st = ((comp.status || {}).type) || {};
+      const side = {};
+      (comp.competitors || []).forEach(c => { side[c.homeAway] = c; });
+      const num = c => (c && c.score != null && c.score !== '') ? Number(c.score) : null;
+      const hs = num(side.home), as = num(side.away);
+
+      if(hs !== g.home_score){ g.home_score = hs; changed = true; }
+      if(as !== g.away_score){ g.away_score = as; changed = true; }
+      if(st.state === 'in' && g.status !== 'in'){ g.status = 'in'; changed = true; }
+      const clock = st.shortDetail || st.detail || '';
+      if(clock && g._clock !== clock){ g._clock = clock; changed = true; }
+    });
+
+    if(changed) renderGames();
+  }catch(err){
+    // Almost certainly the browser refusing the cross-origin request. Give up
+    // quietly rather than retrying forever; the synced numbers still show.
+    liveOff = true; clearInterval(livePoll); livePoll = null;
+    console.warn('live scores unavailable, falling back to synced data', err);
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){ clearInterval(livePoll); livePoll = null; }
+  else startLiveScores();
+});
 
 /* ========================= realtime ========================= */
 function realtime(){

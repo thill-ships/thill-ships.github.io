@@ -213,11 +213,43 @@ def survey_game(season, team_abbr):
             print(f"    {grp.get('name','?'):16} -> {', '.join(map(str, keys))[:90]}")
 
 
+def check_cors():
+    """Can a browser call ESPN directly, or only a server?
+
+    The pick'em polls ESPN from the page during live games. That only works if
+    ESPN sends an Access-Control-Allow-Origin header; without one the browser
+    refuses the response and the app falls back to synced scores.
+    """
+    rule("CAN THE BROWSER CALL ESPN DIRECTLY?")
+    url = f"{SITE}/scoreboard?groups={BIG12}&limit=1"
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "byu-pickem-probe/1.0",
+            "Origin": "https://thill-ships.github.io",
+        })
+        with urllib.request.urlopen(req, timeout=20) as r:
+            allow = r.headers.get("Access-Control-Allow-Origin")
+            print(f"  Access-Control-Allow-Origin: {allow!r}")
+            if allow in ("*", "https://thill-ships.github.io"):
+                print("  -> Browsers can call ESPN directly. Live scores on the")
+                print("     page will refresh every 30 seconds.")
+            else:
+                print("  -> No permissive CORS header. Browsers will refuse the")
+                print("     response, and the app falls back to the synced scores")
+                print("     written by the sync job. Nothing breaks either way.")
+            for h in ("Cache-Control", "Age", "CF-Cache-Status"):
+                if r.headers.get(h):
+                    print(f"  {h}: {r.headers.get(h)}")
+    except Exception as exc:                                    # noqa: BLE001
+        print(f"  could not check: {exc}")
+
+
 def main():
     season = int(os.environ.get("SEASON") or season_now())
     week = int(os.environ.get("WEEK") or 2)
     team = os.environ.get("TEAM") or "BYU"
     print(f"ESPN probe -- season {season}, week {week}, team {team}")
+    check_cors()
     audit_lines(season, week)
     survey_game(season, team)
     print("\nDone.")

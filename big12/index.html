@@ -453,7 +453,12 @@ function teamAbbr(id){ return (teams[id] && teams[id].abbr) || '—'; }
       'Walkthrough in <code>big12/SETUP.md</code>.</p></div>';
     return;
   }
-  supa = window.supabase.createClient(CFG.url, CFG.key);
+  supa = window.supabase.createClient(CFG.url, CFG.key, {
+    // Sessions are stored per app rather than per origin. Without this every
+    // app on the site shared one token, so signing into one switched the
+    // others to the same account. The war room and props share one, separate from the pick'em.
+    auth: { storageKey: 'sb-b12-auth' }
+  });
   supa.auth.getSession().then(({ data }) => {
     if(data && data.session) signedIn(data.session.user); else $('gate').style.display = '';
   });
