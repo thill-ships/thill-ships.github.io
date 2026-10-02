@@ -306,7 +306,7 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-10-02.1';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-10-02.2';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
@@ -879,7 +879,7 @@ function startLiveScores(){
   clearInterval(livePoll); livePoll = null;
   if(liveOff || document.hidden || !anyGameLive()) return;
   pollLive();
-  livePoll = setInterval(pollLive, 30000);
+  livePoll = setInterval(pollLive, 60000);
 }
 
 async function pollLive(){

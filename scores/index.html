@@ -281,9 +281,9 @@ function schedule(){
   const liveNow = games.some(g => g.state === 'in');
   const soon = games.some(g => g.state === 'pre' && g.kickoff &&
                                g.kickoff - Date.now() < 30 * 60000);
-  // 30s while live. The full FBS board is a large response, so polling twice
-  // as fast doubles a real amount of cellular data for very little gain.
-  const every = failed ? 120000 : liveNow ? 30000 : soon ? 60000 : 300000;
+  // Once a minute while live. The full FBS board is a large response, so
+  // polling faster costs a real amount of cellular data for very little gain.
+  const every = failed ? 120000 : liveNow ? 60000 : soon ? 60000 : 300000;
   timer = setTimeout(tick, every);
 }
 

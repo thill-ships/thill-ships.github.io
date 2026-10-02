@@ -232,7 +232,7 @@ def check_cors():
             print(f"  Access-Control-Allow-Origin: {allow!r}")
             if allow in ("*", "https://thill-ships.github.io"):
                 print("  -> Browsers can call ESPN directly. Live scores on the")
-                print("     page will refresh every 30 seconds.")
+                print("     page will refresh every 60 seconds.")
             else:
                 print("  -> No permissive CORS header. Browsers will refuse the")
                 print("     response, and the app falls back to the synced scores")
