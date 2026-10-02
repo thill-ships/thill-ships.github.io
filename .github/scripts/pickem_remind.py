@@ -170,6 +170,17 @@ def main():
 
     players = sb("pickem_players", {"select": "user_id,display_name,email,notify",
                                     "notify": "is.true"})
+
+    # Only nag people who actually play. A row in pickem_players used to mean
+    # nothing more than "has opened the app once", which is how someone who
+    # only ever wanted the war room ended up getting pick'em reminders.
+    ever = sb("pickem_picks", {"select": "user_id"})
+    participants = {r["user_id"] for r in ever}
+    bystanders = [pl for pl in players if pl["user_id"] not in participants]
+    players = [pl for pl in players if pl["user_id"] in participants]
+    for pl in bystanders:
+        print(f"  {pl.get('display_name') or pl['user_id']}: has never made a "
+              f"pick, not in the league -- skipping")
     picks = sb("pickem_picks", {
         "select": "user_id,game_id",
         "game_id": "in.(" + ",".join(f'"{gid}"' for gid in sorted(game_ids)) + ")",

@@ -287,7 +287,27 @@ const AUTO = {
       + 'Supabase keys — see <code>big12/SETUP.md</code>.</div></div>';
     return;
   }
-  supa = window.supabase.createClient(CFG.url, CFG.key);
+  // One-time hand-over from the session every app used to share, so nobody
+  // has to sign in again after the split. Supabase's default key is
+  // sb-<project>-auth-token. It is MOVED, not copied: Supabase refresh tokens
+  // are single-use, and two apps refreshing the same one would sign both out.
+  // So whichever app a browser opens first keeps the session, and only someone
+  // who uses both apps signs in once on the other -- which for them is the point.
+  try{
+    const NEW_KEY = 'sb-b12-auth';
+    if(!localStorage.getItem(NEW_KEY)){
+      const oldKey = 'sb-' + new URL(CFG.url).hostname.split('.')[0] + '-auth-token';
+      const old = localStorage.getItem(oldKey);
+      if(old){ localStorage.setItem(NEW_KEY, old); localStorage.removeItem(oldKey); }
+    }
+  }catch(e){ /* storage blocked: they simply sign in, as they would have anyway */ }
+
+  supa = window.supabase.createClient(CFG.url, CFG.key, {
+    // Sessions are stored per app rather than per origin. Without this every
+    // app on the site shared one token, so signing into one switched the
+    // others to the same account. Shares the war room's session: same league, same people.
+    auth: { storageKey: 'sb-b12-auth' }
+  });
   supa.auth.getSession().then(({ data }) => {
     if(data && data.session) signedIn(data.session.user); else showGate();
   });

@@ -1,0 +1,35 @@
+name: ESPN — probe the API
+
+# Read-only diagnostic. Answers two questions: why a given game has no
+# betting line, and what data an in-game app could actually show.
+# Never writes to the database.
+on:
+  workflow_dispatch:
+    inputs:
+      week:
+        description: 'Week to inspect for missing lines'
+        required: false
+        default: '2'
+      team:
+        description: 'Team to survey in depth'
+        required: false
+        default: 'BYU'
+      season:
+        description: 'Season year (blank = current)'
+        required: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe ESPN
+        env:
+          SEASON: ${{ inputs.season }}
+          WEEK: ${{ inputs.week }}
+          TEAM: ${{ inputs.team }}
+        run: python .github/scripts/espn_probe.py

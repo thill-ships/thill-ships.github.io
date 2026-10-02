@@ -453,7 +453,27 @@ function teamAbbr(id){ return (teams[id] && teams[id].abbr) || '—'; }
       'Walkthrough in <code>big12/SETUP.md</code>.</p></div>';
     return;
   }
-  supa = window.supabase.createClient(CFG.url, CFG.key);
+  // One-time hand-over from the session every app used to share, so nobody
+  // has to sign in again after the split. Supabase's default key is
+  // sb-<project>-auth-token. It is MOVED, not copied: Supabase refresh tokens
+  // are single-use, and two apps refreshing the same one would sign both out.
+  // So whichever app a browser opens first keeps the session, and only someone
+  // who uses both apps signs in once on the other -- which for them is the point.
+  try{
+    const NEW_KEY = 'sb-b12-auth';
+    if(!localStorage.getItem(NEW_KEY)){
+      const oldKey = 'sb-' + new URL(CFG.url).hostname.split('.')[0] + '-auth-token';
+      const old = localStorage.getItem(oldKey);
+      if(old){ localStorage.setItem(NEW_KEY, old); localStorage.removeItem(oldKey); }
+    }
+  }catch(e){ /* storage blocked: they simply sign in, as they would have anyway */ }
+
+  supa = window.supabase.createClient(CFG.url, CFG.key, {
+    // Sessions are stored per app rather than per origin. Without this every
+    // app on the site shared one token, so signing into one switched the
+    // others to the same account. The war room and props share one, separate from the pick'em.
+    auth: { storageKey: 'sb-b12-auth' }
+  });
   supa.auth.getSession().then(({ data }) => {
     if(data && data.session) signedIn(data.session.user); else $('gate').style.display = '';
   });
@@ -505,7 +525,24 @@ async function signedIn(u){
   user = u;
   $('gate').style.display = 'none';
   $('app').style.display = '';
+  await ensurePropPlayer(u);
   await loadAll();
+}
+
+// The war room builds its roster purely from b12_prop_players, so anyone who
+// arrives here with a pick'em account and has never opened /props/ has no row
+// and simply does not appear. Create it on the way in, the way /props/ does.
+async function ensurePropPlayer(u){
+  const { data, error } = await supa.from('b12_prop_players')
+    .select('user_id').eq('user_id', u.id).maybeSingle();
+  if(error || data) return;
+  const name = (u.user_metadata && u.user_metadata.display_name)
+    || (u.email || '').split('@')[0].replace(/[._-]+/g,' ')
+       .replace(/\b\w/g, c => c.toUpperCase());
+  const { error: saveErr } = await supa.from('b12_prop_players')
+    .upsert({ user_id:u.id, display_name:name || 'New player', email:u.email },
+            { onConflict:'user_id' });
+  if(saveErr) console.warn('war room roster row failed', saveErr);
 }
 
 /* ========================= loading ========================= */

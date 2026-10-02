@@ -119,6 +119,8 @@
   .pk.on .fav{background:var(--navy);color:#fff;}
   .pk .fav.hit{background:var(--green);color:#fff;}
   .pk .fav.miss{background:var(--red);color:#fff;}
+  .auto{position:absolute;bottom:9px;right:9px;font-size:9px;font-weight:800;letter-spacing:.06em;
+    text-transform:uppercase;background:#E7EAF0;color:var(--muted);padding:2px 6px;border-radius:999px;}
   .pts{position:absolute;top:9px;left:9px;font-size:9.5px;font-weight:800;letter-spacing:.03em;
     background:#FFF1DC;color:var(--amber);padding:3px 6px;border-radius:999px;}
   .lin{margin:16px 15px 0;background:var(--card);border-radius:20px;padding:18px 17px;
@@ -251,7 +253,12 @@
               line are worth 1.</li>
           <li><b>You have from Sunday 6am to the first kickoff.</b> Picks open at the same
               time every week and close when the week's earliest game starts &mdash; usually
-              Thursday evening. Miss it and those games are zeroes.</li>
+              Thursday evening.</li>
+          <li><b>Forget to pick and you get the favourite.</b> After the deadline, any game
+              you left blank is filled in with the favourite for you, marked <b>Auto</b> on
+              the card. A favourite is only ever worth 1 point, so forgetting still costs
+              you the shot at an underdog &mdash; it just doesn't cost you the whole week.
+              A game with no posted line has no favourite, so it stays blank.</li>
           <li><b>Lock in early if you want to see everyone else.</b> Once all your games are
               picked you can lock in before the deadline. Your picks go final immediately, and
               in exchange you see the picks of everyone else who has locked in &mdash; and only
@@ -299,11 +306,12 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-08-26.6';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-10-02.2';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
 let locks=[], myLocked=false;
+let picksAuto={};   // game_id -> true when the favourite was assigned for you
 let season=null, week=null, lockAt=null, openAt=null, ticker=null;
 
 const $ = id => document.getElementById(id);
@@ -338,7 +346,27 @@ function toast(m, ms=2600){
       '<code>pickem/SETUP.md</code>.</p></div>';
     return;
   }
-  supa = window.supabase.createClient(CFG.url, CFG.key);
+  // One-time hand-over from the session every app used to share, so nobody
+  // has to sign in again after the split. Supabase's default key is
+  // sb-<project>-auth-token. It is MOVED, not copied: Supabase refresh tokens
+  // are single-use, and two apps refreshing the same one would sign both out.
+  // So whichever app a browser opens first keeps the session, and only someone
+  // who uses both apps signs in once on the other -- which for them is the point.
+  try{
+    const NEW_KEY = 'sb-pickem-auth';
+    if(!localStorage.getItem(NEW_KEY)){
+      const oldKey = 'sb-' + new URL(CFG.url).hostname.split('.')[0] + '-auth-token';
+      const old = localStorage.getItem(oldKey);
+      if(old){ localStorage.setItem(NEW_KEY, old); localStorage.removeItem(oldKey); }
+    }
+  }catch(e){ /* storage blocked: they simply sign in, as they would have anyway */ }
+
+  supa = window.supabase.createClient(CFG.url, CFG.key, {
+    // Sessions are stored per app rather than per origin. Without this every
+    // app on the site shared one token, so signing into one switched the
+    // others to the same account. The pick'em now holds its own.
+    auth: { storageKey: 'sb-pickem-auth' }
+  });
 
   // Surface a bad/expired magic link instead of silently doing nothing.
   const h = new URLSearchParams(location.hash.replace(/^#/,''));
@@ -425,16 +453,30 @@ async function signedIn(u){
 }
 
 async function ensurePlayer(){
-  const { data } = await supa.from('pickem_players').select('*').eq('user_id',user.id).maybeSingle();
-  if(data){ player=data; }
-  else{
-    const guess=(user.email||'').split('@')[0].replace(/[._-]+/g,' ')
-      .replace(/\b\w/g,c=>c.toUpperCase()).slice(0,28);
-    player={ user_id:user.id, display_name:guess||'New player', email:user.email, notify:true };
-    await supa.from('pickem_players').insert(player);
-    setTimeout(()=>{ openProfile(); toast('Set your name for the leaderboard'); },700);
+  const { data, error } = await supa.from('pickem_players')
+    .select('*').eq('user_id',user.id).maybeSingle();
+
+  // A failed lookup is not the same as a new player. Treating it as one opened
+  // the profile sheet on every single load, which is also how people ended up
+  // hitting Sign out by accident.
+  if(error){
+    console.warn('profile lookup failed', error);
+    player={ user_id:user.id, email:user.email, notify:true,
+             display_name:(user.email||'You').split('@')[0] };
+    paintMe(); return;
   }
+  if(data){ player=data; paintMe(); return; }
+
+  const guess=(user.email||'').split('@')[0].replace(/[._-]+/g,' ')
+    .replace(/\b\w/g,c=>c.toUpperCase()).slice(0,28);
+  player={ user_id:user.id, display_name:guess||'New player', email:user.email, notify:true };
+  // upsert, not insert: a row that already exists must not look like a failure
+  const { error:saveErr } = await supa.from('pickem_players')
+    .upsert(player,{ onConflict:'user_id' });
   paintMe();
+  if(saveErr){ console.warn('profile create failed', saveErr); return; }
+  // Only a genuinely new player gets asked to name themselves.
+  setTimeout(()=>{ openProfile(); toast('Set your name for the leaderboard'); },700);
 }
 function paintMe(){
   const n=(player&&player.display_name)||'You';
@@ -453,9 +495,14 @@ async function loadAll(){
   $('kicker').textContent='Big 12 · '+season;
 
   if(week==null || !weeks.some(w=>w.week===week)){
+    // Open on the week actually being played. Picking the next week whose
+    // deadline is still ahead jumped to next week the moment this one locked,
+    // so from Thursday kickoff onward you were looking at games four days out.
+    // The week you are in is the last one whose window has opened; the next
+    // week takes over when its own window opens, Sunday at 6am.
     const now=Date.now();
-    const next=weeks.find(w=>w.lock_at && new Date(w.lock_at).getTime()>now);
-    week = next ? next.week : weeks[weeks.length-1].week;
+    const started=weeks.filter(w=>w.open_at && new Date(w.open_at).getTime()<=now);
+    week = started.length ? started[started.length-1].week : weeks[0].week;
   }
   await loadStandings();
   await loadWeek(true);
@@ -475,8 +522,11 @@ async function loadWeek(scrollWeeks){
     const { data:p } = await supa.from('pickem_picks').select('*').in('game_id',games.map(x=>x.id));
     allPicks=p||[];
   }
-  picks={};
-  allPicks.filter(p=>p.user_id===user.id).forEach(p=>{ picks[p.game_id]=p.team_id; });
+  picks={}; picksAuto={};
+  allPicks.filter(p=>p.user_id===user.id).forEach(p=>{
+    picks[p.game_id]=p.team_id;
+    if(p.auto) picksAuto[p.game_id]=true;
+  });
 
   const { data:lk } = await supa.from('pickem_locks').select('*')
     .eq('season',season).eq('week',week);
@@ -485,6 +535,7 @@ async function loadWeek(scrollWeeks){
 
   $('lockBar')._built=false;   // week changed, rebuild the bar from scratch
   renderWeeks(scrollWeeks); renderLock(); renderGames(); renderLockIn();
+  startLiveScores();
   clearInterval(ticker); ticker=setInterval(renderLock,1000);
 }
 
@@ -595,13 +646,19 @@ function renderGames(){
 
   $('games').innerHTML = games.map(g=>{
     const mine=picks[g.id], final=g.status==='final', live=g.status==='in';
+    // During a deadline extension the week is open but individual games that
+    // have already kicked off stay shut. The database enforces this; the card
+    // just has to stop inviting a tap it would refuse.
+    const started = new Date(g.kickoff).getTime() <= Date.now();
+    const shut = lk || started;
 
     const when = new Date(g.kickoff)
       .toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 
     let flag, cls;
     if(final){ flag='Final'; cls=''; }
-    else if(live){ flag='Live'; cls='in'; }
+    else if(live){ flag = g._clock || 'Live'; cls='in'; }
+    else if(started){ flag='Started'; cls=''; }
     else if(lk){ flag='Locked'; cls=''; }
     else if(mine){ flag='Picked'; cls='in'; }
     else { flag='Needs you'; cls='todo'; }
@@ -619,18 +676,20 @@ function renderGames(){
       let badge='';
       if(isMine && final) badge='<span class="fav '+(won?'hit':'miss')+'">'+(won?'&#10003;':'&#10007;')+'</span>';
       else if(isMine)     badge='<span class="fav">&#10003;</span>';
-      else if(!lk)        badge='<span class="fav">&#10003;</span>';
+      else if(!shut)      badge='<span class="fav">&#10003;</span>';
 
       // Underdogs advertise their payout before you pick.
       const pv = pointsFor(g, id);
       if(pv > 1) badge += '<span class="pts">'+pv+' PTS</span>';
+      // Be upfront when a pick was assigned rather than chosen.
+      if(isMine && picksAuto[g.id]) badge += '<span class="auto">Auto</span>';
 
       const meta = [rank?'#'+rank:'', rec||''].filter(Boolean).join(' · ');
       const bottom = (final||live) && sc!=null
         ? '<span class="sc">'+sc+'</span>'
         : (meta ? '<span class="sub">'+esc(meta)+'</span>' : '<span class="sub">&nbsp;</span>');
 
-      return '<button class="'+c+'" data-team="'+esc(id)+'"'+(lk?' disabled':'')+
+      return '<button class="'+c+'" data-team="'+esc(id)+'"'+(shut?' disabled':'')+
         ' onclick="setPick(\''+g.id+'\',\''+id+'\')">'+badge+
         '<span class="side">'+(side==='away'?'Away':'Home')+'</span>'+
         '<span class="logo">'+(logo
@@ -788,7 +847,79 @@ async function toggleNotify(){
   toast(next?'Reminders on':'Reminders off');
 }
 
-async function signOut(){ await supa.auth.signOut(); location.reload(); }
+async function signOut(){
+  // One session covers the pick'em, the war room and props, so this is not a
+  // small button. Ask before throwing all three away.
+  if(!confirm('Sign out?\n\nThis signs you out of the war room and props too.')) return;
+  await supa.auth.signOut(); location.reload();
+}
+
+/* ===================== live scores (client side) =====================
+   The sync job writes scores every few minutes, but a GitHub schedule drifts
+   and that is a long time to stare at a stale number. While a game is actually
+   in progress the browser asks ESPN directly, which costs nothing and is as
+   live as it gets.
+
+   Deliberately narrow: it only ever touches the score, the in-progress flag
+   and the clock, and only for games the database does not yet call final.
+   Winners and points still come from the sync job, so nothing here can move
+   the leaderboard.                                                        */
+
+const ESPN_LIVE = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
+                  'college-football/scoreboard?groups=4&limit=200';
+let livePoll = null, liveOff = false;
+
+function anyGameLive(){
+  const now = Date.now();
+  return games.some(g => g.status === 'in' ||
+    (g.status !== 'final' && new Date(g.kickoff).getTime() <= now));
+}
+
+function startLiveScores(){
+  clearInterval(livePoll); livePoll = null;
+  if(liveOff || document.hidden || !anyGameLive()) return;
+  pollLive();
+  livePoll = setInterval(pollLive, 60000);
+}
+
+async function pollLive(){
+  if(liveOff || document.hidden) return;
+  try{
+    const res = await fetch(ESPN_LIVE, { cache:'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    let changed = false;
+
+    (data.events || []).forEach(ev => {
+      const g = games.find(x => x.id === String(ev.id));
+      if(!g || g.status === 'final') return;   // a final is the sync job's to call
+      const comp = (ev.competitions || [])[0]; if(!comp) return;
+      const st = ((comp.status || {}).type) || {};
+      const side = {};
+      (comp.competitors || []).forEach(c => { side[c.homeAway] = c; });
+      const num = c => (c && c.score != null && c.score !== '') ? Number(c.score) : null;
+      const hs = num(side.home), as = num(side.away);
+
+      if(hs !== g.home_score){ g.home_score = hs; changed = true; }
+      if(as !== g.away_score){ g.away_score = as; changed = true; }
+      if(st.state === 'in' && g.status !== 'in'){ g.status = 'in'; changed = true; }
+      const clock = st.shortDetail || st.detail || '';
+      if(clock && g._clock !== clock){ g._clock = clock; changed = true; }
+    });
+
+    if(changed) renderGames();
+  }catch(err){
+    // Almost certainly the browser refusing the cross-origin request. Give up
+    // quietly rather than retrying forever; the synced numbers still show.
+    liveOff = true; clearInterval(livePoll); livePoll = null;
+    console.warn('live scores unavailable, falling back to synced data', err);
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){ clearInterval(livePoll); livePoll = null; }
+  else startLiveScores();
+});
 
 /* ========================= realtime ========================= */
 function realtime(){
