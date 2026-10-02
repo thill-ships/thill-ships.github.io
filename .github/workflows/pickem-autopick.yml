@@ -16,6 +16,11 @@ on:
         type: boolean
         required: false
         default: true
+      backfill:
+        description: 'Fill every past week, not just the latest'
+        type: boolean
+        required: false
+        default: false
       season:
         description: 'Season year (blank = current)'
         required: false
@@ -39,4 +44,5 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SEASON: ${{ inputs.season }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          BACKFILL: ${{ inputs.backfill && '1' || '0' }}
         run: python .github/scripts/pickem_autopick.py

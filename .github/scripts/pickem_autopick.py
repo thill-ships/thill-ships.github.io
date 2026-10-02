@@ -22,6 +22,7 @@ Env:
   SUPABASE_SERVICE_KEY   service_role key
   SEASON                 optional, defaults to the current season
   DRY_RUN                set to 1 to report without writing
+  BACKFILL               set to 1 to fill every past week, finished games included
 """
 
 import json
@@ -34,6 +35,8 @@ from datetime import datetime, timedelta, timezone
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 DRY_RUN = os.environ.get("DRY_RUN") == "1"
+# Fill every past week rather than just the one that locked most recently.
+BACKFILL = os.environ.get("BACKFILL") == "1"
 
 # How far back to look. A deadline older than this is somebody else's problem.
 LOOKBACK_HOURS = 36
@@ -85,15 +88,21 @@ def favourite(game):
 def main():
     season = int(os.environ.get("SEASON") or season_now())
     now = datetime.now(timezone.utc)
-    print(f"Auto-pick check for {season}" + ("  (DRY RUN)" if DRY_RUN else ""))
+    mode = "BACKFILL" if BACKFILL else "live"
+    print(f"Auto-pick, {mode} mode, {season}" + ("  (DRY RUN)" if DRY_RUN else ""))
 
-    weeks = sb("pickem_weeks", {"select": "*", "order": "lock_at.desc"})
-    due = [w for w in weeks
-           if w.get("season") == season and w.get("lock_at")
-           and timedelta(0) <= now - parse_ts(w["lock_at"]) <= timedelta(hours=LOOKBACK_HOURS)]
+    weeks = sb("pickem_weeks", {"select": "*", "order": "lock_at.asc"})
+    weeks = [w for w in weeks if w.get("season") == season and w.get("lock_at")]
+    if BACKFILL:
+        # Every week whose deadline has passed. These games are mostly over,
+        # which is fine: the favourite comes from the spread frozen before
+        # kickoff, so the result has no say in what gets assigned.
+        due = [w for w in weeks if parse_ts(w["lock_at"]) <= now]
+    else:
+        due = [w for w in weeks
+               if timedelta(0) <= now - parse_ts(w["lock_at"]) <= timedelta(hours=LOOKBACK_HOURS)]
     if not due:
-        print("No week has locked in the last "
-              f"{LOOKBACK_HOURS} hours. Nothing to do.")
+        print("No week to fill. Nothing to do.")
         return
 
     # Only people who actually play. A row in pickem_players can mean nothing
@@ -103,16 +112,20 @@ def main():
     if not participants:
         print("Nobody has ever made a pick. Nothing to do.")
         return
-    names = {p["user_id"]: p.get("display_name") or p["user_id"]
-             for p in sb("pickem_players", {"select": "user_id,display_name"})}
+    players = {p["user_id"]: p
+               for p in sb("pickem_players", {"select": "user_id,display_name,created_at"})}
+    name = lambda uid: (players.get(uid) or {}).get("display_name") or uid
+
+    gained = {}            # user -> points the assigned picks earn, finished games only
+    total_rows = 0
 
     for wk in due:
         week = wk["week"]
-        locked_ago = now - parse_ts(wk["lock_at"])
-        print(f"\nWeek {week} -- locked {locked_ago.total_seconds()/3600:.1f}h ago")
+        lock_at = parse_ts(wk["lock_at"])
+        print(f"\nWeek {week} -- locked {lock_at:%a %b %d}")
 
         games = sb("pickem_games", {
-            "select": "id,home_id,away_id,home_abbr,away_abbr,home_spread,status,kickoff",
+            "select": "id,home_id,away_id,home_abbr,away_abbr,home_spread,status,winner_id",
             "season": f"eq.{season}", "week": f"eq.{week}", "order": "kickoff.asc"})
         if not games:
             print("  no games"); continue
@@ -125,46 +138,54 @@ def main():
         for r in existing:
             have.setdefault(r["user_id"], set()).add(r["game_id"])
 
-        playable, skipped_line, skipped_final = [], 0, 0
+        playable, skipped_final = [], 0
         for g in games:
-            if g.get("status") == "final":
+            if g.get("status") == "final" and not BACKFILL:
                 skipped_final += 1; continue
             fav = favourite(g)
             if fav is None:
-                skipped_line += 1
-                print(f"  no line on {g['away_abbr']} at {g['home_abbr']} "
-                      f"-- leaving it blank")
+                print(f"  no line on {g['away_abbr']} at {g['home_abbr']} -- leaving it blank")
                 continue
             playable.append((g, fav))
-
         if skipped_final:
             print(f"  {skipped_final} game(s) already final -- not assigning those")
 
         rows = []
         for uid in participants:
+            # Someone who joined after this week locked was not in the league
+            # for it, and should not be handed its points.
+            joined = (players.get(uid) or {}).get("created_at")
+            if joined and parse_ts(joined) > lock_at:
+                continue
             mine = have.get(uid, set())
             missing = [(g, fav) for g, fav in playable if g["id"] not in mine]
             if not missing:
                 continue
-            who = names.get(uid, uid)
-            picks = ", ".join(
-                (g["home_abbr"] if fav == g["home_id"] else g["away_abbr"])
-                for g, fav in missing)
-            print(f"  {who}: assigning {len(missing)} favourite(s) -- {picks}")
+            won = sum(1 for g, fav in missing
+                      if g.get("status") == "final" and g.get("winner_id") == fav)
+            gained[uid] = gained.get(uid, 0) + won
+            picks = ", ".join((g["home_abbr"] if fav == g["home_id"] else g["away_abbr"])
+                              for g, fav in missing)
+            extra = f"  -> +{won} pt" if BACKFILL else ""
+            print(f"  {name(uid)}: {len(missing)} favourite(s) -- {picks}{extra}")
             for g, fav in missing:
                 rows.append({"user_id": uid, "game_id": g["id"], "team_id": fav,
-                             "auto": True,
-                             "updated_at": now.isoformat()})
+                             "auto": True, "updated_at": now.isoformat()})
 
         if not rows:
             print("  everyone is covered"); continue
+        total_rows += len(rows)
         if DRY_RUN:
             print(f"  DRY RUN: would write {len(rows)} pick(s)"); continue
         for i in range(0, len(rows), 100):
             sb("pickem_picks", method="POST", body=rows[i:i + 100])
         print(f"  wrote {len(rows)} assigned pick(s)")
 
-    print("\nDone.")
+    if BACKFILL and gained:
+        print("\nPoints each person gains from the backfill:")
+        for uid, pts in sorted(gained.items(), key=lambda kv: -kv[1]):
+            print(f"  {name(uid):24} +{pts}")
+    print(f"\n{'Would write' if DRY_RUN else 'Wrote'} {total_rows} pick(s). Done.")
 
 
 if __name__ == "__main__":

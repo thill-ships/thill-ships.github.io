@@ -306,7 +306,7 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-10-01.2';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-10-02.1';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
@@ -346,6 +346,21 @@ function toast(m, ms=2600){
       '<code>pickem/SETUP.md</code>.</p></div>';
     return;
   }
+  // One-time hand-over from the session every app used to share, so nobody
+  // has to sign in again after the split. Supabase's default key is
+  // sb-<project>-auth-token. It is MOVED, not copied: Supabase refresh tokens
+  // are single-use, and two apps refreshing the same one would sign both out.
+  // So whichever app a browser opens first keeps the session, and only someone
+  // who uses both apps signs in once on the other -- which for them is the point.
+  try{
+    const NEW_KEY = 'sb-pickem-auth';
+    if(!localStorage.getItem(NEW_KEY)){
+      const oldKey = 'sb-' + new URL(CFG.url).hostname.split('.')[0] + '-auth-token';
+      const old = localStorage.getItem(oldKey);
+      if(old){ localStorage.setItem(NEW_KEY, old); localStorage.removeItem(oldKey); }
+    }
+  }catch(e){ /* storage blocked: they simply sign in, as they would have anyway */ }
+
   supa = window.supabase.createClient(CFG.url, CFG.key, {
     // Sessions are stored per app rather than per origin. Without this every
     // app on the site shared one token, so signing into one switched the
