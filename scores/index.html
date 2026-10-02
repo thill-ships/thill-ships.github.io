@@ -45,6 +45,11 @@
   .big .ck{font-size:10.5px;color:var(--hot);font-weight:700;margin-top:4px;letter-spacing:.02em;}
   .big .ck.pre{color:var(--faint);}
   .rk{font-size:9.5px;font-weight:800;color:var(--hot);margin-right:3px;vertical-align:super;}
+  .tv{font-size:9.5px;font-weight:700;color:var(--dim);letter-spacing:.03em;}
+  .big .ckrow{display:flex;align-items:baseline;gap:8px;margin-top:4px;}
+  .big .ckrow .ck{margin-top:0;}
+  .big .ckrow .tv{margin-left:auto;}
+  .g .tv{flex:none;width:58px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
   /* ---- everything else, one line each ---- */
   .list{display:grid;grid-template-columns:1fr;gap:2px;}
@@ -59,7 +64,7 @@
   .g .t .l{color:var(--dim);}
   .g .n{font-weight:800;letter-spacing:-.02em;flex:none;}
   .g .n .l{color:var(--dim);font-weight:700;}
-  .g .c{flex:none;font-size:10.5px;color:var(--hot);font-weight:700;width:52px;text-align:right;}
+  .g .c{flex:none;font-size:10.5px;color:var(--hot);font-weight:700;min-width:52px;text-align:right;white-space:nowrap;}
   .g .c.pre,.g .c.done{color:var(--faint);}
   .sec{font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
     color:var(--faint);margin:12px 4px 6px;}
@@ -72,6 +77,7 @@
   <div class="bar">
     <span class="ttl">Gameday Board</span>
     <span class="meta">
+      <button class="tog" id="togSoon" onclick="toggleSoon()">Upcoming</button>
       <button class="tog" id="togFinal" onclick="toggleFinals()">Finals</button>
       <span class="dot off" id="dot"></span><span id="stamp">starting…</span>
     </span>
@@ -92,7 +98,7 @@ const URL = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
 const BIG12 = new Set(['ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU',
                        'KSU','OKST','TCU','TTU','UCF','UTAH','WVU']);
 
-let games = [], showFinals = false, timer = null, failed = false;
+let games = [], showFinals = false, showSoon = false, timer = null, failed = false;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g,
@@ -120,7 +126,22 @@ function parse(ev){
   const clock = st.displayClock || '';
 
   const isB12 = t => BIG12.has((t.abbr || '').toUpperCase());
+
+  // TV: national broadcast names first, then the per-market list as a fallback.
+  const tv = [];
+  (c.broadcasts || []).forEach(b => (b.names || []).forEach(n => tv.push(n)));
+  if(!tv.length) (c.geoBroadcasts || []).forEach(b => {
+    const n = b.media && (b.media.shortName || b.media.callLetters);
+    if(n) tv.push(n);
+  });
+
+  // ESPN reports "0" for a game that has not started. Treat that as no score,
+  // or every upcoming game reads as a scoreless tie.
+  if(state === 'pre'){ H.score = null; A.score = null; }
+
   return {
+    tv: [...new Set(tv)].slice(0, 2).join('/'),   // cards have room for two
+    tv1: tv[0] || '',                              // rows show the main channel
     id: String(ev.id), home: H, away: A, state,
     period, clock,
     detail: ty.shortDetail || ty.detail || '',
@@ -187,8 +208,10 @@ function clockText(g){
   if(g.state === 'post') return 'Final';
   if(g.state === 'in')   return g.clock ? `Q${g.period} ${g.clock}` : (g.detail || 'Live');
   if(!g.kickoff) return g.detail || '';
-  return g.kickoff.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' })
-          .replace(' ', '').toLowerCase();
+  const t = g.kickoff.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' })
+              .replace(' ', '').toLowerCase();
+  const sameDay = g.kickoff.toDateString() === new Date().toDateString();
+  return sameDay ? t : g.kickoff.toLocaleDateString([], { weekday:'short' }) + ' ' + t;
 }
 
 function bigCard(g){
@@ -201,7 +224,8 @@ function bigCard(g){
   return `<div class="big${cls}">` +
     row(g.away, g.state === 'in' && lead > 0) +
     row(g.home, g.state === 'in' && lead < 0) +
-    `<div class="ck${g.state === 'pre' ? ' pre' : ''}">${esc(clockText(g))}</div></div>`;
+    `<div class="ckrow"><span class="ck${g.state === 'pre' ? ' pre' : ''}">${esc(clockText(g))}</span>` +
+    (g.tv ? `<span class="tv">${esc(g.tv)}</span>` : '') + `</div></div>`;
 }
 
 function line(g){
@@ -214,7 +238,9 @@ function line(g){
   const ck  = g.state === 'post' ? ' done' : g.state === 'pre' ? ' pre' : '';
   return `<div class="g${cls}">` +
     `<span class="t">${nm(g.away, aLo)} <span class="l">at</span> ${nm(g.home, hLo)}</span>` +
-    `<span class="n">${sc(g.away, aLo)}<span class="l">–</span>${sc(g.home, hLo)}</span>` +
+    (g.state === 'pre' ? '' :
+      `<span class="n">${sc(g.away, aLo)}<span class="l">–</span>${sc(g.home, hLo)}</span>`) +
+    `<span class="tv">${esc(g.tv1)}</span>` +
     `<span class="c${ck}">${esc(clockText(g))}</span></div>`;
 }
 
@@ -223,26 +249,45 @@ function render(){
     $('out').innerHTML = '<div class="msg">No games on the board right now.</div>';
     return;
   }
-  const ranked = games.slice().sort((x, y) => watchability(y) - watchability(x));
-  const live = ranked.filter(g => g.state !== 'post');
-  const done = ranked.filter(g => g.state === 'post')
-                     .sort((x, y) => (y.byu - x.byu) || (y.b12 - x.b12));
+  // Only games actually being played compete for the top. Halftime counts:
+  // ESPN keeps a game "in" through the break.
+  const live = games.filter(g => g.state === 'in')
+                    .sort((x, y) => watchability(y) - watchability(x));
+  const soon = games.filter(g => g.state === 'pre')
+                    .sort((x, y) => (x.kickoff || 0) - (y.kickoff || 0));
+  const done = games.filter(g => g.state === 'post')
+                    .sort((x, y) => (y.byu - x.byu) || (y.b12 - x.b12));
 
-  const top  = live.slice(0, 4);
-  const rest = live.slice(4);
+  // With nothing on yet, an empty screen helps nobody: show what is coming.
+  const openSoon = showSoon || !live.length;
+  $('togSoon').classList.toggle('on', openSoon);
 
   let html = '';
-  if(top.length) html += `<div class="top">${top.map(bigCard).join('')}</div>`;
-  if(rest.length)
-    html += `<div class="sec">${rest.length} more</div><div class="list">${rest.map(line).join('')}</div>`;
+  if(live.length){
+    const top = live.slice(0, 4), rest = live.slice(4);
+    html += `<div class="top">${top.map(bigCard).join('')}</div>`;
+    if(rest.length)
+      html += `<div class="sec">${rest.length} more live</div><div class="list">${rest.map(line).join('')}</div>`;
+  } else {
+    const next = soon[0];
+    html += `<div class="msg"><b>Nothing live yet</b>` +
+      (next ? `Next kickoff ${esc(clockText(next))} &mdash; ${esc(next.away.abbr)} at ${esc(next.home.abbr)}.`
+            : 'No more games scheduled on this board.') + `</div>`;
+  }
+  if(openSoon && soon.length)
+    html += `<div class="sec">Upcoming &mdash; ${soon.length}</div><div class="list">${soon.map(line).join('')}</div>`;
   if(showFinals && done.length)
-    html += `<div class="sec">Final — ${done.length}</div><div class="list">${done.map(line).join('')}</div>`;
+    html += `<div class="sec">Final &mdash; ${done.length}</div><div class="list">${done.map(line).join('')}</div>`;
   $('out').innerHTML = html;
 
-  const n = games.filter(g => g.state === 'in').length;
-  $('dot').className = 'dot' + (n ? '' : ' off');
-  $('stamp').textContent = (n ? `${n} live · ` : '') +
+  $('dot').className = 'dot' + (live.length ? '' : ' off');
+  $('stamp').textContent = (live.length ? `${live.length} live · ` : '') +
     new Date().toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+}
+
+function toggleSoon(){
+  showSoon = !showSoon;
+  render();
 }
 
 function toggleFinals(){

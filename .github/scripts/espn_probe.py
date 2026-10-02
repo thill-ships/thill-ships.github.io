@@ -152,24 +152,34 @@ def audit_lines(season, week):
 # 2. What else could an in-game app show?
 # ---------------------------------------------------------------------------
 
-def survey_game(season, team_abbr):
+def find_team_id(season, week, abbr):
+    """Look a team up on a scoreboard where it actually plays.
+
+    ESPN's plain /teams list is paged and leaves schools out, which is how the
+    first version of this probe failed to find BYU at all.
+    """
+    weeks = [week] + [w for w in range(1, 17) if w != week]
+    for wk in weeks:
+        data = get(f"{SITE}/scoreboard?groups=80&limit=300"
+                   f"&dates={season}&seasontype=2&week={wk}")
+        for ev in (data or {}).get("events", []):
+            comp = (ev.get("competitions") or [{}])[0]
+            for c in comp.get("competitors", []):
+                t = c.get("team") or {}
+                if (t.get("abbreviation") or "").upper() == abbr.upper():
+                    return t.get("id")
+    return None
+
+
+def survey_game(season, week, team_abbr):
     rule(f"WHAT A LIVE {team_abbr} APP COULD SHOW")
-    # find the team's most recent completed game
+    tid = find_team_id(season, week, team_abbr)
     sched = None
-    board = get(f"{SITE}/teams")
-    tid = None
-    if board:
-        for sport in board.get("sports", []):
-            for lg in sport.get("leagues", []):
-                for t in lg.get("teams", []):
-                    tt = t.get("team") or {}
-                    if (tt.get("abbreviation") or "").upper() == team_abbr.upper():
-                        tid = tt.get("id")
     if not tid:
-        print(f"  could not find {team_abbr}; falling back to the Big 12 board")
-    else:
-        print(f"  {team_abbr} team id = {tid}")
-        sched = get(f"{SITE}/teams/{tid}/schedule?season={season}")
+        print(f"  could not find {team_abbr} on any {season} scoreboard")
+        return
+    print(f"  {team_abbr} team id = {tid}")
+    sched = get(f"{SITE}/teams/{tid}/schedule?season={season}")
 
     eid = None
     if sched:
@@ -251,7 +261,7 @@ def main():
     print(f"ESPN probe -- season {season}, week {week}, team {team}")
     check_cors()
     audit_lines(season, week)
-    survey_game(season, team)
+    survey_game(season, week, team)
     print("\nDone.")
 
 
