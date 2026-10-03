@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Conference Bingo</title>
+
+<!-- iOS "Add to Home Screen" / PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Bingo" />
+<meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#14181F" media="(prefers-color-scheme: dark)" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- App icon: a little gold-and-navy bingo card -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%231F2A44'/%3E%3Crect%20x='6'%20y='6'%20width='6'%20height='6'%20rx='1.5'%20fill='%23D4A23A'/%3E%3Crect%20x='13'%20y='6'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='20'%20y='6'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='6'%20y='13'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='13'%20y='13'%20width='6'%20height='6'%20rx='1.5'%20fill='%23D4A23A'/%3E%3Crect%20x='20'%20y='13'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='6'%20y='20'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='13'%20y='20'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='20'%20y='20'%20width='6'%20height='6'%20rx='1.5'%20fill='%23D4A23A'/%3E%3C/svg%3E" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Crect%20width='180'%20height='180'%20fill='%231F2A44'/%3E%3Crect%20x='36'%20y='36'%20width='32'%20height='32'%20rx='8'%20fill='%23D4A23A'/%3E%3Crect%20x='74'%20y='36'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='112'%20y='36'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='36'%20y='74'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='74'%20y='74'%20width='32'%20height='32'%20rx='8'%20fill='%23D4A23A'/%3E%3Crect%20x='112'%20y='74'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='36'%20y='112'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='74'%20y='112'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='112'%20y='112'%20width='32'%20height='32'%20rx='8'%20fill='%23D4A23A'/%3E%3C/svg%3E" />
+
+<style>
+  :root{
+    --bg:#F6F1E7; --card:#FFFDF8; --cell:#FFFFFF; --line:#E4DCCB;
+    --ink:#1F2A44; --dim:#6B7180; --faint:#A6A39A;
+    --gold:#D4A23A; --gold-soft:#F3E3BC; --mark:#1F2A44; --mark-ink:#FFFDF8;
+    --win:#C98A1B; --shadow:0 1px 2px rgba(31,42,68,.06),0 6px 20px rgba(31,42,68,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181F; --card:#1B2029; --cell:#222833; --line:#2E3542;
+      --ink:#F1ECE1; --dim:#A3A8B4; --faint:#6A7080;
+      --gold:#E2B252; --gold-soft:#3A3222; --mark:#E2B252; --mark-ink:#14181F;
+      --win:#F2C66B; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{background:var(--bg);color:var(--ink);}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;min-height:100vh;
+    padding:calc(14px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:520px;margin:0 auto;}
+  h1,.display{font-family:'Fraunces',Georgia,serif;font-weight:800;letter-spacing:-.01em;}
+  button{font:inherit;color:inherit;cursor:pointer;}
+  [hidden]{display:none !important;}
+
+  /* ---------- sign in ---------- */
+  .hello{min-height:calc(100vh - 80px);display:flex;flex-direction:column;justify-content:center;gap:22px;}
+  .hello .logo{display:grid;grid-template-columns:repeat(5,14px);gap:4px;}
+  .hello .logo i{width:14px;height:14px;border-radius:4px;background:var(--line);}
+  .hello .logo i.on{background:var(--gold);}
+  .hello h1{font-size:42px;line-height:1.02;}
+  .hello p{color:var(--dim);font-size:15px;line-height:1.55;max-width:34ch;}
+  .hello form{display:flex;flex-direction:column;gap:10px;}
+  .hello label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);}
+  .hello input{
+    font:inherit;font-size:18px;padding:14px 16px;border-radius:14px;border:1.5px solid var(--line);
+    background:var(--card);color:var(--ink);outline:none;
+  }
+  .hello input:focus{border-color:var(--gold);}
+  .btn{
+    border:0;border-radius:14px;padding:14px 18px;font-weight:700;font-size:16px;
+    background:var(--ink);color:var(--bg);
+  }
+  .btn:disabled{opacity:.4;}
+
+  /* ---------- top bar ---------- */
+  .top{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .top .who{flex:1;min-width:0;}
+  .top .hi{font-size:12px;color:var(--dim);font-weight:600;}
+  .top .nm{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:22px;line-height:1.1;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .iconbtn{
+    width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);
+    display:grid;place-items:center;flex:none;
+  }
+  .iconbtn svg{width:20px;height:20px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* ---------- session tabs ---------- */
+  .sessions{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 14px;padding:0 16px;}
+  .sessions::-webkit-scrollbar{display:none;}
+  .sessions button{
+    flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;
+    padding:8px 13px;font-size:13px;font-weight:600;color:var(--dim);white-space:nowrap;
+    display:flex;align-items:center;gap:6px;
+  }
+  .sessions button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+  .sessions .pip{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--gold);color:#1F2A44;
+    font-size:11px;font-weight:800;display:inline-grid;place-items:center;}
+
+  /* ---------- card ---------- */
+  .card{background:var(--card);border-radius:20px;padding:clamp(8px,2.5vw,12px);box-shadow:var(--shadow);border:1px solid var(--line);}
+  .letters{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px;}
+  .letters span{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:24px;text-align:center;color:var(--gold);line-height:1;}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:clamp(4px,1.4vw,6px);}
+  .cell{
+    position:relative;aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:var(--cell);
+    display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 3px;
+    font-size:clamp(9px,2.55vw,12.5px);font-weight:600;line-height:1.15;color:var(--ink);
+    overflow:hidden;word-break:normal;overflow-wrap:normal;-webkit-hyphens:auto;hyphens:auto;user-select:none;-webkit-user-select:none;
+    transition:background .15s, color .15s, transform .1s;
+  }
+  .cell:active{transform:scale(.95);}
+  .cell.on{background:var(--mark);color:var(--mark-ink);border-color:var(--mark);}
+  .cell.on::after{
+    content:"";position:absolute;inset:8%;border-radius:50%;
+    border:2.5px solid var(--gold);opacity:.55;pointer-events:none;
+  }
+  .cell.win{box-shadow:0 0 0 2.5px var(--win);}
+  .cell.free{background:var(--gold-soft);color:var(--ink);border-color:var(--gold);font-family:'Fraunces',Georgia,serif;font-weight:800;}
+  .cell.free.on{background:var(--gold);color:#1F2A44;}
+  .cell.free.on::after{display:none;}
+  .cell.free b{display:block;font-size:1.5em;line-height:1;}
+
+  .status{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:0 4px;}
+  .status .count{font-size:13px;color:var(--dim);font-weight:600;}
+  .status .count strong{color:var(--ink);}
+  .link{background:none;border:0;font-size:13px;font-weight:600;color:var(--dim);text-decoration:underline;text-underline-offset:3px;padding:6px 0;}
+  .tip{font-size:12.5px;color:var(--faint);text-align:center;margin-top:16px;line-height:1.5;}
+
+  /* ---------- sheets / overlays ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(10,14,22,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20;
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom));}
+  .sheet{background:var(--card);border-radius:20px;padding:20px;width:100%;max-width:440px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;gap:10px;}
+  .sheet h2{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:20px;margin-bottom:2px;}
+  .sheet p{font-size:14px;color:var(--dim);line-height:1.5;margin-bottom:4px;}
+  .sheet .opt{text-align:left;border:1px solid var(--line);background:var(--cell);border-radius:14px;padding:13px 15px;font-weight:600;font-size:15px;}
+  .sheet .opt small{display:block;font-weight:500;color:var(--dim);font-size:12.5px;margin-top:2px;}
+  .sheet .ghost{background:none;border:0;padding:10px;font-weight:600;color:var(--dim);}
+
+  .bingo{position:fixed;inset:0;display:grid;place-items:center;z-index:30;pointer-events:none;}
+  .bingo .burst{
+    pointer-events:auto;background:var(--ink);color:var(--bg);border-radius:24px;padding:26px 34px;text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);animation:pop .45s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  .bingo .burst .display{font-size:52px;line-height:1;color:var(--gold);}
+  .bingo .burst div{font-size:14px;margin-top:8px;opacity:.85;}
+  @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  canvas#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:29;}
+  @media (prefers-reduced-motion: reduce){ .bingo .burst{animation:none;} .cell{transition:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Sign in: just a name, kept on this phone -->
+  <section class="hello" id="hello" hidden>
+    <div class="logo" aria-hidden="true">
+      <i class="on"></i><i></i><i></i><i></i><i></i>
+      <i></i><i class="on"></i><i></i><i></i><i></i>
+      <i></i><i></i><i class="on"></i><i></i><i></i>
+    </div>
+    <h1>General Conference Bingo</h1>
+    <p>Tap a square when you hear it. Five in a row — across, down or corner to corner — is a bingo. You get a fresh card every session.</p>
+    <form id="helloForm" autocomplete="off">
+      <label for="nameIn">Your name</label>
+      <input id="nameIn" maxlength="30" placeholder="First name is fine" autocapitalize="words" enterkeyhint="go" />
+      <button class="btn" id="startBtn" disabled>Start playing</button>
+    </form>
+  </section>
+
+  <!-- The game -->
+  <section id="game" hidden>
+    <div class="top">
+      <div class="who">
+        <div class="hi">Playing as</div>
+        <div class="nm" id="whoName"></div>
+      </div>
+      <button class="iconbtn" id="menuBtn" aria-label="Menu">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
+    </div>
+
+    <nav class="sessions" id="sessions" aria-label="Session"></nav>
+
+    <div class="card">
+      <div class="letters" aria-hidden="true"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div>
+      <div class="grid" id="grid" role="grid"></div>
+    </div>
+
+    <div class="status">
+      <span class="count" id="count"></span>
+      <button class="link" id="clearBtn">Clear marks</button>
+    </div>
+    <p class="tip">Your card saves on this phone automatically.</p>
+  </section>
+</div>
+
+<div class="scrim" id="menu" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <h2 id="menuTitle">Options</h2>
+    <button class="opt" id="newCardBtn">New card for this session<small>Shuffles the squares and clears your marks</small></button>
+    <button class="opt" id="renameBtn">Change my name<small>Your cards stay the same</small></button>
+    <button class="opt" id="signOutBtn">Start over<small>Forgets your name and every card on this phone</small></button>
+    <button class="ghost" id="menuClose">Close</button>
+  </div>
+</div>
+
+<div class="scrim" id="confirm" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmText"></p>
+    <button class="btn" id="confirmYes"></button>
+    <button class="ghost" id="confirmNo">Never mind</button>
+  </div>
+</div>
+
+<div class="bingo" id="bingo" hidden>
+  <div class="burst"><div class="display" id="bingoWord">BINGO!</div><div id="bingoSub"></div></div>
+</div>
+<canvas id="confetti" hidden></canvas>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---- the squares ----
+     Kept short so they fit a phone-sized cell. Each card draws 24 of these
+     at random, plus the free space in the middle. */
+  const SQUARES = [
+    // in the talks
+    "Story about a grandchild", "Pioneer story", "Speaker tears up", "Quotes C.S. Lewis",
+    "Airplane or pilot story", "Sports analogy", "Car or driving story", "Garden or farm analogy",
+    "Mission story", "Missionary companion story", "Childhood memory", "Mentions their spouse",
+    "Mentions the sacrament", "Mentions ministering", "“Covenant path”", "Mentions the Holy Ghost",
+    "Mentions repentance", "Mentions joy", "Mentions grace", "Gathering of Israel",
+    "The First Vision", "Quotes Joseph Smith", "Quotes Nephi", "Quotes Alma", "Quotes Isaiah",
+    "Family Procla\u00ADmation", "Quotes a hymn", "Quotes a past talk",
+    "Lost sheep", "Prodigal son", "Good Samaritan", "Moroni’s promise", "Christmas story",
+    "Mentions Easter", "Phones or social media", "Mentions AI", "Mentions young adults",
+    "Mentions Primary kids", "Mentions the youth", "Mentions tithing", "Mentions the temple",
+    "Book of Mormon", "Mentions the Restoration", "Mentions peace\u00ADmakers",
+    "Talk in another language", "“Dear brothers and sisters”", "Mentions a dog or pet",
+    "Hospital story", "Story about a bishop", "Convert story", "Storm or shipwreck",
+    "Mountain or climbing story", "Mentions Come, Follow Me", "“Hear Him”", "Mentions a natural disaster",
+    "Mentions the Liahona", "Mentions light and darkness", "Quotes a past prophet", "Speaker’s own conversion",
+    "Audience laughs", "Speaker shares a weakness", "Story about a teacher", "Mentions refugees or service",
+    "Mentions Geth\u00ADsemane", "Mentions the Second Coming", "Word “ponder”",
+    // in the meeting
+    "New temples announced", "Rest hymn", "Choir in matching colors", "Children’s choir",
+    "Choir sings a hymn you know", "Sustaining of officers", "Camera shows the audience",
+    "Camera finds speaker’s family", "Organ interlude", "Speaker you’ve never heard",
+    "Same topic twice in a row",
+    // at home
+    "Someone nods off", "Snack break", "Cinnamon rolls", "Someone takes notes",
+    "Someone says “shh!”", "Kids build a fort", "“That was a good one”", "Snacks everywhere"
+  ];
+
+  /* ---- sessions ----
+     Times are Mountain, which is what the broadcast keeps. */
+  const SESSIONS = [
+    { id:"sat-am",  label:"Sat morning",   day:6, from:0,  to:13 },
+    { id:"sat-pm",  label:"Sat afternoon", day:6, from:13, to:17 },
+    { id:"sat-eve", label:"Sat evening",   day:6, from:17, to:24 },
+    { id:"sun-am",  label:"Sun morning",   day:0, from:0,  to:13 },
+    { id:"sun-pm",  label:"Sun afternoon", day:0, from:13, to:24 },
+  ];
+
+  function mountainNow(){
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone:"America/Denver", weekday:"short", hour:"numeric", hourCycle:"h23",
+      year:"numeric", month:"numeric"
+    }).formatToParts(new Date());
+    const get = t => (parts.find(p => p.type === t) || {}).value;
+    const days = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+    return { day: days[get("weekday")], hour: +get("hour"), month: +get("month"), year: +get("year") };
+  }
+  function sessionForNow(){
+    const n = mountainNow();
+    const s = SESSIONS.find(s => s.day === n.day && n.hour >= s.from && n.hour < s.to);
+    return s ? s.id : null;
+  }
+  // April or October — a new conference means fresh cards for everybody.
+  function conferenceId(){
+    const n = mountainNow();
+    return n.year + (n.month >= 7 ? "-10" : "-04");
+  }
+
+  /* ---- storage (this phone only) ---- */
+  const STORE = "gcBingo.v1";
+  let state;
+  function load(){
+    try { state = JSON.parse(localStorage.getItem(STORE)) || {}; } catch(e){ state = {}; }
+    if(!state.cards) state.cards = {};
+    if(state.conference !== conferenceId()){
+      state.conference = conferenceId();
+      state.cards = {};
+      state.picked = null;
+    }
+  }
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e){} };
+
+  function shuffle(a){
+    a = a.slice();
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function newCard(){
+    const picks = shuffle(SQUARES).slice(0, 24);
+    picks.splice(12, 0, null);                      // the free space
+    const marks = Array(25).fill(false); marks[12] = true;
+    return { squares:picks, marks, bingos:0, blackout:false };
+  }
+  function card(id){
+    if(!state.cards[id]){ state.cards[id] = newCard(); save(); }
+    return state.cards[id];
+  }
+
+  /* ---- bingo lines ---- */
+  const LINES = [];
+  for(let r = 0; r < 5; r++) LINES.push([0,1,2,3,4].map(c => r*5 + c));
+  for(let c = 0; c < 5; c++) LINES.push([0,1,2,3,4].map(r => r*5 + c));
+  LINES.push([0,6,12,18,24], [4,8,12,16,20]);
+  const winningLines = marks => LINES.filter(l => l.every(i => marks[i]));
+
+  /* ---- rendering ---- */
+  let current;
+
+  function renderSessions(){
+    $("#sessions").innerHTML = SESSIONS.map(s => {
+      const c = state.cards[s.id];
+      const n = c ? winningLines(c.marks).length : 0;
+      return `<button data-id="${s.id}" class="${s.id === current ? "on" : ""}">${esc(s.label)}${n ? `<span class="pip">${n}</span>` : ""}</button>`;
+    }).join("");
+    const on = $("#sessions .on");
+    if(on) on.scrollIntoView({block:"nearest", inline:"nearest"});
+  }
+
+  function renderCard(){
+    const c = card(current);
+    const wins = winningLines(c.marks);
+    const winCells = new Set(wins.flat());
+    $("#grid").innerHTML = c.squares.map((t, i) => {
+      const cls = ["cell", c.marks[i] ? "on" : "", winCells.has(i) ? "win" : "", t === null ? "free" : ""].join(" ");
+      const label = t === null ? `<span><b>★</b>Free</span>` : esc(t);
+      return `<button class="${cls}" data-i="${i}" role="gridcell" aria-pressed="${c.marks[i]}">${label}</button>`;
+    }).join("");
+    const marked = c.marks.filter(Boolean).length - 1;
+    fitText();
+    $("#count").innerHTML = wins.length
+      ? `<strong>${wins.length} bingo${wins.length > 1 ? "s" : ""}</strong> · ${marked} of 24 marked`
+      : `${marked} of 24 marked`;
+  }
+
+  // Shrink any square whose words don't fit (small phones, long words).
+  function fitText(){
+    document.querySelectorAll("#grid .cell").forEach(el => {
+      el.style.fontSize = "";
+      let size = parseFloat(getComputedStyle(el).fontSize);
+      const over = () => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
+      while(over() && size > 7.5){ size -= .5; el.style.fontSize = size + "px"; }
+    });
+  }
+  addEventListener("resize", () => { if(!$("#game").hidden) fitText(); });
+
+  function render(){ renderSessions(); renderCard(); }
+
+  function pickSession(id, byHand){
+    current = id;
+    if(byHand){ state.picked = { id, at: Date.now() }; save(); }
+    render();
+  }
+
+  // Choose the tab to open on: whatever you tapped in the last couple of hours,
+  // otherwise the session that's on right now, otherwise where you left off.
+  function startingSession(){
+    const p = state.picked;
+    if(p && Date.now() - p.at < 2 * 3600e3) return p.id;
+    return sessionForNow() || (p && p.id) || SESSIONS[0].id;
+  }
+
+  /* ---- marking ---- */
+  $("#grid").addEventListener("click", e => {
+    const b = e.target.closest(".cell"); if(!b) return;
+    const i = +b.dataset.i; if(i === 12) return;
+    const c = card(current);
+    c.marks[i] = !c.marks[i];
+    const n = winningLines(c.marks).length;
+    const full = c.marks.every(Boolean);
+    if(full && !c.blackout){ c.blackout = true; celebrate("BLACKOUT!", "Every square. Impressive."); }
+    else if(n > c.bingos){ celebrate("BINGO!", n > 1 ? `That's ${n} on this card.` : `Nice one, ${state.name}.`); }
+    c.bingos = Math.max(c.bingos, n);
+    if(!full) c.blackout = false;
+    if(navigator.vibrate) navigator.vibrate(c.marks[i] ? 12 : 6);
+    save(); render();
+  });
+  $("#sessions").addEventListener("click", e => {
+    const b = e.target.closest("button"); if(b) pickSession(b.dataset.id, true);
+  });
+
+  /* ---- celebration ---- */
+  let bingoTimer;
+  function celebrate(word, sub){
+    $("#bingoWord").textContent = word;
+    $("#bingoSub").textContent = sub;
+    $("#bingo").hidden = false;
+    clearTimeout(bingoTimer);
+    bingoTimer = setTimeout(() => { $("#bingo").hidden = true; }, 2200);
+    if(navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80]);
+    confetti();
+  }
+  $("#bingo").addEventListener("click", () => { $("#bingo").hidden = true; });
+
+  function confetti(){
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cv = $("#confetti"), ctx = cv.getContext("2d"), dpr = window.devicePixelRatio || 1;
+    cv.hidden = false;
+    cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+    ctx.scale(dpr, dpr);
+    const colors = ["#D4A23A", "#1F2A44", "#E86F51", "#5A9BD5", "#7FB069", "#F3E3BC"];
+    const bits = Array.from({length: 140}, () => ({
+      x: innerWidth / 2 + (Math.random() - .5) * 60, y: innerHeight * .45,
+      vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4,
+      r: Math.random() * 6.28, vr: (Math.random() - .5) * .4,
+      w: 6 + Math.random() * 6, h: 3 + Math.random() * 4, c: colors[Math.floor(Math.random() * colors.length)]
+    }));
+    const t0 = performance.now();
+    (function frame(t){
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      for(const b of bits){
+        b.vy += .35; b.vx *= .99; b.x += b.vx; b.y += b.vy; b.r += b.vr;
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r);
+        ctx.fillStyle = b.c; ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h); ctx.restore();
+      }
+      if(t - t0 < 2600) requestAnimationFrame(frame);
+      else { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); cv.hidden = true; }
+    })(t0);
+  }
+
+  /* ---- menu + confirms ---- */
+  const open = id => { $(id).hidden = false; };
+  const close = id => { $(id).hidden = true; };
+  let onConfirm = null;
+  function ask(title, text, yes, fn){
+    $("#confirmTitle").textContent = title;
+    $("#confirmText").textContent = text;
+    $("#confirmYes").textContent = yes;
+    onConfirm = fn;
+    close("#menu"); open("#confirm");
+  }
+  $("#confirmYes").addEventListener("click", () => { close("#confirm"); if(onConfirm) onConfirm(); });
+  $("#confirmNo").addEventListener("click", () => close("#confirm"));
+  ["#menu", "#confirm"].forEach(id => $(id).addEventListener("click", e => { if(e.target === $(id)) close(id); }));
+
+  $("#menuBtn").addEventListener("click", () => open("#menu"));
+  $("#menuClose").addEventListener("click", () => close("#menu"));
+  $("#clearBtn").addEventListener("click", () => ask(
+    "Clear your marks?", "The squares stay the same — just the taps go away.", "Clear marks",
+    () => { const c = card(current); c.marks = c.marks.map((_, i) => i === 12); c.bingos = 0; c.blackout = false; save(); render(); }
+  ));
+  $("#newCardBtn").addEventListener("click", () => ask(
+    "Get a new card?", "You'll get different squares for this session and lose the marks on this one.", "New card",
+    () => { state.cards[current] = newCard(); save(); render(); }
+  ));
+  $("#renameBtn").addEventListener("click", () => {
+    close("#menu");
+    $("#nameIn").value = state.name || "";
+    showHello();
+  });
+  $("#signOutBtn").addEventListener("click", () => ask(
+    "Start over?", "This forgets your name and clears every card on this phone.", "Start over",
+    () => { state = {}; try { localStorage.removeItem(STORE); } catch(e){} load(); $("#nameIn").value = ""; showHello(); }
+  ));
+
+  /* ---- sign in ---- */
+  const nameIn = $("#nameIn");
+  nameIn.addEventListener("input", () => { $("#startBtn").disabled = !nameIn.value.trim(); });
+  $("#helloForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const n = nameIn.value.trim().replace(/\s+/g, " ");
+    if(!n) return;
+    state.name = n; save();
+    nameIn.blur();
+    showGame();
+  });
+
+  function showHello(){
+    $("#game").hidden = true; $("#hello").hidden = false;
+    $("#startBtn").disabled = !nameIn.value.trim();
+    $("#startBtn").textContent = state.name ? "Save" : "Start playing";
+  }
+  function showGame(){
+    $("#hello").hidden = true; $("#game").hidden = false;
+    $("#whoName").textContent = state.name;
+    pickSession(current || startingSession(), false);
+  }
+
+  load();
+  if(state.name) showGame(); else showHello();
+
+  // Coming back to the tab later (say, after the lunch break) — move to the
+  // live session unless you just picked one yourself.
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState !== "visible" || !state.name) return;
+    const before = state.conference;
+    load();
+    if(state.conference !== before) save();
+    const next = startingSession();
+    if(next !== current) pickSession(next, false); else render();
+  });
+})();
+</script>
+</body>
+</html>
