@@ -56,8 +56,7 @@
   .masthead .eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);}
   .masthead .title{font-family:var(--serif);font-size:22px;font-weight:400;line-height:1.2;}
   .masthead .who{flex:1;min-width:0;}
-  .masthead .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .iconbtn{width:40px;height:40px;border-radius:50%;border:0;background:none;display:grid;place-items:center;flex:none;}
+    .iconbtn{width:40px;height:40px;border-radius:50%;border:0;background:none;display:grid;place-items:center;flex:none;}
   .iconbtn:active{background:var(--line-soft);}
   .iconbtn svg{width:22px;height:22px;fill:var(--dim);}
 
@@ -72,19 +71,6 @@
   .tabs .pip{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--teal);color:var(--on-teal);
     font-size:11.5px;font-weight:700;display:inline-grid;place-items:center;}
 
-  /* ---------- sign in ---------- */
-  .hello{background:var(--surface);min-height:100vh;
-    padding:calc(56px + env(safe-area-inset-top)) 0 40px;}
-  .hello .wrap{display:flex;flex-direction:column;gap:18px;}
-  .hello .eyebrow{font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);}
-  .hello h1{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.1;letter-spacing:-.005em;}
-  .hello .rule{width:48px;height:2px;background:var(--teal);}
-  .hello p{color:var(--dim);font-size:17px;line-height:1.55;max-width:34ch;}
-  .field{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
-  .field label{font-size:14px;font-weight:600;color:var(--ink);}
-  .field input{font-size:18px;padding:12px 14px;border-radius:4px;border:1px solid var(--faint);
-    background:var(--surface);outline:none;}
-  .field input:focus{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal-soft);}
   .btn{border:0;border-radius:4px;padding:13px 20px;font-weight:600;font-size:17px;
     background:var(--teal);color:var(--on-teal);}
   .btn:active{background:var(--teal-dark);}
@@ -140,28 +126,13 @@
 </head>
 <body>
 
-<!-- Sign in: just a name, kept on this phone -->
-<section class="hello" id="hello" hidden>
-  <div class="wrap">
-    <div class="eyebrow">General Conference</div>
-    <h1>Conference Bingo</h1>
-    <div class="rule"></div>
-    <p>Tap a square when you hear it. Five in a row — across, down or corner to corner — is a bingo. Each session has its own card.</p>
-    <div class="field">
-      <label for="nameIn">Your name</label>
-      <input id="nameIn" maxlength="30" placeholder="First name is fine" autocomplete="off" autocapitalize="words" enterkeyhint="go" />
-    </div>
-    <button class="btn" id="startBtn" type="button" disabled>Start playing</button>
-  </div>
-</section>
-
 <!-- The game -->
-<section id="game" hidden>
+<section id="game">
   <header class="masthead">
     <div class="wrap">
       <div class="who">
-        <div class="eyebrow">Conference Bingo</div>
-        <div class="title nm" id="whoName"></div>
+        <div class="eyebrow">General Conference</div>
+        <div class="title">Conference Bingo</div>
       </div>
       <button class="iconbtn" id="menuBtn" type="button" aria-label="Options">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
@@ -180,7 +151,7 @@
       <button class="link" id="clearBtn" type="button">Clear marks</button>
       <button class="link" id="shuffleBtn" type="button">New squares</button>
     </div>
-    <p class="tip">Your cards save on this phone automatically.</p>
+    <p class="tip">Tap a square when you hear it. Five in a row — across, down or corner to corner — is a bingo. Your cards save on this phone automatically.</p>
   </main>
 </section>
 
@@ -189,8 +160,7 @@
     <h2 id="menuTitle">Options</h2>
     <button class="opt" id="addBtn" type="button">Add an extra card<small>For a second round, or anyone sharing your phone</small></button>
     <button class="opt" id="removeBtn" type="button" hidden>Remove this extra card<small>Deletes it and its marks</small></button>
-    <button class="opt" id="renameBtn" type="button">Change my name<small>Your cards stay the same</small></button>
-    <button class="opt" id="signOutBtn" type="button">Start over<small>Forgets your name and every card on this phone</small></button>
+    <button class="opt" id="signOutBtn" type="button">Start over<small>Clears every card on this phone</small></button>
     <button class="ghost" id="menuClose" type="button">Close</button>
   </div>
 </div>
@@ -218,32 +188,31 @@
      Kept short so they fit a phone-sized cell. Each card draws 24 of these
      at random, plus the free space in the middle. */
   const SQUARES = [
-    // in the talks
+    // stories and examples
     "Story about a grandchild", "Pioneer story", "Speaker tears up", "Quotes C.S. Lewis",
     "Airplane or pilot story", "Sports analogy", "Car or driving story", "Garden or farm analogy",
     "Mission story", "Missionary companion story", "Childhood memory", "Mentions their spouse",
-    "Mentions the sacrament", "Mentions ministering", "“Covenant path”", "Mentions the Holy Ghost",
-    "Mentions repentance", "Mentions joy", "Mentions grace", "Gathering of Israel",
-    "The First Vision", "Quotes Joseph Smith", "Quotes Nephi", "Quotes Alma", "Quotes Isaiah",
-    "Family Procla\u00ADmation", "Quotes a hymn", "Quotes a past talk",
-    "Lost sheep", "Prodigal son", "Good Samaritan", "Moroni’s promise", "Christmas story",
-    "Mentions Easter", "Phones or social media", "Mentions AI", "Mentions young adults",
-    "Mentions Primary kids", "Mentions the youth", "Mentions tithing", "Mentions the temple",
-    "Book of Mormon", "Mentions the Restoration", "Mentions peace\u00ADmakers",
-    "Talk in another language", "“Dear brothers and sisters”", "Mentions a dog or pet",
     "Hospital story", "Story about a bishop", "Convert story", "Storm or shipwreck",
-    "Mountain or climbing story", "Mentions Come, Follow Me", "“Hear Him”", "Mentions a natural disaster",
-    "Mentions the Liahona", "Mentions light and darkness", "Quotes a past prophet", "Speaker’s own conversion",
-    "Audience laughs", "Speaker shares a weakness", "Story about a teacher", "Mentions refugees or service",
+    "Mountain or climbing story", "Speaker’s own conversion", "Speaker shares a weakness",
+    "Story about a teacher", "Mentions a dog or pet", "Christmas story", "Mentions a natural disaster",
+    "Story set in Africa", "Quotes a poem", "Science or math example", "Mentions a specific year",
+    // scripture
+    "Quotes Joseph Smith", "Quotes Nephi", "Quotes Alma", "Quotes Isaiah", "Quotes Moroni",
+    "Quotes Ether", "Quotes D&C 121", "Lost sheep", "Prodigal son", "Good Samaritan",
+    "Moroni’s promise", "Lehi’s dream", "Stripling warriors", "Brother of Jared",
+    "Woman at the well", "Peter walks on water", "David and Goliath", "Mentions Moses",
+    "Mentions Liberty Jail", "Mentions Emma Smith",
+    // topics
+    "Mentions the sacrament", "Mentions ministering", "“Covenant path”", "Mentions grace",
+    "Gathering of Israel", "The First Vision", "Family Procla\u00ADmation", "Quotes a hymn",
+    "Quotes a past talk", "Quotes a past prophet", "Mentions Easter", "Phones or social media",
+    "Mentions AI", "Mentions young adults", "Mentions Primary kids", "Mentions the youth",
+    "Mentions tithing", "Mentions the Restoration", "Mentions peace\u00ADmakers",
+    "Mentions Come, Follow Me", "“Hear Him”", "Mentions the Liahona", "Mentions refugees or service",
     "Mentions Geth\u00ADsemane", "Mentions the Second Coming", "Word “ponder”",
     // in the meeting
-    "New temples announced", "Rest hymn", "Choir in matching colors", "Children’s choir",
-    "Choir sings a hymn you know", "Sustaining of officers", "Camera shows the audience",
-    "Camera finds speaker’s family", "Organ interlude", "Speaker you’ve never heard",
-    "Same topic twice in a row",
-    // at home
-    "Someone nods off", "Snack break", "Cinnamon rolls", "Someone takes notes",
-    "Someone says “shh!”", "Kids build a fort", "“That was a good one”", "Snacks everywhere"
+    "New temples announced", "Children’s choir", "Sustaining of officers", "Organ interlude",
+    "Talk in another language"
   ];
 
   /* ---- cards ----
@@ -252,7 +221,6 @@
   const SESSIONS = [
     { id:"sat-am",  label:"Sat morning" },
     { id:"sat-pm",  label:"Sat afternoon" },
-    { id:"sat-eve", label:"Sat evening" },
     { id:"sun-am",  label:"Sun morning" },
     { id:"sun-pm",  label:"Sun afternoon" },
   ];
@@ -267,7 +235,7 @@
   /* ---- storage (this phone only) ----
      If storage is blocked (a private tab, an embedded preview) the game still
      works, it just won't remember you after a reload. */
-  const STORE = "gcBingo.v1";
+  const STORE = "gcBingo.v2";   // v2: new square list, so earlier cards are dealt fresh
   let state;
   function load(){
     try { state = JSON.parse(localStorage.getItem(STORE)) || {}; } catch(e){ state = {}; }
@@ -377,7 +345,7 @@
     const n = winningLines(c.marks).length;
     const full = c.marks.every(Boolean);
     if(full && !c.blackout){ c.blackout = true; celebrate("Blackout!", "Every square. Impressive."); }
-    else if(n > c.bingos){ celebrate("Bingo!", n > 1 ? `That's ${n} on this card.` : `Nice one, ${state.name}.`); }
+    else if(n > c.bingos){ celebrate("Bingo!", n > 1 ? `That's ${n} on this card.` : "Nice one."); }
     c.bingos = Math.max(c.bingos, n);
     if(!full) c.blackout = false;
     if(navigator.vibrate) navigator.vibrate(c.marks[i] ? 12 : 6);
@@ -465,45 +433,13 @@
     "Get new squares?", "This card gets different squares and loses its marks.", "New squares",
     () => { state.cards[current] = newCard(); save(); render(); }
   ));
-  $("#renameBtn").addEventListener("click", () => {
-    close("#menu");
-    nameIn.value = state.name || "";
-    showHello();
-  });
   $("#signOutBtn").addEventListener("click", () => ask(
-    "Start over?", "This forgets your name and clears every card on this phone.", "Start over",
-    () => { try { localStorage.removeItem(STORE); } catch(e){} state = {}; load(); current = null; nameIn.value = ""; showHello(); }
+    "Start over?", "This clears every card on this phone and deals new ones.", "Start over",
+    () => { try { localStorage.removeItem(STORE); } catch(e){} load(); show(SESSIONS[0].id); }
   ));
 
-  /* ---- sign in ----
-     A plain button rather than a <form>: some embedded previews block form
-     submission, which left people stuck on this screen. */
-  const nameIn = $("#nameIn");
-  const startBtn = $("#startBtn");
-  nameIn.addEventListener("input", () => { startBtn.disabled = !nameIn.value.trim(); });
-  nameIn.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); signIn(); } });
-  startBtn.addEventListener("click", signIn);
-  function signIn(){
-    const n = nameIn.value.trim().replace(/\s+/g, " ");
-    if(!n) return;
-    state.name = n; save();
-    nameIn.blur();
-    showGame();
-  }
-
-  function showHello(){
-    $("#game").hidden = true; $("#hello").hidden = false;
-    startBtn.disabled = !nameIn.value.trim();
-    startBtn.textContent = state.name ? "Save" : "Start playing";
-  }
-  function showGame(){
-    $("#hello").hidden = true; $("#game").hidden = false;
-    $("#whoName").textContent = state.name;
-    show(current || state.last || SESSIONS[0].id);
-  }
-
   load();
-  if(state.name) showGame(); else showHello();
+  show(state.last || SESSIONS[0].id);
 })();
 </script>
 </body>
