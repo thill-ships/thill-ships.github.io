@@ -10,194 +10,188 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="Bingo" />
-<meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)" />
-<meta name="theme-color" content="#14181F" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#1B1C1E" media="(prefers-color-scheme: dark)" />
 
+<!-- Source Serif + Source Sans stand in for the serif/sans pairing on the
+     Church's websites and Gospel Library. -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
 
-<!-- App icon: a little gold-and-navy bingo card -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%231F2A44'/%3E%3Crect%20x='6'%20y='6'%20width='6'%20height='6'%20rx='1.5'%20fill='%23D4A23A'/%3E%3Crect%20x='13'%20y='6'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='20'%20y='6'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='6'%20y='13'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='13'%20y='13'%20width='6'%20height='6'%20rx='1.5'%20fill='%23D4A23A'/%3E%3Crect%20x='20'%20y='13'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='6'%20y='20'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='13'%20y='20'%20width='6'%20height='6'%20rx='1.5'%20fill='%23F6F1E7'/%3E%3Crect%20x='20'%20y='20'%20width='6'%20height='6'%20rx='1.5'%20fill='%23D4A23A'/%3E%3C/svg%3E" />
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Crect%20width='180'%20height='180'%20fill='%231F2A44'/%3E%3Crect%20x='36'%20y='36'%20width='32'%20height='32'%20rx='8'%20fill='%23D4A23A'/%3E%3Crect%20x='74'%20y='36'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='112'%20y='36'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='36'%20y='74'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='74'%20y='74'%20width='32'%20height='32'%20rx='8'%20fill='%23D4A23A'/%3E%3Crect%20x='112'%20y='74'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='36'%20y='112'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='74'%20y='112'%20width='32'%20height='32'%20rx='8'%20fill='%23F6F1E7'/%3E%3Crect%20x='112'%20y='112'%20width='32'%20height='32'%20rx='8'%20fill='%23D4A23A'/%3E%3C/svg%3E" />
+<!-- App icon: a plain teal bingo card -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='6'%20fill='%23157493'/%3E%3Crect%20x='6'%20y='6'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'/%3E%3Crect%20x='13'%20y='6'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='20'%20y='6'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='6'%20y='13'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='13'%20y='13'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'/%3E%3Crect%20x='20'%20y='13'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='6'%20y='20'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='13'%20y='20'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='20'%20y='20'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'/%3E%3C/svg%3E" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Crect%20width='180'%20height='180'%20fill='%23157493'/%3E%3Crect%20x='36'%20y='36'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'/%3E%3Crect%20x='74'%20y='36'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='112'%20y='36'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='36'%20y='74'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='74'%20y='74'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'/%3E%3Crect%20x='112'%20y='74'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='36'%20y='112'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='74'%20y='112'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='112'%20y='112'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'/%3E%3C/svg%3E" />
 
 <style>
   :root{
-    --bg:#F6F1E7; --card:#FFFDF8; --cell:#FFFFFF; --line:#E4DCCB;
-    --ink:#1F2A44; --dim:#6B7180; --faint:#A6A39A;
-    --gold:#D4A23A; --gold-soft:#F3E3BC; --mark:#1F2A44; --mark-ink:#FFFDF8;
-    --win:#C98A1B; --shadow:0 1px 2px rgba(31,42,68,.06),0 6px 20px rgba(31,42,68,.06);
+    --bg:#F4F4F4; --surface:#FFFFFF; --cell:#FFFFFF; --line:#D0D1D3; --line-soft:#E6E7E8;
+    --ink:#212225; --dim:#53575B; --faint:#8C9196;
+    --teal:#157493; --teal-dark:#0F5A72; --teal-soft:#E5F0F3; --on-teal:#FFFFFF;
+    --win:#0B3F51;
+    --serif:'Source Serif 4',Georgia,'Times New Roman',serif;
+    --sans:'Source Sans 3',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#14181F; --card:#1B2029; --cell:#222833; --line:#2E3542;
-      --ink:#F1ECE1; --dim:#A3A8B4; --faint:#6A7080;
-      --gold:#E2B252; --gold-soft:#3A3222; --mark:#E2B252; --mark-ink:#14181F;
-      --win:#F2C66B; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+      --bg:#121314; --surface:#1B1C1E; --cell:#232427; --line:#3A3C40; --line-soft:#2C2E31;
+      --ink:#ECECEC; --dim:#B0B3B8; --faint:#7E8288;
+      --teal:#3FA6C6; --teal-dark:#62BBD6; --teal-soft:#1C3139; --on-teal:#0E1A1F;
+      --win:#9ED7EA;
     }
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   html,body{background:var(--bg);color:var(--ink);}
-  body{
-    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-    -webkit-font-smoothing:antialiased;min-height:100vh;
-    padding:calc(14px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
-  }
-  .wrap{max-width:520px;margin:0 auto;}
-  h1,.display{font-family:'Fraunces',Georgia,serif;font-weight:800;letter-spacing:-.01em;}
-  button{font:inherit;color:inherit;cursor:pointer;}
+  body{font-family:var(--sans);font-size:16px;-webkit-font-smoothing:antialiased;min-height:100vh;
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));}
+  button,input{font:inherit;color:inherit;}
+  button{cursor:pointer;}
   [hidden]{display:none !important;}
+  .wrap{max-width:540px;margin:0 auto;padding:0 16px;}
+
+  /* ---------- header strip, like the white bar across the top of the Church's sites ---------- */
+  .masthead{background:var(--surface);border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top)) 0 0;}
+  .masthead .wrap{display:flex;align-items:center;gap:12px;min-height:44px;}
+  .masthead .eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);}
+  .masthead .title{font-family:var(--serif);font-size:22px;font-weight:400;line-height:1.2;}
+  .masthead .who{flex:1;min-width:0;}
+  .masthead .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .iconbtn{width:40px;height:40px;border-radius:50%;border:0;background:none;display:grid;place-items:center;flex:none;}
+  .iconbtn:active{background:var(--line-soft);}
+  .iconbtn svg{width:22px;height:22px;fill:var(--dim);}
+
+  /* underline tabs */
+  .tabs{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;margin-top:6px;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tabs button{flex:none;background:none;border:0;border-bottom:3px solid transparent;
+    padding:10px 0 9px;font-size:15px;font-weight:600;color:var(--dim);white-space:nowrap;
+    display:flex;align-items:center;gap:6px;}
+  .tabs button.on{color:var(--ink);border-bottom-color:var(--teal);}
+  .tabs button.add{color:var(--teal);}
+  .tabs .pip{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--teal);color:var(--on-teal);
+    font-size:11.5px;font-weight:700;display:inline-grid;place-items:center;}
 
   /* ---------- sign in ---------- */
-  .hello{min-height:calc(100vh - 80px);display:flex;flex-direction:column;justify-content:center;gap:22px;}
-  .hello .logo{display:grid;grid-template-columns:repeat(5,14px);gap:4px;}
-  .hello .logo i{width:14px;height:14px;border-radius:4px;background:var(--line);}
-  .hello .logo i.on{background:var(--gold);}
-  .hello h1{font-size:42px;line-height:1.02;}
-  .hello p{color:var(--dim);font-size:15px;line-height:1.55;max-width:34ch;}
-  .hello form{display:flex;flex-direction:column;gap:10px;}
-  .hello label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);}
-  .hello input{
-    font:inherit;font-size:18px;padding:14px 16px;border-radius:14px;border:1.5px solid var(--line);
-    background:var(--card);color:var(--ink);outline:none;
-  }
-  .hello input:focus{border-color:var(--gold);}
-  .btn{
-    border:0;border-radius:14px;padding:14px 18px;font-weight:700;font-size:16px;
-    background:var(--ink);color:var(--bg);
-  }
-  .btn:disabled{opacity:.4;}
-
-  /* ---------- top bar ---------- */
-  .top{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-  .top .who{flex:1;min-width:0;}
-  .top .hi{font-size:12px;color:var(--dim);font-weight:600;}
-  .top .nm{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:22px;line-height:1.1;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .iconbtn{
-    width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);
-    display:grid;place-items:center;flex:none;
-  }
-  .iconbtn svg{width:20px;height:20px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-
-  /* ---------- session tabs ---------- */
-  .sessions{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 14px;padding:0 16px;}
-  .sessions::-webkit-scrollbar{display:none;}
-  .sessions button{
-    flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;
-    padding:8px 13px;font-size:13px;font-weight:600;color:var(--dim);white-space:nowrap;
-    display:flex;align-items:center;gap:6px;
-  }
-  .sessions button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);}
-  .sessions .pip{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--gold);color:#1F2A44;
-    font-size:11px;font-weight:800;display:inline-grid;place-items:center;}
+  .hello{background:var(--surface);min-height:100vh;
+    padding:calc(56px + env(safe-area-inset-top)) 0 40px;}
+  .hello .wrap{display:flex;flex-direction:column;gap:18px;}
+  .hello .eyebrow{font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);}
+  .hello h1{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.1;letter-spacing:-.005em;}
+  .hello .rule{width:48px;height:2px;background:var(--teal);}
+  .hello p{color:var(--dim);font-size:17px;line-height:1.55;max-width:34ch;}
+  .field{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+  .field label{font-size:14px;font-weight:600;color:var(--ink);}
+  .field input{font-size:18px;padding:12px 14px;border-radius:4px;border:1px solid var(--faint);
+    background:var(--surface);outline:none;}
+  .field input:focus{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal-soft);}
+  .btn{border:0;border-radius:4px;padding:13px 20px;font-weight:600;font-size:17px;
+    background:var(--teal);color:var(--on-teal);}
+  .btn:active{background:var(--teal-dark);}
+  .btn:disabled{opacity:.45;}
 
   /* ---------- card ---------- */
-  .card{background:var(--card);border-radius:20px;padding:clamp(8px,2.5vw,12px);box-shadow:var(--shadow);border:1px solid var(--line);}
-  .letters{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px;}
-  .letters span{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:24px;text-align:center;color:var(--gold);line-height:1;}
+  main.wrap{padding-top:16px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:clamp(8px,2.5vw,14px);}
+  .card-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 10px;}
+  .card-head h2{font-family:var(--serif);font-weight:400;font-size:20px;}
+  .card-head .count{font-size:14px;color:var(--dim);}
+  .card-head .count strong{color:var(--teal);font-weight:700;}
+  .letters{display:grid;grid-template-columns:repeat(5,1fr);gap:clamp(4px,1.4vw,6px);margin-bottom:6px;}
+  .letters span{font-family:var(--serif);font-weight:600;font-size:22px;text-align:center;color:var(--teal);line-height:1.1;}
   .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:clamp(4px,1.4vw,6px);}
   .cell{
-    position:relative;aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:var(--cell);
+    position:relative;aspect-ratio:1;border-radius:4px;border:1px solid var(--line);background:var(--cell);
     display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 3px;
-    font-size:clamp(9px,2.55vw,12.5px);font-weight:600;line-height:1.15;color:var(--ink);
-    overflow:hidden;word-break:normal;overflow-wrap:normal;-webkit-hyphens:auto;hyphens:auto;user-select:none;-webkit-user-select:none;
-    transition:background .15s, color .15s, transform .1s;
+    font-size:clamp(9px,2.7vw,13px);font-weight:600;line-height:1.15;color:var(--ink);
+    overflow:hidden;word-break:normal;overflow-wrap:normal;-webkit-hyphens:auto;hyphens:auto;
+    user-select:none;-webkit-user-select:none;transition:background .15s,color .15s,transform .1s;
   }
   .cell:active{transform:scale(.95);}
-  .cell.on{background:var(--mark);color:var(--mark-ink);border-color:var(--mark);}
-  .cell.on::after{
-    content:"";position:absolute;inset:8%;border-radius:50%;
-    border:2.5px solid var(--gold);opacity:.55;pointer-events:none;
-  }
-  .cell.win{box-shadow:0 0 0 2.5px var(--win);}
-  .cell.free{background:var(--gold-soft);color:var(--ink);border-color:var(--gold);font-family:'Fraunces',Georgia,serif;font-weight:800;}
-  .cell.free.on{background:var(--gold);color:#1F2A44;}
-  .cell.free.on::after{display:none;}
-  .cell.free b{display:block;font-size:1.5em;line-height:1;}
+  .cell.on{background:var(--teal);color:var(--on-teal);border-color:var(--teal);}
+  .cell.win{background:var(--win);border-color:var(--win);color:var(--surface);}
+  .cell.free{background:var(--teal-soft);border-color:var(--teal);color:var(--teal);font-family:var(--serif);}
+  .cell.free.win{background:var(--win);border-color:var(--win);color:var(--surface);}
+  .cell.free b{display:block;font-size:1.6em;line-height:1;font-weight:400;}
 
-  .status{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:0 4px;}
-  .status .count{font-size:13px;color:var(--dim);font-weight:600;}
-  .status .count strong{color:var(--ink);}
-  .link{background:none;border:0;font-size:13px;font-weight:600;color:var(--dim);text-decoration:underline;text-underline-offset:3px;padding:6px 0;}
-  .tip{font-size:12.5px;color:var(--faint);text-align:center;margin-top:16px;line-height:1.5;}
+  .actions{display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding:0 2px;}
+  .link{background:none;border:0;font-size:15px;font-weight:600;color:var(--teal);padding:8px 0;}
+  .tip{font-size:14px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.5;}
 
-  /* ---------- sheets / overlays ---------- */
-  .scrim{position:fixed;inset:0;background:rgba(10,14,22,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20;
+  /* ---------- sheets ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20;
     padding:16px 16px calc(16px + env(safe-area-inset-bottom));}
-  .sheet{background:var(--card);border-radius:20px;padding:20px;width:100%;max-width:440px;box-shadow:var(--shadow);
-    display:flex;flex-direction:column;gap:10px;}
-  .sheet h2{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:20px;margin-bottom:2px;}
-  .sheet p{font-size:14px;color:var(--dim);line-height:1.5;margin-bottom:4px;}
-  .sheet .opt{text-align:left;border:1px solid var(--line);background:var(--cell);border-radius:14px;padding:13px 15px;font-weight:600;font-size:15px;}
-  .sheet .opt small{display:block;font-weight:500;color:var(--dim);font-size:12.5px;margin-top:2px;}
-  .sheet .ghost{background:none;border:0;padding:10px;font-weight:600;color:var(--dim);}
+  .sheet{background:var(--surface);border-radius:8px;padding:20px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:10px;}
+  .sheet h2{font-family:var(--serif);font-weight:400;font-size:22px;}
+  .sheet p{font-size:16px;color:var(--dim);line-height:1.5;margin-bottom:4px;}
+  .sheet .opt{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:12px 14px;font-weight:600;font-size:16px;}
+  .sheet .opt small{display:block;font-weight:400;color:var(--dim);font-size:14px;margin-top:2px;}
+  .sheet .ghost{background:none;border:0;padding:10px;font-weight:600;color:var(--teal);}
 
-  .bingo{position:fixed;inset:0;display:grid;place-items:center;z-index:30;pointer-events:none;}
-  .bingo .burst{
-    pointer-events:auto;background:var(--ink);color:var(--bg);border-radius:24px;padding:26px 34px;text-align:center;
-    box-shadow:0 20px 60px rgba(0,0,0,.35);animation:pop .45s cubic-bezier(.2,1.4,.4,1) both;
-  }
-  .bingo .burst .display{font-size:52px;line-height:1;color:var(--gold);}
-  .bingo .burst div{font-size:14px;margin-top:8px;opacity:.85;}
-  @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  .bingo{position:fixed;inset:0;display:grid;place-items:center;z-index:30;pointer-events:none;padding:16px;}
+  .bingo .burst{pointer-events:auto;background:var(--surface);border-top:4px solid var(--teal);border-radius:6px;
+    padding:24px 36px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.28);animation:pop .4s cubic-bezier(.2,1.3,.4,1) both;}
+  .bingo .word{font-family:var(--serif);font-size:48px;font-weight:600;line-height:1;color:var(--teal);}
+  .bingo .sub{font-size:16px;margin-top:8px;color:var(--dim);}
+  @keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
   canvas#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:29;}
   @media (prefers-reduced-motion: reduce){ .bingo .burst{animation:none;} .cell{transition:none;} }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <!-- Sign in: just a name, kept on this phone -->
-  <section class="hello" id="hello" hidden>
-    <div class="logo" aria-hidden="true">
-      <i class="on"></i><i></i><i></i><i></i><i></i>
-      <i></i><i class="on"></i><i></i><i></i><i></i>
-      <i></i><i></i><i class="on"></i><i></i><i></i>
-    </div>
-    <h1>General Conference Bingo</h1>
-    <p>Tap a square when you hear it. Five in a row — across, down or corner to corner — is a bingo. You get a fresh card every session.</p>
-    <form id="helloForm" autocomplete="off">
+<!-- Sign in: just a name, kept on this phone -->
+<section class="hello" id="hello" hidden>
+  <div class="wrap">
+    <div class="eyebrow">General Conference</div>
+    <h1>Conference Bingo</h1>
+    <div class="rule"></div>
+    <p>Tap a square when you hear it. Five in a row — across, down or corner to corner — is a bingo. Each session has its own card.</p>
+    <div class="field">
       <label for="nameIn">Your name</label>
-      <input id="nameIn" maxlength="30" placeholder="First name is fine" autocapitalize="words" enterkeyhint="go" />
-      <button class="btn" id="startBtn" disabled>Start playing</button>
-    </form>
-  </section>
+      <input id="nameIn" maxlength="30" placeholder="First name is fine" autocomplete="off" autocapitalize="words" enterkeyhint="go" />
+    </div>
+    <button class="btn" id="startBtn" type="button" disabled>Start playing</button>
+  </div>
+</section>
 
-  <!-- The game -->
-  <section id="game" hidden>
-    <div class="top">
+<!-- The game -->
+<section id="game" hidden>
+  <header class="masthead">
+    <div class="wrap">
       <div class="who">
-        <div class="hi">Playing as</div>
-        <div class="nm" id="whoName"></div>
+        <div class="eyebrow">Conference Bingo</div>
+        <div class="title nm" id="whoName"></div>
       </div>
-      <button class="iconbtn" id="menuBtn" aria-label="Menu">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      <button class="iconbtn" id="menuBtn" type="button" aria-label="Options">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
       </button>
     </div>
+    <div class="wrap"><nav class="tabs" id="tabs" aria-label="Cards"></nav></div>
+  </header>
 
-    <nav class="sessions" id="sessions" aria-label="Session"></nav>
-
+  <main class="wrap">
     <div class="card">
+      <div class="card-head"><h2 id="cardTitle"></h2><span class="count" id="count"></span></div>
       <div class="letters" aria-hidden="true"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div>
       <div class="grid" id="grid" role="grid"></div>
     </div>
-
-    <div class="status">
-      <span class="count" id="count"></span>
-      <button class="link" id="clearBtn">Clear marks</button>
+    <div class="actions">
+      <button class="link" id="clearBtn" type="button">Clear marks</button>
+      <button class="link" id="shuffleBtn" type="button">New squares</button>
     </div>
-    <p class="tip">Your card saves on this phone automatically.</p>
-  </section>
-</div>
+    <p class="tip">Your cards save on this phone automatically.</p>
+  </main>
+</section>
 
 <div class="scrim" id="menu" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
     <h2 id="menuTitle">Options</h2>
-    <button class="opt" id="newCardBtn">New card for this session<small>Shuffles the squares and clears your marks</small></button>
-    <button class="opt" id="renameBtn">Change my name<small>Your cards stay the same</small></button>
-    <button class="opt" id="signOutBtn">Start over<small>Forgets your name and every card on this phone</small></button>
-    <button class="ghost" id="menuClose">Close</button>
+    <button class="opt" id="addBtn" type="button">Add an extra card<small>For a second round, or anyone sharing your phone</small></button>
+    <button class="opt" id="removeBtn" type="button" hidden>Remove this extra card<small>Deletes it and its marks</small></button>
+    <button class="opt" id="renameBtn" type="button">Change my name<small>Your cards stay the same</small></button>
+    <button class="opt" id="signOutBtn" type="button">Start over<small>Forgets your name and every card on this phone</small></button>
+    <button class="ghost" id="menuClose" type="button">Close</button>
   </div>
 </div>
 
@@ -205,13 +199,13 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
     <h2 id="confirmTitle"></h2>
     <p id="confirmText"></p>
-    <button class="btn" id="confirmYes"></button>
-    <button class="ghost" id="confirmNo">Never mind</button>
+    <button class="btn" id="confirmYes" type="button"></button>
+    <button class="ghost" id="confirmNo" type="button">Never mind</button>
   </div>
 </div>
 
 <div class="bingo" id="bingo" hidden>
-  <div class="burst"><div class="display" id="bingoWord">BINGO!</div><div id="bingoSub"></div></div>
+  <div class="burst"><div class="word" id="bingoWord">Bingo!</div><div class="sub" id="bingoSub"></div></div>
 </div>
 <canvas id="confetti" hidden></canvas>
 
@@ -252,49 +246,44 @@
     "Someone says “shh!”", "Kids build a fort", "“That was a good one”", "Snacks everywhere"
   ];
 
-  /* ---- sessions ----
-     Times are Mountain, which is what the broadcast keeps. */
+  /* ---- cards ----
+     One per session; you switch between them yourself. Extra cards can be
+     added from the menu. */
   const SESSIONS = [
-    { id:"sat-am",  label:"Sat morning",   day:6, from:0,  to:13 },
-    { id:"sat-pm",  label:"Sat afternoon", day:6, from:13, to:17 },
-    { id:"sat-eve", label:"Sat evening",   day:6, from:17, to:24 },
-    { id:"sun-am",  label:"Sun morning",   day:0, from:0,  to:13 },
-    { id:"sun-pm",  label:"Sun afternoon", day:0, from:13, to:24 },
+    { id:"sat-am",  label:"Sat morning" },
+    { id:"sat-pm",  label:"Sat afternoon" },
+    { id:"sat-eve", label:"Sat evening" },
+    { id:"sun-am",  label:"Sun morning" },
+    { id:"sun-pm",  label:"Sun afternoon" },
   ];
+  const MAX_EXTRAS = 5;
 
-  function mountainNow(){
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone:"America/Denver", weekday:"short", hour:"numeric", hourCycle:"h23",
-      year:"numeric", month:"numeric"
-    }).formatToParts(new Date());
-    const get = t => (parts.find(p => p.type === t) || {}).value;
-    const days = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
-    return { day: days[get("weekday")], hour: +get("hour"), month: +get("month"), year: +get("year") };
-  }
-  function sessionForNow(){
-    const n = mountainNow();
-    const s = SESSIONS.find(s => s.day === n.day && n.hour >= s.from && n.hour < s.to);
-    return s ? s.id : null;
-  }
   // April or October — a new conference means fresh cards for everybody.
   function conferenceId(){
-    const n = mountainNow();
-    return n.year + (n.month >= 7 ? "-10" : "-04");
+    const d = new Date();
+    return d.getFullYear() + (d.getMonth() >= 6 ? "-10" : "-04");
   }
 
-  /* ---- storage (this phone only) ---- */
+  /* ---- storage (this phone only) ----
+     If storage is blocked (a private tab, an embedded preview) the game still
+     works, it just won't remember you after a reload. */
   const STORE = "gcBingo.v1";
   let state;
   function load(){
     try { state = JSON.parse(localStorage.getItem(STORE)) || {}; } catch(e){ state = {}; }
     if(!state.cards) state.cards = {};
+    if(!state.extras) state.extras = [];
     if(state.conference !== conferenceId()){
       state.conference = conferenceId();
-      state.cards = {};
-      state.picked = null;
+      state.cards = {}; state.extras = []; state.last = null;
     }
   }
   const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e){} };
+
+  function tabs(){
+    return SESSIONS.concat(state.extras.map((id, i) => ({ id, label:"Extra " + (i + 1), extra:true })));
+  }
+  const tabFor = id => tabs().find(t => t.id === id);
 
   function shuffle(a){
     a = a.slice();
@@ -325,13 +314,14 @@
   /* ---- rendering ---- */
   let current;
 
-  function renderSessions(){
-    $("#sessions").innerHTML = SESSIONS.map(s => {
-      const c = state.cards[s.id];
+  function renderTabs(){
+    const canAdd = state.extras.length < MAX_EXTRAS;
+    $("#tabs").innerHTML = tabs().map(t => {
+      const c = state.cards[t.id];
       const n = c ? winningLines(c.marks).length : 0;
-      return `<button data-id="${s.id}" class="${s.id === current ? "on" : ""}">${esc(s.label)}${n ? `<span class="pip">${n}</span>` : ""}</button>`;
-    }).join("");
-    const on = $("#sessions .on");
+      return `<button type="button" data-id="${t.id}" class="${t.id === current ? "on" : ""}">${esc(t.label)}${n ? `<span class="pip">${n}</span>` : ""}</button>`;
+    }).join("") + (canAdd ? `<button type="button" class="add" data-add="1">+ Extra card</button>` : "");
+    const on = $("#tabs .on");
     if(on) on.scrollIntoView({block:"nearest", inline:"nearest"});
   }
 
@@ -339,15 +329,16 @@
     const c = card(current);
     const wins = winningLines(c.marks);
     const winCells = new Set(wins.flat());
+    $("#cardTitle").textContent = tabFor(current).label;
     $("#grid").innerHTML = c.squares.map((t, i) => {
       const cls = ["cell", c.marks[i] ? "on" : "", winCells.has(i) ? "win" : "", t === null ? "free" : ""].join(" ");
       const label = t === null ? `<span><b>★</b>Free</span>` : esc(t);
-      return `<button class="${cls}" data-i="${i}" role="gridcell" aria-pressed="${c.marks[i]}">${label}</button>`;
+      return `<button type="button" class="${cls}" data-i="${i}" role="gridcell" aria-pressed="${c.marks[i]}">${label}</button>`;
     }).join("");
-    const marked = c.marks.filter(Boolean).length - 1;
     fitText();
+    const marked = c.marks.filter(Boolean).length - 1;
     $("#count").innerHTML = wins.length
-      ? `<strong>${wins.length} bingo${wins.length > 1 ? "s" : ""}</strong> · ${marked} of 24 marked`
+      ? `<strong>${wins.length} bingo${wins.length > 1 ? "s" : ""}</strong> · ${marked}/24`
       : `${marked} of 24 marked`;
   }
 
@@ -362,20 +353,19 @@
   }
   addEventListener("resize", () => { if(!$("#game").hidden) fitText(); });
 
-  function render(){ renderSessions(); renderCard(); }
+  function render(){ renderTabs(); renderCard(); }
 
-  function pickSession(id, byHand){
-    current = id;
-    if(byHand){ state.picked = { id, at: Date.now() }; save(); }
+  function show(id){
+    current = tabFor(id) ? id : SESSIONS[0].id;
+    state.last = current; save();
     render();
   }
 
-  // Choose the tab to open on: whatever you tapped in the last couple of hours,
-  // otherwise the session that's on right now, otherwise where you left off.
-  function startingSession(){
-    const p = state.picked;
-    if(p && Date.now() - p.at < 2 * 3600e3) return p.id;
-    return sessionForNow() || (p && p.id) || SESSIONS[0].id;
+  function addExtra(){
+    if(state.extras.length >= MAX_EXTRAS) return;
+    const id = "extra-" + Date.now().toString(36);
+    state.extras.push(id); state.cards[id] = newCard();
+    show(id);
   }
 
   /* ---- marking ---- */
@@ -386,15 +376,16 @@
     c.marks[i] = !c.marks[i];
     const n = winningLines(c.marks).length;
     const full = c.marks.every(Boolean);
-    if(full && !c.blackout){ c.blackout = true; celebrate("BLACKOUT!", "Every square. Impressive."); }
-    else if(n > c.bingos){ celebrate("BINGO!", n > 1 ? `That's ${n} on this card.` : `Nice one, ${state.name}.`); }
+    if(full && !c.blackout){ c.blackout = true; celebrate("Blackout!", "Every square. Impressive."); }
+    else if(n > c.bingos){ celebrate("Bingo!", n > 1 ? `That's ${n} on this card.` : `Nice one, ${state.name}.`); }
     c.bingos = Math.max(c.bingos, n);
     if(!full) c.blackout = false;
     if(navigator.vibrate) navigator.vibrate(c.marks[i] ? 12 : 6);
     save(); render();
   });
-  $("#sessions").addEventListener("click", e => {
-    const b = e.target.closest("button"); if(b) pickSession(b.dataset.id, true);
+  $("#tabs").addEventListener("click", e => {
+    const b = e.target.closest("button"); if(!b) return;
+    if(b.dataset.add) addExtra(); else show(b.dataset.id);
   });
 
   /* ---- celebration ---- */
@@ -416,7 +407,7 @@
     cv.hidden = false;
     cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
     ctx.scale(dpr, dpr);
-    const colors = ["#D4A23A", "#1F2A44", "#E86F51", "#5A9BD5", "#7FB069", "#F3E3BC"];
+    const colors = ["#157493", "#3FA6C6", "#0B3F51", "#E5F0F3", "#C9A227", "#FFFFFF"];
     const bits = Array.from({length: 140}, () => ({
       x: innerWidth / 2 + (Math.random() - .5) * 60, y: innerHeight * .45,
       vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4,
@@ -451,62 +442,68 @@
   $("#confirmNo").addEventListener("click", () => close("#confirm"));
   ["#menu", "#confirm"].forEach(id => $(id).addEventListener("click", e => { if(e.target === $(id)) close(id); }));
 
-  $("#menuBtn").addEventListener("click", () => open("#menu"));
+  $("#menuBtn").addEventListener("click", () => {
+    $("#addBtn").hidden = state.extras.length >= MAX_EXTRAS;
+    $("#removeBtn").hidden = !tabFor(current).extra;
+    open("#menu");
+  });
   $("#menuClose").addEventListener("click", () => close("#menu"));
+  $("#addBtn").addEventListener("click", () => { close("#menu"); addExtra(); });
+  $("#removeBtn").addEventListener("click", () => ask(
+    "Remove this card?", "It'll be deleted along with its marks.", "Remove card",
+    () => {
+      state.extras = state.extras.filter(id => id !== current);
+      delete state.cards[current];
+      show(state.extras[state.extras.length - 1] || SESSIONS[SESSIONS.length - 1].id);
+    }
+  ));
   $("#clearBtn").addEventListener("click", () => ask(
     "Clear your marks?", "The squares stay the same — just the taps go away.", "Clear marks",
     () => { const c = card(current); c.marks = c.marks.map((_, i) => i === 12); c.bingos = 0; c.blackout = false; save(); render(); }
   ));
-  $("#newCardBtn").addEventListener("click", () => ask(
-    "Get a new card?", "You'll get different squares for this session and lose the marks on this one.", "New card",
+  $("#shuffleBtn").addEventListener("click", () => ask(
+    "Get new squares?", "This card gets different squares and loses its marks.", "New squares",
     () => { state.cards[current] = newCard(); save(); render(); }
   ));
   $("#renameBtn").addEventListener("click", () => {
     close("#menu");
-    $("#nameIn").value = state.name || "";
+    nameIn.value = state.name || "";
     showHello();
   });
   $("#signOutBtn").addEventListener("click", () => ask(
     "Start over?", "This forgets your name and clears every card on this phone.", "Start over",
-    () => { state = {}; try { localStorage.removeItem(STORE); } catch(e){} load(); $("#nameIn").value = ""; showHello(); }
+    () => { try { localStorage.removeItem(STORE); } catch(e){} state = {}; load(); current = null; nameIn.value = ""; showHello(); }
   ));
 
-  /* ---- sign in ---- */
+  /* ---- sign in ----
+     A plain button rather than a <form>: some embedded previews block form
+     submission, which left people stuck on this screen. */
   const nameIn = $("#nameIn");
-  nameIn.addEventListener("input", () => { $("#startBtn").disabled = !nameIn.value.trim(); });
-  $("#helloForm").addEventListener("submit", e => {
-    e.preventDefault();
+  const startBtn = $("#startBtn");
+  nameIn.addEventListener("input", () => { startBtn.disabled = !nameIn.value.trim(); });
+  nameIn.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); signIn(); } });
+  startBtn.addEventListener("click", signIn);
+  function signIn(){
     const n = nameIn.value.trim().replace(/\s+/g, " ");
     if(!n) return;
     state.name = n; save();
     nameIn.blur();
     showGame();
-  });
+  }
 
   function showHello(){
     $("#game").hidden = true; $("#hello").hidden = false;
-    $("#startBtn").disabled = !nameIn.value.trim();
-    $("#startBtn").textContent = state.name ? "Save" : "Start playing";
+    startBtn.disabled = !nameIn.value.trim();
+    startBtn.textContent = state.name ? "Save" : "Start playing";
   }
   function showGame(){
     $("#hello").hidden = true; $("#game").hidden = false;
     $("#whoName").textContent = state.name;
-    pickSession(current || startingSession(), false);
+    show(current || state.last || SESSIONS[0].id);
   }
 
   load();
   if(state.name) showGame(); else showHello();
-
-  // Coming back to the tab later (say, after the lunch break) — move to the
-  // live session unless you just picked one yourself.
-  document.addEventListener("visibilitychange", () => {
-    if(document.visibilityState !== "visible" || !state.name) return;
-    const before = state.conference;
-    load();
-    if(state.conference !== before) save();
-    const next = startingSession();
-    if(next !== current) pickSession(next, false); else render();
-  });
 })();
 </script>
 </body>
