@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Conference Bingo</title>
+
+<!-- iOS "Add to Home Screen" / PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Bingo" />
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#1B1C1E" media="(prefers-color-scheme: dark)" />
+
+<!-- Source Serif + Source Sans stand in for the serif/sans pairing on the
+     Church's websites and Gospel Library. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+
+<!-- App icon: a plain teal bingo card -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='6'%20fill='%23157493'/%3E%3Crect%20x='6'%20y='6'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'/%3E%3Crect%20x='13'%20y='6'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='20'%20y='6'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='6'%20y='13'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='13'%20y='13'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'/%3E%3Crect%20x='20'%20y='13'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='6'%20y='20'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='13'%20y='20'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='20'%20y='20'%20width='6'%20height='6'%20rx='1'%20fill='%23FFFFFF'/%3E%3C/svg%3E" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Crect%20width='180'%20height='180'%20fill='%23157493'/%3E%3Crect%20x='36'%20y='36'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'/%3E%3Crect%20x='74'%20y='36'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='112'%20y='36'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='36'%20y='74'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='74'%20y='74'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'/%3E%3Crect%20x='112'%20y='74'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='36'%20y='112'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='74'%20y='112'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'%20opacity='.45'/%3E%3Crect%20x='112'%20y='112'%20width='32'%20height='32'%20rx='5'%20fill='%23FFFFFF'/%3E%3C/svg%3E" />
+
+<style>
+  :root{
+    --bg:#F4F4F4; --surface:#FFFFFF; --cell:#FFFFFF; --line:#D0D1D3; --line-soft:#E6E7E8;
+    --ink:#212225; --dim:#53575B; --faint:#8C9196;
+    --teal:#157493; --teal-dark:#0F5A72; --teal-soft:#E5F0F3; --on-teal:#FFFFFF;
+    --win:#0B3F51;
+    --serif:'Source Serif 4',Georgia,'Times New Roman',serif;
+    --sans:'Source Sans 3',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#121314; --surface:#1B1C1E; --cell:#232427; --line:#3A3C40; --line-soft:#2C2E31;
+      --ink:#ECECEC; --dim:#B0B3B8; --faint:#7E8288;
+      --teal:#3FA6C6; --teal-dark:#62BBD6; --teal-soft:#1C3139; --on-teal:#0E1A1F;
+      --win:#9ED7EA;
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{background:var(--bg);color:var(--ink);}
+  body{font-family:var(--sans);font-size:16px;-webkit-font-smoothing:antialiased;min-height:100vh;
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));}
+  button,input{font:inherit;color:inherit;}
+  button{cursor:pointer;}
+  [hidden]{display:none !important;}
+  .wrap{max-width:540px;margin:0 auto;padding:0 16px;}
+
+  /* ---------- header strip, like the white bar across the top of the Church's sites ---------- */
+  .masthead{background:var(--surface);border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top)) 0 0;}
+  .masthead .wrap{display:flex;align-items:center;gap:12px;min-height:44px;}
+  .masthead .eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);}
+  .masthead .title{font-family:var(--serif);font-size:22px;font-weight:400;line-height:1.2;}
+  .masthead .who{flex:1;min-width:0;}
+    .iconbtn{width:40px;height:40px;border-radius:50%;border:0;background:none;display:grid;place-items:center;flex:none;}
+  .iconbtn:active{background:var(--line-soft);}
+  .iconbtn svg{width:22px;height:22px;fill:var(--dim);}
+
+  /* underline tabs */
+  .tabs{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;margin-top:6px;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tabs button{flex:none;background:none;border:0;border-bottom:3px solid transparent;
+    padding:10px 0 9px;font-size:15px;font-weight:600;color:var(--dim);white-space:nowrap;
+    display:flex;align-items:center;gap:6px;}
+  .tabs button.on{color:var(--ink);border-bottom-color:var(--teal);}
+  .tabs button.add{color:var(--teal);}
+  .tabs .pip{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--teal);color:var(--on-teal);
+    font-size:11.5px;font-weight:700;display:inline-grid;place-items:center;}
+
+  .btn{border:0;border-radius:4px;padding:13px 20px;font-weight:600;font-size:17px;
+    background:var(--teal);color:var(--on-teal);}
+  .btn:active{background:var(--teal-dark);}
+  .btn:disabled{opacity:.45;}
+
+  /* ---------- card ---------- */
+  main.wrap{padding-top:16px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:clamp(8px,2.5vw,14px);}
+  .card-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 10px;}
+  .card-head h2{font-family:var(--serif);font-weight:400;font-size:20px;}
+  .card-head .count{font-size:14px;color:var(--dim);}
+  .card-head .count strong{color:var(--teal);font-weight:700;}
+  .letters{display:grid;grid-template-columns:repeat(5,1fr);gap:clamp(4px,1.4vw,6px);margin-bottom:6px;}
+  .letters span{font-family:var(--serif);font-weight:600;font-size:22px;text-align:center;color:var(--teal);line-height:1.1;}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:clamp(4px,1.4vw,6px);}
+  .cell{
+    position:relative;aspect-ratio:1;border-radius:4px;border:1px solid var(--line);background:var(--cell);
+    display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 3px;
+    font-size:clamp(9px,2.7vw,13px);font-weight:600;line-height:1.15;color:var(--ink);
+    overflow:hidden;word-break:normal;overflow-wrap:normal;-webkit-hyphens:auto;hyphens:auto;
+    user-select:none;-webkit-user-select:none;transition:background .15s,color .15s,transform .1s;
+  }
+  .cell:active{transform:scale(.95);}
+  .cell.on{background:var(--teal);color:var(--on-teal);border-color:var(--teal);}
+  .cell.win{background:var(--win);border-color:var(--win);color:var(--surface);}
+  .cell.free{background:var(--teal-soft);border-color:var(--teal);color:var(--teal);font-family:var(--serif);}
+  .cell.free.win{background:var(--win);border-color:var(--win);color:var(--surface);}
+  .cell.free b{display:block;font-size:1.6em;line-height:1;font-weight:400;}
+
+  .actions{display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding:0 2px;}
+  .link{background:none;border:0;font-size:15px;font-weight:600;color:var(--teal);padding:8px 0;}
+  .tip{font-size:14px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.5;}
+
+  /* ---------- sheets ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20;
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom));}
+  .sheet{background:var(--surface);border-radius:8px;padding:20px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:10px;}
+  .sheet h2{font-family:var(--serif);font-weight:400;font-size:22px;}
+  .sheet p{font-size:16px;color:var(--dim);line-height:1.5;margin-bottom:4px;}
+  .sheet .opt{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:12px 14px;font-weight:600;font-size:16px;}
+  .sheet .opt small{display:block;font-weight:400;color:var(--dim);font-size:14px;margin-top:2px;}
+  .sheet .ghost{background:none;border:0;padding:10px;font-weight:600;color:var(--teal);}
+
+  .bingo{position:fixed;inset:0;display:grid;place-items:center;z-index:30;pointer-events:none;padding:16px;}
+  .bingo .burst{pointer-events:auto;background:var(--surface);border-top:4px solid var(--teal);border-radius:6px;
+    padding:24px 36px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.28);animation:pop .4s cubic-bezier(.2,1.3,.4,1) both;}
+  .bingo .word{font-family:var(--serif);font-size:48px;font-weight:600;line-height:1;color:var(--teal);}
+  .bingo .sub{font-size:16px;margin-top:8px;color:var(--dim);}
+  @keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+  canvas#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:29;}
+  @media (prefers-reduced-motion: reduce){ .bingo .burst{animation:none;} .cell{transition:none;} }
+</style>
+</head>
+<body>
+
+<!-- The game -->
+<section id="game">
+  <header class="masthead">
+    <div class="wrap">
+      <div class="who">
+        <div class="eyebrow">General Conference</div>
+        <div class="title">Conference Bingo</div>
+      </div>
+      <button class="iconbtn" id="menuBtn" type="button" aria-label="Options">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+      </button>
+    </div>
+    <div class="wrap"><nav class="tabs" id="tabs" aria-label="Cards"></nav></div>
+  </header>
+
+  <main class="wrap">
+    <div class="card">
+      <div class="card-head"><h2 id="cardTitle"></h2><span class="count" id="count"></span></div>
+      <div class="letters" aria-hidden="true"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div>
+      <div class="grid" id="grid" role="grid"></div>
+    </div>
+    <div class="actions">
+      <button class="link" id="clearBtn" type="button">Clear marks</button>
+      <button class="link" id="shuffleBtn" type="button">New squares</button>
+    </div>
+    <p class="tip">Tap a square when you hear it. Five in a row — across, down or corner to corner — is a bingo. Your cards save on this phone automatically.</p>
+  </main>
+</section>
+
+<div class="scrim" id="menu" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <h2 id="menuTitle">Options</h2>
+    <button class="opt" id="addBtn" type="button">Add an extra card<small>For a second round, or anyone sharing your phone</small></button>
+    <button class="opt" id="removeBtn" type="button" hidden>Remove this extra card<small>Deletes it and its marks</small></button>
+    <button class="opt" id="signOutBtn" type="button">Start over<small>Clears every card on this phone</small></button>
+    <button class="ghost" id="menuClose" type="button">Close</button>
+  </div>
+</div>
+
+<div class="scrim" id="confirm" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmText"></p>
+    <button class="btn" id="confirmYes" type="button"></button>
+    <button class="ghost" id="confirmNo" type="button">Never mind</button>
+  </div>
+</div>
+
+<div class="bingo" id="bingo" hidden>
+  <div class="burst"><div class="word" id="bingoWord">Bingo!</div><div class="sub" id="bingoSub"></div></div>
+</div>
+<canvas id="confetti" hidden></canvas>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---- the squares ----
+     Kept short so they fit a phone-sized cell. Each card draws 24 of these
+     at random, plus the free space in the middle. */
+  const SQUARES = [
+    // stories and examples
+    "Story about a grandchild", "Pioneer story", "Speaker tears up", "Quotes C.S. Lewis",
+    "Airplane or pilot story", "Sports analogy", "Car or driving story", "Garden or farm analogy",
+    "Mission story", "Missionary companion story", "Childhood memory", "Mentions their spouse",
+    "Hospital story", "Story about a bishop", "Convert story", "Storm or shipwreck",
+    "Mountain or climbing story", "Speaker’s own conversion", "Speaker shares a weakness",
+    "Story about a teacher", "Mentions a dog or pet", "Christmas story", "Mentions a natural disaster",
+    "Story set in Africa", "Quotes a poem", "Science or math example", "Mentions a specific year",
+    // scripture
+    "Quotes Joseph Smith", "Quotes Nephi", "Quotes Alma", "Quotes Isaiah", "Quotes Moroni",
+    "Quotes Ether", "Quotes D&C 121", "Lost sheep", "Prodigal son", "Good Samaritan",
+    "Moroni’s promise", "Lehi’s dream", "Stripling warriors", "Brother of Jared",
+    "Woman at the well", "Peter walks on water", "David and Goliath", "Mentions Moses",
+    "Mentions Liberty Jail", "Mentions Emma Smith",
+    // topics
+    "Mentions the sacrament", "Mentions ministering", "“Covenant path”", "Mentions grace",
+    "Gathering of Israel", "The First Vision", "Family Procla\u00ADmation", "Quotes a hymn",
+    "Quotes a past talk", "Quotes a past prophet", "Mentions Easter", "Phones or social media",
+    "Mentions AI", "Mentions young adults", "Mentions Primary kids", "Mentions the youth",
+    "Mentions tithing", "Mentions the Restoration", "Mentions peace\u00ADmakers",
+    "Mentions Come, Follow Me", "“Hear Him”", "Mentions the Liahona", "Mentions refugees or service",
+    "Mentions Geth\u00ADsemane", "Mentions the Second Coming", "Word “ponder”",
+    // in the meeting
+    "New temples announced", "Children’s choir", "Sustaining of officers", "Organ interlude",
+    "Talk in another language"
+  ];
+
+  /* ---- cards ----
+     One per session; you switch between them yourself. Extra cards can be
+     added from the menu. */
+  const SESSIONS = [
+    { id:"sat-am",  label:"Sat morning" },
+    { id:"sat-pm",  label:"Sat afternoon" },
+    { id:"sun-am",  label:"Sun morning" },
+    { id:"sun-pm",  label:"Sun afternoon" },
+  ];
+  const MAX_EXTRAS = 5;
+
+  // April or October — a new conference means fresh cards for everybody.
+  function conferenceId(){
+    const d = new Date();
+    return d.getFullYear() + (d.getMonth() >= 6 ? "-10" : "-04");
+  }
+
+  /* ---- storage (this phone only) ----
+     If storage is blocked (a private tab, an embedded preview) the game still
+     works, it just won't remember you after a reload. */
+  const STORE = "gcBingo.v2";   // v2: new square list, so earlier cards are dealt fresh
+  let state;
+  function load(){
+    try { state = JSON.parse(localStorage.getItem(STORE)) || {}; } catch(e){ state = {}; }
+    if(!state.cards) state.cards = {};
+    if(!state.extras) state.extras = [];
+    if(state.conference !== conferenceId()){
+      state.conference = conferenceId();
+      state.cards = {}; state.extras = []; state.last = null;
+    }
+  }
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e){} };
+
+  function tabs(){
+    return SESSIONS.concat(state.extras.map((id, i) => ({ id, label:"Extra " + (i + 1), extra:true })));
+  }
+  const tabFor = id => tabs().find(t => t.id === id);
+
+  function shuffle(a){
+    a = a.slice();
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function newCard(){
+    const picks = shuffle(SQUARES).slice(0, 24);
+    picks.splice(12, 0, null);                      // the free space
+    const marks = Array(25).fill(false); marks[12] = true;
+    return { squares:picks, marks, bingos:0, blackout:false };
+  }
+  function card(id){
+    if(!state.cards[id]){ state.cards[id] = newCard(); save(); }
+    return state.cards[id];
+  }
+
+  /* ---- bingo lines ---- */
+  const LINES = [];
+  for(let r = 0; r < 5; r++) LINES.push([0,1,2,3,4].map(c => r*5 + c));
+  for(let c = 0; c < 5; c++) LINES.push([0,1,2,3,4].map(r => r*5 + c));
+  LINES.push([0,6,12,18,24], [4,8,12,16,20]);
+  const winningLines = marks => LINES.filter(l => l.every(i => marks[i]));
+
+  /* ---- rendering ---- */
+  let current;
+
+  function renderTabs(){
+    const canAdd = state.extras.length < MAX_EXTRAS;
+    $("#tabs").innerHTML = tabs().map(t => {
+      const c = state.cards[t.id];
+      const n = c ? winningLines(c.marks).length : 0;
+      return `<button type="button" data-id="${t.id}" class="${t.id === current ? "on" : ""}">${esc(t.label)}${n ? `<span class="pip">${n}</span>` : ""}</button>`;
+    }).join("") + (canAdd ? `<button type="button" class="add" data-add="1">+ Extra card</button>` : "");
+    const on = $("#tabs .on");
+    if(on) on.scrollIntoView({block:"nearest", inline:"nearest"});
+  }
+
+  function renderCard(){
+    const c = card(current);
+    const wins = winningLines(c.marks);
+    const winCells = new Set(wins.flat());
+    $("#cardTitle").textContent = tabFor(current).label;
+    $("#grid").innerHTML = c.squares.map((t, i) => {
+      const cls = ["cell", c.marks[i] ? "on" : "", winCells.has(i) ? "win" : "", t === null ? "free" : ""].join(" ");
+      const label = t === null ? `<span><b>★</b>Free</span>` : esc(t);
+      return `<button type="button" class="${cls}" data-i="${i}" role="gridcell" aria-pressed="${c.marks[i]}">${label}</button>`;
+    }).join("");
+    fitText();
+    const marked = c.marks.filter(Boolean).length - 1;
+    $("#count").innerHTML = wins.length
+      ? `<strong>${wins.length} bingo${wins.length > 1 ? "s" : ""}</strong> · ${marked}/24`
+      : `${marked} of 24 marked`;
+  }
+
+  // Shrink any square whose words don't fit (small phones, long words).
+  function fitText(){
+    document.querySelectorAll("#grid .cell").forEach(el => {
+      el.style.fontSize = "";
+      let size = parseFloat(getComputedStyle(el).fontSize);
+      const over = () => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
+      while(over() && size > 7.5){ size -= .5; el.style.fontSize = size + "px"; }
+    });
+  }
+  addEventListener("resize", () => { if(!$("#game").hidden) fitText(); });
+
+  function render(){ renderTabs(); renderCard(); }
+
+  function show(id){
+    current = tabFor(id) ? id : SESSIONS[0].id;
+    state.last = current; save();
+    render();
+  }
+
+  function addExtra(){
+    if(state.extras.length >= MAX_EXTRAS) return;
+    const id = "extra-" + Date.now().toString(36);
+    state.extras.push(id); state.cards[id] = newCard();
+    show(id);
+  }
+
+  /* ---- marking ---- */
+  $("#grid").addEventListener("click", e => {
+    const b = e.target.closest(".cell"); if(!b) return;
+    const i = +b.dataset.i; if(i === 12) return;
+    const c = card(current);
+    c.marks[i] = !c.marks[i];
+    const n = winningLines(c.marks).length;
+    const full = c.marks.every(Boolean);
+    if(full && !c.blackout){ c.blackout = true; celebrate("Blackout!", "Every square. Impressive."); }
+    else if(n > c.bingos){ celebrate("Bingo!", n > 1 ? `That's ${n} on this card.` : "Nice one."); }
+    c.bingos = Math.max(c.bingos, n);
+    if(!full) c.blackout = false;
+    if(navigator.vibrate) navigator.vibrate(c.marks[i] ? 12 : 6);
+    save(); render();
+  });
+  $("#tabs").addEventListener("click", e => {
+    const b = e.target.closest("button"); if(!b) return;
+    if(b.dataset.add) addExtra(); else show(b.dataset.id);
+  });
+
+  /* ---- celebration ---- */
+  let bingoTimer;
+  function celebrate(word, sub){
+    $("#bingoWord").textContent = word;
+    $("#bingoSub").textContent = sub;
+    $("#bingo").hidden = false;
+    clearTimeout(bingoTimer);
+    bingoTimer = setTimeout(() => { $("#bingo").hidden = true; }, 2200);
+    if(navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80]);
+    confetti();
+  }
+  $("#bingo").addEventListener("click", () => { $("#bingo").hidden = true; });
+
+  function confetti(){
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cv = $("#confetti"), ctx = cv.getContext("2d"), dpr = window.devicePixelRatio || 1;
+    cv.hidden = false;
+    cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+    ctx.scale(dpr, dpr);
+    const colors = ["#157493", "#3FA6C6", "#0B3F51", "#E5F0F3", "#C9A227", "#FFFFFF"];
+    const bits = Array.from({length: 140}, () => ({
+      x: innerWidth / 2 + (Math.random() - .5) * 60, y: innerHeight * .45,
+      vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4,
+      r: Math.random() * 6.28, vr: (Math.random() - .5) * .4,
+      w: 6 + Math.random() * 6, h: 3 + Math.random() * 4, c: colors[Math.floor(Math.random() * colors.length)]
+    }));
+    const t0 = performance.now();
+    (function frame(t){
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      for(const b of bits){
+        b.vy += .35; b.vx *= .99; b.x += b.vx; b.y += b.vy; b.r += b.vr;
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r);
+        ctx.fillStyle = b.c; ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h); ctx.restore();
+      }
+      if(t - t0 < 2600) requestAnimationFrame(frame);
+      else { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); cv.hidden = true; }
+    })(t0);
+  }
+
+  /* ---- menu + confirms ---- */
+  const open = id => { $(id).hidden = false; };
+  const close = id => { $(id).hidden = true; };
+  let onConfirm = null;
+  function ask(title, text, yes, fn){
+    $("#confirmTitle").textContent = title;
+    $("#confirmText").textContent = text;
+    $("#confirmYes").textContent = yes;
+    onConfirm = fn;
+    close("#menu"); open("#confirm");
+  }
+  $("#confirmYes").addEventListener("click", () => { close("#confirm"); if(onConfirm) onConfirm(); });
+  $("#confirmNo").addEventListener("click", () => close("#confirm"));
+  ["#menu", "#confirm"].forEach(id => $(id).addEventListener("click", e => { if(e.target === $(id)) close(id); }));
+
+  $("#menuBtn").addEventListener("click", () => {
+    $("#addBtn").hidden = state.extras.length >= MAX_EXTRAS;
+    $("#removeBtn").hidden = !tabFor(current).extra;
+    open("#menu");
+  });
+  $("#menuClose").addEventListener("click", () => close("#menu"));
+  $("#addBtn").addEventListener("click", () => { close("#menu"); addExtra(); });
+  $("#removeBtn").addEventListener("click", () => ask(
+    "Remove this card?", "It'll be deleted along with its marks.", "Remove card",
+    () => {
+      state.extras = state.extras.filter(id => id !== current);
+      delete state.cards[current];
+      show(state.extras[state.extras.length - 1] || SESSIONS[SESSIONS.length - 1].id);
+    }
+  ));
+  $("#clearBtn").addEventListener("click", () => ask(
+    "Clear your marks?", "The squares stay the same — just the taps go away.", "Clear marks",
+    () => { const c = card(current); c.marks = c.marks.map((_, i) => i === 12); c.bingos = 0; c.blackout = false; save(); render(); }
+  ));
+  $("#shuffleBtn").addEventListener("click", () => ask(
+    "Get new squares?", "This card gets different squares and loses its marks.", "New squares",
+    () => { state.cards[current] = newCard(); save(); render(); }
+  ));
+  $("#signOutBtn").addEventListener("click", () => ask(
+    "Start over?", "This clears every card on this phone and deals new ones.", "Start over",
+    () => { try { localStorage.removeItem(STORE); } catch(e){} load(); show(SESSIONS[0].id); }
+  ));
+
+  load();
+  show(state.last || SESSIONS[0].id);
+})();
+</script>
+</body>
+</html>
