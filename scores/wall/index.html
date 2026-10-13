@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gameday Wall</title>
+<meta name="theme-color" content="#0B0B0C" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%20%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23111'/%3E%20%3Crect%20x='5.5'%20y='7'%20width='9.5'%20height='7'%20rx='1.8'%20fill='%23F5F2ED'/%3E%20%3Crect%20x='17'%20y='7'%20width='9.5'%20height='7'%20rx='1.8'%20fill='%23FF9B2F'/%3E%20%3Crect%20x='5.5'%20y='18'%20width='9.5'%20height='7'%20rx='1.8'%20fill='%235C5F69'/%3E%20%3Crect%20x='17'%20y='18'%20width='9.5'%20height='7'%20rx='1.8'%20fill='%23F5F2ED'/%3E%3C/svg%3E" />
+<style>
+  /* ---------------------------------------------------------------------------
+     Built for the Dragon Touch calendar: 1920x1080 landscape, Chromium 74.
+     Everything is sized in vh so it fills the screen whatever height the
+     browser's URL bar leaves us. No flex `gap`, clamp(), min()/max(),
+     aspect-ratio or :is() — none of them exist in Chromium 74.
+     --------------------------------------------------------------------------- */
+  :root{
+    --bg:#0B0B0C; --tile:#15161A; --tile2:#1C1E24; --line:#25272E;
+    --ink:#F3F1EC; --dim:#8A8C96; --faint:#5C5F69;
+    --hot:#FF9B2F; --byu:#4D9BE6; --b12:#2F6E4F;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);}
+  body{
+    font-family:Roboto,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+    font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;padding:2.2vh 1.6vw 2vh;
+    cursor:none;user-select:none;-webkit-user-select:none;
+  }
+
+  /* ---- header ---- */
+  .hd{flex:none;display:flex;align-items:center;height:7vh;margin-bottom:2vh;}
+  .hd .ttl{font-size:4.2vh;font-weight:900;letter-spacing:-.02em;}
+  .hd .wk{font-size:2.4vh;font-weight:700;color:var(--dim);margin-left:1.6vw;letter-spacing:.02em;}
+  .hd .live{display:flex;align-items:center;margin-left:1.6vw;font-size:2.4vh;font-weight:800;color:var(--hot);}
+  .hd .live .dot{width:1.3vh;height:1.3vh;border-radius:50%;background:var(--hot);margin-right:.7vw;
+    animation:pulse 2s ease-in-out infinite;}
+  .hd .live.off{color:var(--faint);}
+  .hd .live.off .dot{background:var(--faint);animation:none;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .hd .rt{margin-left:auto;display:flex;align-items:baseline;}
+  .hd .stamp{font-size:1.9vh;font-weight:600;color:var(--faint);margin-right:1.8vw;}
+  .hd .stamp.bad{color:var(--hot);}
+  .hd .date{font-size:2.6vh;font-weight:700;color:var(--dim);margin-right:1.2vw;}
+  .hd .clock{font-size:5vh;font-weight:800;letter-spacing:-.03em;}
+
+  /* ---- the four big cards ---- */
+  .hero{flex:none;display:grid;grid-template-columns:repeat(4,1fr);grid-gap:1.2vw;height:30vh;margin-bottom:2.4vh;}
+  .card{background:var(--tile);border-radius:1.4vh;padding:2vh 1.3vw 1.8vh;border-left:.6vh solid var(--line);
+    display:flex;flex-direction:column;justify-content:space-between;min-width:0;}
+  .card.byu{border-left-color:var(--byu);}
+  .card.close{border-left-color:var(--hot);background:var(--tile2);}
+  .card.pre{background:#111216;}
+  .card .tm{display:flex;align-items:center;height:9vh;}
+  .card .lg{flex:none;width:6.4vh;height:6.4vh;margin-right:.9vw;object-fit:contain;}
+  .card .lg.none{visibility:hidden;}
+  .card .nm{flex:1;min-width:0;font-size:3.2vh;font-weight:800;letter-spacing:-.015em;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .card .sc{flex:none;font-size:6.6vh;font-weight:900;letter-spacing:-.04em;margin-left:.8vw;line-height:1;}
+  .card .lo .nm,.card .lo .sc{color:var(--dim);}
+  .card .lo .lg{opacity:.55;}
+  .card .ft{display:flex;align-items:baseline;border-top:1px solid var(--line);padding-top:1.3vh;}
+  .card .ck{font-size:2.7vh;font-weight:800;color:var(--hot);letter-spacing:.01em;white-space:nowrap;}
+  .card.pre .ck,.card.post .ck{color:var(--dim);}
+  .card .soon{font-size:2.1vh;font-weight:700;color:var(--hot);margin-left:.9vw;white-space:nowrap;}
+  .card .tv{margin-left:auto;padding-left:.8vw;font-size:2.2vh;font-weight:700;color:var(--dim);letter-spacing:.03em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rk{font-size:.62em;font-weight:800;color:var(--hot);margin-right:.25em;vertical-align:.45em;letter-spacing:0;}
+
+  /* ---- everything else, one line each, filled column by column ---- */
+  .list{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-flow:column;
+    grid-column-gap:1.2vw;grid-row-gap:.7vh;align-content:start;}
+  .g{display:flex;align-items:center;height:4.6vh;background:var(--tile);border-radius:.9vh;
+    padding:0 1vw;font-size:2.35vh;border-left:.45vh solid transparent;min-width:0;}
+  .g.byu{border-left-color:var(--byu);}
+  .g.b12{border-left-color:var(--b12);}
+  .g.close{background:var(--tile2);border-left-color:var(--hot);}
+  .g .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;}
+  .g .at{color:var(--faint);font-weight:600;margin:0 .35em;}
+  .g .l{color:var(--dim);}
+  .g .n{flex:none;font-weight:900;margin-left:.8vw;letter-spacing:-.02em;}
+  .g .n .d{color:var(--faint);margin:0 .2em;}
+  .g .tv{flex:none;width:5.4vw;margin-left:.8vw;text-align:right;font-size:1.85vh;font-weight:700;color:var(--faint);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.03em;}
+  .g .c{flex:none;width:6.8vw;margin-left:.6vw;text-align:right;font-size:2.05vh;font-weight:800;color:var(--hot);white-space:nowrap;}
+  .g .c.pre,.g .c.post{color:var(--dim);font-weight:700;}
+  .sec{display:flex;align-items:flex-end;height:4.6vh;padding:0 .3vw .6vh;font-size:1.8vh;font-weight:800;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--faint);}
+  .more{display:flex;align-items:center;height:4.6vh;padding:0 1vw;font-size:2vh;font-weight:700;color:var(--faint);}
+
+  .msg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    color:var(--dim);font-size:2.6vh;line-height:1.6;}
+  .msg b{color:var(--ink);font-size:4vh;margin-bottom:1vh;}
+</style>
+</head>
+<body>
+  <div class="hd">
+    <span class="ttl">Gameday</span>
+    <span class="wk" id="wk"></span>
+    <span class="live off" id="live"><span class="dot"></span><span id="liveN"></span></span>
+    <span class="rt">
+      <span class="stamp" id="stamp"></span>
+      <span class="date" id="date"></span>
+      <span class="clock" id="clock"></span>
+    </span>
+  </div>
+  <div class="hero" id="hero" style="display:none"></div>
+  <div class="list" id="list" style="display:none"></div>
+  <div class="msg" id="msg"><b>Loading the slate…</b></div>
+
+<script>
+/* ===========================================================================
+   The gameday board, rebuilt for a screen on the wall. Same data (ESPN,
+   straight from the browser), same ranking, but nobody touches it: it
+   decides on its own what goes up top and fills the rest of the screen.
+
+   Runs on Chromium 74, so: no ?. or ??, nothing newer than ES2018.
+   =========================================================================== */
+
+// groups=80 is all of FBS, so one request covers every game on the board.
+const URL = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
+            'college-football/scoreboard?groups=80&limit=300';
+
+// Used only if ESPN stops telling us a team's conference.
+const BIG12 = new Set(['ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU',
+                       'KSU','OKST','TCU','TTU','UCF','UTAH','WVU']);
+
+const HERO = 4;
+const BOOT = Date.now();
+
+let games = [], week = '', timer = null, lastOk = 0, failures = 0;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = x => x == null ? 0 : x;
+const scoreText = x => x == null ? '–' : String(x);
+
+/* --------------------------- parsing --------------------------- */
+function parse(ev){
+  const c = (ev.competitions || [])[0]; if(!c) return null;
+  const st = c.status || ev.status || {}, ty = st.type || {};
+  const side = {}; (c.competitors || []).forEach(x => { side[x.homeAway] = x; });
+  const h = side.home, a = side.away; if(!h || !a) return null;
+
+  const team = x => {
+    const t = x.team || {}, cr = x.curatedRank || {};
+    let rank = parseInt(cr.current, 10);
+    if(!(rank >= 1 && rank <= 25)) rank = null;
+    return { abbr: t.abbreviation || '??',
+             name: t.shortDisplayName || t.displayName || t.abbreviation || '??',
+             // upcoming rows: "Georgia" fits, "Oklahoma St" becomes OKST
+             short: t.shortDisplayName && t.shortDisplayName.length <= 9 ? t.shortDisplayName
+                                                                         : (t.abbreviation || '??'),
+             logo: t.logo || '', rank,
+             score: x.score == null || x.score === '' ? null : Number(x.score) };
+  };
+  const H = team(h), A = team(a);
+  const state = ty.state || 'pre';                       // pre | in | post
+  const isB12 = t => BIG12.has((t.abbr || '').toUpperCase());
+
+  // TV: national broadcast names first, then the per-market list as a fallback.
+  const tv = [];
+  (c.broadcasts || []).forEach(b => (b.names || []).forEach(n => tv.push(n)));
+  if(!tv.length) (c.geoBroadcasts || []).forEach(b => {
+    const n = b.media && (b.media.shortName || b.media.callLetters);
+    if(n) tv.push(n);
+  });
+
+  // ESPN reports "0" for a game that has not started. Treat that as no score,
+  // or every upcoming game reads as a scoreless tie.
+  if(state === 'pre'){ H.score = null; A.score = null; }
+
+  return {
+    id: String(ev.id), home: H, away: A, state,
+    status: ty.name || '',
+    period: Number(st.period || 0),
+    clock: st.displayClock || '',
+    detail: ty.shortDetail || ty.detail || '',
+    kickoff: ev.date && !isNaN(new Date(ev.date)) ? new Date(ev.date) : null,
+    timeKnown: c.timeValid !== false,
+    tv: tv.filter((n, i) => tv.indexOf(n) === i).slice(0, 2).join('/'),
+    tv1: tv[0] || '',
+    byu: H.abbr === 'BYU' || A.abbr === 'BYU',
+    b12: isB12(H) || isB12(A),
+    margin: (H.score != null && A.score != null) ? Math.abs(H.score - A.score) : null,
+    // Postponed and canceled games come through as "post" too. They are not results.
+    off: /POSTPONED|CANCELED|CANCELLED|FORFEIT/.test(ty.name || ''),
+  };
+}
+
+/* --------------------- how good is this game? ---------------------
+   Same scoring as the phone board. Closeness matters most, and matters
+   more the later it is; a blowout in the second half actively drops.   */
+function watchability(g){
+  if(g.state === 'post') return -1000;
+  let s = 0;
+  if(g.state === 'in'){
+    s += 120;
+    if(g.margin != null){
+      const m = g.margin;
+      const close = m <= 3 ? 46 : m <= 7 ? 34 : m <= 10 ? 24 : m <= 14 ? 14 : m <= 21 ? 6 : 0;
+      let late = g.period >= 5 ? 2.1 : g.period === 4 ? 1.65
+               : g.period === 3 ? 1.25 : g.period === 2 ? 1.0 : 0.8;
+      const left = clockSeconds(g.clock);
+      if(g.period >= 4 && left != null && m <= 10){
+        if(left <= 120) late += 0.9;
+        else if(left <= 300) late += 0.4;
+      }
+      s += close * late;
+      if(m >= 25 && g.period >= 3) s -= 30;       // garbage time
+    }
+  } else {
+    const mins = g.kickoff ? (g.kickoff - Date.now()) / 60000 : 999;
+    s += Math.max(0, 42 - Math.max(0, mins) / 12);
+  }
+  const r1 = g.away.rank, r2 = g.home.rank;
+  if(r1 && r2)      s += 34 + (r1 <= 10 ? 8 : 0) + (r2 <= 10 ? 8 : 0);
+  else if(r1 || r2) s += 16 + ((r1 || r2) <= 10 ? 6 : 0);
+  if(g.byu)      s += 500;
+  else if(g.b12) s += 26;
+  return s;
+}
+
+// "7:21" -> 441. Null when ESPN gives us nothing useful.
+function clockSeconds(c){
+  const m = /^(\d+):(\d{2})$/.exec(String(c || '').trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+const isClose = g => g.state === 'in' && g.margin != null &&
+                     g.margin <= 8 && g.period >= 3;
+
+// The ranked games of the day, roughly: both ranked, then one, then neither.
+const stakes = g => (g.away.rank ? 1 : 0) + (g.home.rank ? 1 : 0);
+
+/* --------------------------- text --------------------------- */
+function timeText(d){
+  return d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' })
+          .replace(' ', '').toLowerCase();
+}
+
+function clockText(g){
+  if(g.state === 'post') return g.off ? (g.detail || 'Off') : (/OT/.test(g.detail) ? g.detail : 'Final');
+  if(g.state === 'in'){
+    if(g.status === 'STATUS_HALFTIME') return 'Half';
+    const q = g.period >= 5 ? (g.period === 5 ? 'OT' : (g.period - 4) + 'OT') : 'Q' + g.period;
+    if(g.status === 'STATUS_END_PERIOD') return 'End ' + q;
+    if(g.period >= 5) return q;                    // college OT has no clock
+    return g.clock ? q + ' ' + g.clock : (g.detail || 'Live');
+  }
+  if(!g.kickoff) return g.detail || '';
+  const sameDay = g.kickoff.toDateString() === new Date().toDateString();
+  const day = sameDay ? '' : g.kickoff.toLocaleDateString([], { weekday:'short' }) + ' ';
+  return day + (g.timeKnown ? timeText(g.kickoff) : 'TBD');
+}
+
+// "in 25m" for a kickoff inside the next hour and a half, otherwise nothing.
+function soonText(g){
+  if(g.state !== 'pre' || !g.kickoff || !g.timeKnown) return '';
+  const mins = Math.round((g.kickoff - Date.now()) / 60000);
+  if(mins > 90) return '';
+  if(mins <= 0) return 'kicking off';
+  return mins >= 60 ? 'in ' + Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm' : 'in ' + mins + 'm';
+}
+
+/* --------------------------- pieces --------------------------- */
+const rankTag = t => t.rank ? `<span class="rk">${t.rank}</span>` : '';
+
+// ESPN's default logos are drawn for a white background, and plenty of them
+// (navy, black) vanish on this one. Most teams also have a "-dark" version;
+// try that first and fall back if it is missing.
+function logoTag(t){
+  if(!t.logo) return '<img class="lg none" alt="">';
+  const dark = t.logo.replace('/500/', '/500-dark/');
+  return `<img class="lg" alt="" src="${esc(dark)}" data-plain="${esc(t.logo)}" onerror="logoFailed(this)">`;
+}
+
+// Dark logo missing: try the plain one. That missing too: leave the space empty.
+function logoFailed(img){
+  const plain = img.getAttribute('data-plain');
+  if(plain && img.src !== plain){ img.src = plain; return; }
+  img.onerror = null;
+  img.className = 'lg none';
+}
+
+function card(g){
+  const lead = num(g.home.score) - num(g.away.score);
+  const row = (t, lo) =>
+    `<div class="tm${lo ? ' lo' : ''}">${logoTag(t)}` +
+      `<span class="nm">${rankTag(t)}${esc(t.name)}</span>` +
+      (g.state === 'pre' ? '' : `<span class="sc">${scoreText(t.score)}</span>`) + `</div>`;
+  const live = g.state === 'in';
+  const cls = (g.byu ? ' byu' : isClose(g) ? ' close' : '') + (live ? '' : ' ' + g.state);
+  const soon = soonText(g);
+  return `<div class="card${cls}">` +
+    row(g.away, live ? lead > 0 : g.state === 'post' && lead > 0) +
+    row(g.home, live ? lead < 0 : g.state === 'post' && lead < 0) +
+    `<div class="ft"><span class="ck">${esc(clockText(g))}</span>` +
+    (soon ? `<span class="soon">${esc(soon)}</span>` : '') +
+    (g.tv ? `<span class="tv">${esc(g.tv)}</span>` : '') + `</div></div>`;
+}
+
+function line(g){
+  const lead = num(g.home.score) - num(g.away.score);
+  const decided = g.state === 'in' || g.state === 'post';
+  const aLo = decided && lead > 0, hLo = decided && lead < 0;
+  // A row with a score has no room for names; upcoming rows do.
+  const nm = (t, lo) => `<span class="${lo ? 'l' : ''}">${rankTag(t)}` +
+    `${esc(g.state === 'pre' ? t.short : t.abbr)}</span>`;
+  const sc = (t, lo) => `<span class="${lo ? 'l' : ''}">${scoreText(t.score)}</span>`;
+  const cls = (g.byu ? ' byu' : isClose(g) ? ' close' : g.b12 ? ' b12' : '');
+  return `<div class="g${cls}">` +
+    `<span class="t">${nm(g.away, aLo)}<span class="at">at</span>${nm(g.home, hLo)}</span>` +
+    (g.state === 'pre' || g.off ? '' :
+      `<span class="n">${sc(g.away, aLo)}<span class="d">–</span>${sc(g.home, hLo)}</span>`) +
+    `<span class="tv">${esc(g.tv1)}</span>` +
+    `<span class="c ${g.state}">${esc(clockText(g))}</span></div>`;
+}
+
+/* --------------------------- layout ---------------------------
+   Top: four big cards. Live games take them first, best game first. Any
+   left over go to whatever kicks off next (BYU ahead of everything), and
+   once the week is played out, to the results that mattered most.
+
+   Below: everything else, one line each — more live, then up next, then
+   finals — filled column by column until the screen is full.           */
+function pickHero(live, soon, done){
+  const hero = live.slice(0, HERO);
+  const byuSoon = soon.filter(g => g.byu);
+  const next = byuSoon.concat(soon.filter(g => !g.byu));
+  // Results only once nothing is left to play, or the top row would fill
+  // with this morning's games while tonight's are still to come.
+  const pool = next.length ? next : done.filter(g => !g.off);
+  for(let i = 0; hero.length < HERO && i < pool.length; i++) hero.push(pool[i]);
+  return hero;
+}
+
+// Measured once, and again only when the window changes size: measuring
+// means emptying the list, which would make it flash on every redraw.
+let fitRows = 0;
+function rowsThatFit(){
+  if(fitRows) return fitRows;
+  const list = $('list');
+  const probe = document.createElement('div');
+  probe.className = 'g'; probe.textContent = 'x';
+  list.innerHTML = ''; list.appendChild(probe);
+  const rowH = probe.offsetHeight;
+  const gap = parseFloat(getComputedStyle(list).rowGap || getComputedStyle(list).gridRowGap) || 0;
+  list.innerHTML = ''; lastHtml.list = '';
+  if(!rowH) return 8;
+  fitRows = Math.max(1, Math.floor((list.clientHeight + gap) / (rowH + gap)));
+  return fitRows;
+}
+
+// Only touch the screen when something on it changed. Rebuilding the cards
+// every half minute for the clock's sake would reload every logo, and on
+// this hardware that shows as a blink.
+const lastHtml = {};
+function put(id, html){
+  if(lastHtml[id] === html) return;
+  lastHtml[id] = html;
+  $(id).innerHTML = html;
+}
+
+function render(){
+  if(!games.length){
+    showMessage('<b>No games this week</b>Nothing on ESPN\'s FBS scoreboard right now.');
+    return;
+  }
+  const live = games.filter(g => g.state === 'in')
+                    .sort((x, y) => watchability(y) - watchability(x));
+  const soon = games.filter(g => g.state === 'pre')
+                    .sort((x, y) => (x.kickoff || 0) - (y.kickoff || 0));
+  const done = games.filter(g => g.state === 'post')
+                    .sort((x, y) => (x.off - y.off) || (y.byu - x.byu) || (stakes(y) - stakes(x)) ||
+                                    (y.b12 - x.b12) || ((y.kickoff || 0) - (x.kickoff || 0)));
+
+  const hero = pickHero(live, soon, done);
+  const used = {}; hero.forEach(g => { used[g.id] = true; });
+  const left = arr => arr.filter(g => !used[g.id]);
+
+  $('msg').style.display = 'none';
+  $('hero').style.display = '';
+  $('list').style.display = '';
+  put('hero', hero.map(card).join(''));
+
+  // Section headers and rows share one column-major grid. Work out how many
+  // rows a column holds, then lay the items in so no header is left stranded
+  // at the foot of a column.
+  const rows = rowsThatFit(), cols = 3, cap = rows * cols;
+  const groups = [
+    ['More live', left(live)],
+    ['Up next', left(soon)],
+    ['Final', left(done)],
+  ].filter(x => x[1].length);
+
+  const items = [];
+  let shown = 0, total = groups.reduce((n, x) => n + x[1].length, 0);
+  for(let gi = 0; gi < groups.length; gi++){
+    const label = groups[gi][0], list = groups[gi][1];
+    if(items.length % rows === rows - 1) items.push('<div></div>');
+    if(items.length >= cap - 1) break;
+    items.push(`<div class="sec">${esc(label)} &middot; ${list.length}</div>`);
+    for(let i = 0; i < list.length; i++){
+      if(items.length >= cap) break;
+      items.push(line(list[i])); shown++;
+    }
+  }
+  if(shown < total){
+    // Make room for a "+N more" in the last slot.
+    while(items.length >= cap){
+      const gone = items.pop();
+      if(gone.indexOf('class="g') !== -1) shown--;
+    }
+    items.push(`<div class="more">+${total - shown} more</div>`);
+  }
+  $('list').style.gridTemplateRows = `repeat(${rows}, auto)`;
+  put('list', items.join(''));
+
+  const n = live.length;
+  $('live').className = 'live' + (n ? '' : ' off');
+  $('liveN').textContent = n ? `${n} live` : 'Nothing live';
+  $('wk').textContent = week;
+  stamp();
+}
+
+function showMessage(html){
+  $('hero').style.display = 'none';
+  $('list').style.display = 'none';
+  $('msg').style.display = '';
+  lastHtml.hero = lastHtml.list = '';
+  $('msg').innerHTML = html;
+}
+
+/* --------------------------- clock & freshness --------------------------- */
+function stamp(){
+  const now = new Date();
+  $('clock').textContent = timeText(now).replace(/(am|pm)$/, '');
+  $('date').textContent = now.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
+  if(!lastOk){ $('stamp').textContent = ''; return; }
+  // A wall screen that quietly stops updating looks exactly like one that is
+  // working. Say so when the scores are getting old.
+  const age = (Date.now() - lastOk) / 60000;
+  const liveNow = games.some(g => g.state === 'in');
+  const stale = age > (liveNow ? 4 : 15);
+  $('stamp').className = 'stamp' + (stale ? ' bad' : '');
+  $('stamp').textContent = stale ? `No update since ${timeText(new Date(lastOk))}`
+                                 : `Updated ${timeText(new Date(lastOk))}`;
+}
+
+/* --------------------------- polling ---------------------------
+   Always on: this screen is never in a pocket. Once a minute while
+   anything is live or about to kick, every five minutes otherwise.      */
+async function tick(){
+  let ok = false;
+  try{
+    // A request that hangs would stop the board for good, so give up on it.
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const kill = ctl ? setTimeout(() => ctl.abort(), 20000) : null;
+    const res = await fetch(URL, { cache:'no-store', signal: ctl ? ctl.signal : undefined });
+    if(kill) clearTimeout(kill);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    games = (data.events || []).map(parse).filter(Boolean);
+    const wk = data.week && data.week.number;
+    week = wk ? 'Week ' + wk : '';
+    lastOk = Date.now(); failures = 0; ok = true;
+    render();
+  }catch(err){
+    failures++;
+    console.warn('scoreboard fetch failed', err);
+    if(!games.length)
+      showMessage('<b>Can\'t reach the scoreboard</b>' +
+        'Trying again in a couple of minutes. Check the calendar\'s Wi-Fi if this stays up.');
+    else stamp();
+  }
+
+  // Reload the page now and then, while nothing is on, so a long-running
+  // browser stays healthy and picks up changes to this page. Only right after
+  // a good fetch: reloading with the network down would leave an error page
+  // that never recovers.
+  const liveNow = games.some(g => g.state === 'in');
+  if(ok && !liveNow && Date.now() - BOOT > 6 * 3600000){ location.reload(); return; }
+  schedule();
+}
+
+function schedule(){
+  clearTimeout(timer);
+  const liveNow = games.some(g => g.state === 'in');
+  const soon = games.some(g => g.state === 'pre' && g.kickoff &&
+                               g.kickoff - Date.now() < 30 * 60000);
+  const every = failures ? Math.min(120000 * failures, 600000)
+              : liveNow || soon ? 60000 : 300000;
+  timer = setTimeout(tick, every);
+}
+
+// The clock, the "in 25m" countdowns and the staleness note move on their
+// own; redraw them between fetches.
+setInterval(() => { if(games.length) render(); else stamp(); }, 30000);
+window.addEventListener('resize', () => { fitRows = 0; if(games.length) render(); });
+
+// A tap asks for full screen, to get rid of the browser's URL bar. The
+// browser may refuse; nothing else depends on it.
+document.addEventListener('click', () => {
+  const el = document.documentElement;
+  const go = el.requestFullscreen || el.webkitRequestFullscreen;
+  if(go && !(document.fullscreenElement || document.webkitFullscreenElement)){
+    try{ const p = go.call(el); if(p && p.catch) p.catch(() => {}); }catch(e){}
+  }
+});
+
+stamp();
+tick();
+</script>
+</body>
+</html>

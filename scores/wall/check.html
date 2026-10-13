@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wall Check</title>
+<style>
+  /* A one-off page to open on the calendar before trusting the wall board:
+     what size the screen really is to a web page, and whether ESPN answers. */
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:#0B0B0C;color:#F3F1EC;}
+  body{font-family:Roboto,Helvetica,Arial,sans-serif;padding:4vh 4vw;font-size:3vh;line-height:1.5;}
+  h1{font-size:5vh;font-weight:900;margin-bottom:3vh;}
+  table{border-collapse:collapse;}
+  td{padding:.6vh 3vw .6vh 0;vertical-align:top;}
+  td:first-child{color:#8A8C96;font-weight:700;white-space:nowrap;}
+  .ok{color:#6FD08C;font-weight:800;}
+  .bad{color:#FF9B2F;font-weight:800;}
+  .small{font-size:2vh;color:#8A8C96;word-break:break-all;}
+  button{margin-top:4vh;font:inherit;font-weight:800;padding:1.5vh 3vw;border-radius:1vh;border:0;
+    background:#F3F1EC;color:#0B0B0C;}
+</style>
+</head>
+<body>
+  <h1>Wall check</h1>
+  <table id="t"></table>
+  <button id="fs">Try full screen</button>
+
+<script>
+// Kept to ES5-ish on purpose: if this page fails to run, that is itself the answer.
+var rows = [];
+function row(k, v){ rows.push([k, v]); draw(); }
+function set(k, v){ for(var i = 0; i < rows.length; i++) if(rows[i][0] === k){ rows[i][1] = v; draw(); return; } row(k, v); }
+function draw(){
+  var h = '';
+  for(var i = 0; i < rows.length; i++) h += '<tr><td>' + rows[i][0] + '</td><td>' + rows[i][1] + '</td></tr>';
+  document.getElementById('t').innerHTML = h;
+}
+
+function size(){
+  set('Page size', window.innerWidth + ' × ' + window.innerHeight + ' CSS px');
+  set('Pixel ratio', String(window.devicePixelRatio));
+  set('Screen', screen.width + ' × ' + screen.height);
+}
+size();
+window.addEventListener('resize', size);
+
+set('Time here', new Date().toString());
+try{ set('Time zone', Intl.DateTimeFormat().resolvedOptions().timeZone || '?'); }catch(e){ set('Time zone', '?'); }
+
+var modern = false;
+try{ modern = typeof fetch === 'function' && typeof Promise === 'function' && !!new Function('return async () => 1'); }catch(e){}
+set('fetch + async', modern ? '<span class="ok">yes</span>' : '<span class="bad">no</span>');
+
+set('ESPN', 'checking…');
+var t0 = Date.now();
+fetch('https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=300', { cache:'no-store' })
+  .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(function(d){
+    var n = (d.events || []).length;
+    set('ESPN', '<span class="ok">OK</span> — ' + n + ' games, ' + (Date.now() - t0) + ' ms');
+  })
+  .catch(function(e){ set('ESPN', '<span class="bad">failed</span> — ' + String(e && e.message || e)); });
+
+set('Browser', '<span class="small">' + navigator.userAgent.replace(/</g, '&lt;') + '</span>');
+
+document.getElementById('fs').onclick = function(){
+  var el = document.documentElement;
+  var go = el.requestFullscreen || el.webkitRequestFullscreen;
+  if(!go){ set('Full screen', '<span class="bad">not offered</span>'); return; }
+  try{
+    var p = go.call(el);
+    if(p && p.then) p.then(function(){ set('Full screen', '<span class="ok">worked</span>'); size(); },
+                           function(e){ set('Full screen', '<span class="bad">refused</span> — ' + e.message); });
+    else setTimeout(function(){ set('Full screen', (document.fullscreenElement || document.webkitFullscreenElement)
+      ? '<span class="ok">worked</span>' : '<span class="bad">refused</span>'); size(); }, 800);
+  }catch(e){ set('Full screen', '<span class="bad">error</span> — ' + e.message); }
+};
+</script>
+</body>
+</html>
