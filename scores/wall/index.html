@@ -40,7 +40,9 @@
   .hd .rt{margin-left:auto;display:flex;align-items:baseline;}
   .hd .stamp{font-size:1.9vh;font-weight:600;color:var(--faint);margin-right:1.8vw;}
   .hd .stamp.bad{color:var(--hot);}
-  .hd .snd{font-size:1.9vh;font-weight:700;color:var(--hot);margin-right:1.8vw;}
+  .hd .watch{font:inherit;font-size:2.2vh;font-weight:800;color:var(--dim);background:var(--tile);
+    border:1px solid var(--line);border-radius:3vh;padding:1vh 1.4vw;margin-right:1.8vw;cursor:pointer;}
+  .hd .watch.on{color:var(--bg);background:var(--byu);border-color:var(--byu);}
   .hd .date{font-size:2.6vh;font-weight:700;color:var(--dim);margin-right:1.2vw;}
   .hd .clock{font-size:5vh;font-weight:800;letter-spacing:-.03em;}
 
@@ -62,8 +64,6 @@
   .card .sit{height:3.2vh;display:flex;align-items:center;font-size:2.3vh;font-weight:700;color:var(--dim);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .card .sit.rz{color:var(--red);}
-  .card .tag{font-size:1.9vh;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--bg);
-    background:var(--hot);border-radius:.6vh;padding:.2vh .5vw;margin-left:.8vw;white-space:nowrap;align-self:center;}
   .card .ft{display:flex;align-items:baseline;border-top:1px solid var(--line);padding-top:1.3vh;}
   .card .ck{font-size:2.7vh;font-weight:800;color:var(--hot);letter-spacing:.01em;white-space:nowrap;}
   .card.pre .ck,.card.post .ck{color:var(--dim);}
@@ -137,7 +137,7 @@
     <span class="wk" id="wk"></span>
     <span class="live off" id="live"><span class="dot"></span><span id="liveN"></span></span>
     <span class="rt">
-      <span class="snd" id="snd"></span>
+      <button class="watch" id="watch" style="display:none" onclick="toggleWatching()"></button>
       <span class="stamp" id="stamp"></span>
       <span class="date" id="date"></span>
       <span class="clock" id="clock"></span>
@@ -156,8 +156,7 @@
 
    Runs on Chromium 74, so: no ?. or ??, nothing newer than ES2018.
 
-   Add ?test to the address to play a sample run of the score alerts, and
-   ?sound=off to keep it quiet.
+   Add ?test to the address to play a sample run of the score alerts.
    =========================================================================== */
 
 // groups=80 is all of FBS, so one request covers every game on the board.
@@ -165,8 +164,9 @@ const URL = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
             'college-football/scoreboard?groups=80&limit=300';
 
 /* ------------------------- which games count -------------------------
-   Only games with a Power Four team, or a ranked team from anywhere else,
-   and never a game against an FCS school. ESPN tags every FBS team with
+   Every game with a Power Four team (Notre Dame counts), whoever they
+   play. Anyone else only when ranked, and then only against an FBS
+   opponent. The Pac-12 is not Power Four. ESPN tags every FBS team with
    its conference; FCS teams get some other number or none at all.        */
 const P4_CONF  = new Set(['1', '4', '5', '8']);          // ACC, Big 12, Big Ten, SEC
 const FBS_CONF = new Set(['1', '4', '5', '8', '9', '12', '15', '17', '18', '37', '151']);
@@ -182,16 +182,52 @@ const BIG12 = new Set(['ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU',
 
 const isP4  = t => t.conf ? (P4_CONF.has(t.conf) || t.abbr === 'ND') : P4_ABBR.has(t.abbr);
 const isFBS = t => t.conf ? FBS_CONF.has(t.conf) : P4_ABBR.has(t.abbr);
-const counts = g => isFBS(g.home) && isFBS(g.away) &&
-                    (isP4(g.home) || isP4(g.away) || !!g.home.rank || !!g.away.rank);
+const counts = g => isP4(g.home) || isP4(g.away) ||
+                    (isFBS(g.home) && isFBS(g.away) && (!!g.home.rank || !!g.away.rank));
 
 const HERO = 4;
 const BOOT = Date.now();
 const QS = location.search;
-const SOUND = !/sound=off/.test(QS);
 
 let games = [], week = '', timer = null, lastOk = 0, failures = 0;
 let before = null;            // each game's score and state at the previous good fetch
+
+/* --------------------------- watching BYU ---------------------------
+   When the game is on TV in the room, the board must not give it away:
+   ESPN is often ahead of the broadcast. A button in the header takes the
+   BYU game off the board and stops its alerts. It survives a reload and
+   switches itself off after six hours, so it can't be left on by mistake. */
+const WATCH_KEY = 'gamedayWall.watchingByu';
+const WATCH_FOR = 6 * 3600000;
+let watchingSince = 0;
+try{ watchingSince = Number(localStorage.getItem(WATCH_KEY)) || 0; }catch(e){}
+const watching = () => !!watchingSince && Date.now() - watchingSince < WATCH_FOR;
+
+function toggleWatching(){
+  watchingSince = watching() ? 0 : Date.now();
+  try{
+    if(watchingSince) localStorage.setItem(WATCH_KEY, String(watchingSince));
+    else localStorage.removeItem(WATCH_KEY);
+  }catch(e){}
+  if(watchingSince){
+    // Anything about BYU already waiting to be shown goes too.
+    for(let i = queue.length - 1; i >= 0; i--) if(queue[i].g.byu) queue.splice(i, 1);
+  }
+  render();
+}
+
+// The button only appears around a BYU game: live, or kicking off within
+// three hours. Or while the mode is on, so it can be switched off.
+function watchButton(){
+  const g = games.filter(x => x.byu)[0];
+  const near = g && (g.state === 'in' ||
+    (g.state === 'pre' && g.kickoff && g.kickoff - Date.now() < 3 * 3600000));
+  const on = watching();
+  const b = $('watch');
+  b.style.display = on || near ? '' : 'none';
+  b.className = 'watch' + (on ? ' on' : '');
+  b.textContent = on ? 'BYU hidden · Show' : 'Watching BYU?';
+}
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
@@ -430,14 +466,12 @@ function card(g){
   const soon = soonText(g);
   const showDown = live && g.down && (hasBall(g, g.home) || hasBall(g, g.away));
   const sit = showDown ? (g.redZone ? 'Red zone · ' : '') + g.down : '';
-  const tag = upsetWatch(g) ? 'Upset watch' : '';
   const decided = live || g.state === 'post';
   return `<div class="card${cls}">` +
     row(g.away, decided && lead > 0) +
     row(g.home, decided && lead < 0) +
     `<div class="sit${g.redZone ? ' rz' : ''}">${esc(sit)}</div>` +
     `<div class="ft"><span class="ck">${esc(clockText(g))}</span>` +
-    (tag ? `<span class="tag">${esc(tag)}</span>` : '') +
     (soon ? `<span class="soon">${esc(soon)}</span>` : '') +
     (g.tv ? `<span class="tv">${esc(g.tv)}</span>` : '') + `</div></div>`;
 }
@@ -505,6 +539,8 @@ function put(id, html){
 }
 
 function render(){
+  watchButton();
+  const games = onBoard();
   if(!games.length){
     showMessage('<b>No games this week</b>No Power Four or ranked games on ESPN\'s scoreboard right now.');
     return;
@@ -565,6 +601,8 @@ function render(){
   stamp();
 }
 
+function onBoard(){ return watching() ? games.filter(g => !g.byu) : games; }
+
 function showMessage(html){
   $('hero').style.display = 'none';
   $('list').style.display = 'none';
@@ -600,8 +638,7 @@ function changes(prev, list){
     const p = prev[g.id]; if(!p) return;
 
     if(g.byu && p.state === 'pre' && g.state === 'in')
-      out.push({ g, team: null, word: 'KICKOFF', kick: `${g.away.name} at ${g.home.name}`,
-                 sound: 'kick', big: false, pri: 50 });
+      out.push({ g, team: null, word: 'KICKOFF', kick: `${g.away.name} at ${g.home.name}`, big: false, pri: 50 });
 
     const da = num(g.away.score) - num(p.a), dh = num(g.home.score) - num(p.h);
     if((g.state === 'in' || g.state === 'post') && (da > 0 || dh > 0)){
@@ -620,7 +657,6 @@ function changes(prev, list){
         out.push({ g, team, word,
           kick: upset ? 'Upset alert' : byuScored ? 'BYU' : leadChange && prog >= 0.5 ? `${team.name} takes the lead` : team.name,
           play: g.playScore > 0 ? g.playText : '',
-          sound: byuScored ? 'byu' : upset ? 'upset' : word === 'FIELD GOAL' ? 'fg' : 'td',
           big: byuScored, pri: g.byu ? 100 : upset ? 80 : 60 });
       }
     }
@@ -631,12 +667,11 @@ function changes(prev, list){
       if(g.byu){
         const won = win.abbr === 'BYU';
         out.push({ g, team: won ? win : null, word: won ? 'BYU WINS' : 'FINAL',
-                   kick: won ? 'Final' : `${win.name} wins`, sound: won ? 'byu' : 'final', big: won, pri: 100 });
+                   kick: won ? 'Final' : `${win.name} wins`, big: won, pri: 100 });
       } else if(wouldUpset(win, lose)){
-        out.push({ g, team: win, word: 'UPSET', kick: `${win.name} knocks off No. ${lose.rank} ${lose.name}`,
-                   sound: 'upset', big: false, pri: 80 });
+        out.push({ g, team: win, word: 'UPSET', kick: `${win.name} knocks off No. ${lose.rank} ${lose.name}`, big: false, pri: 80 });
       } else if(win.rank && lose.rank && Math.min(win.rank, lose.rank) <= 10){
-        out.push({ g, team: win, word: 'FINAL', kick: `${win.name} wins`, sound: 'final', big: false, pri: 40 });
+        out.push({ g, team: win, word: 'FINAL', kick: `${win.name} wins`, big: false, pri: 40 });
       }
     }
   });
@@ -693,61 +728,10 @@ function nextAlert(){
   if(bar) bar.style.background = '#' + (t && t.alt && t.alt !== c ? t.alt : 'FFFFFF');
   void el.offsetWidth;                        // start the slide from below, every time
   el.className = 'al show';
-  play(a.sound);
   setTimeout(() => {
     el.className = 'al';
     setTimeout(nextAlert, 1200);
   }, a.big ? 16000 : 11000);
-}
-
-/* --------------------------- sound ---------------------------
-   Made on the spot with Web Audio, so there are no files to load. Browsers
-   only allow sound after someone has touched the page once; until then the
-   header says "Tap for sound".                                        */
-let ac = null;
-function audio(){
-  if(ac || !SOUND) return ac;
-  const C = window.AudioContext || window.webkitAudioContext;
-  if(C){ try{ ac = new C(); }catch(e){ ac = null; } }
-  return ac;
-}
-
-function note(ctx, out, f, t0, dur, type, vol){
-  const o = ctx.createOscillator(), g = ctx.createGain();
-  o.type = type; o.frequency.setValueAtTime(f, t0);
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g); g.connect(out);
-  o.start(t0); o.stop(t0 + dur + 0.05);
-}
-
-const SOUNDS = {
-  // [frequency, start, length] in Hz and seconds
-  td:    { type:'triangle', vol:.5, notes:[[523,0,.25],[659,.14,.25],[784,.28,.3],[1047,.44,.7]] },
-  fg:    { type:'triangle', vol:.45, notes:[[784,0,.22],[1047,.16,.5]] },
-  kick:  { type:'triangle', vol:.35, notes:[[659,0,.2],[784,.12,.35]] },
-  final: { type:'triangle', vol:.4, notes:[[523,0,.6],[659,0,.6],[784,0,.9]] },
-  upset: { type:'square', vol:.18, notes:[[880,0,.18],[740,.18,.18],[880,.36,.18],[740,.54,.3]] },
-  // a short brass fanfare for BYU
-  byu:   { type:'sawtooth', vol:.22, brass:true,
-           notes:[[392,0,.18],[392,.2,.18],[392,.4,.18],[523,.6,.5],[392,1.15,.18],[523,1.35,1.1],[659,1.35,1.1],[784,1.35,1.1]] },
-};
-
-function play(kind){
-  const ctx = audio(), s = SOUNDS[kind];
-  if(!ctx || !s) return;
-  if(ctx.state === 'suspended' && ctx.resume) ctx.resume();
-  if(ctx.state !== 'running') return;
-  const master = ctx.createGain(); master.gain.value = 0.6;
-  let out = master;
-  if(s.brass){
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
-    lp.connect(master); out = lp;
-  }
-  master.connect(ctx.destination);
-  const t0 = ctx.currentTime + 0.05;
-  s.notes.forEach(n => note(ctx, out, n[0], t0 + n[1], n[2], s.type, s.vol));
 }
 
 /* --------------------------- clock & freshness --------------------------- */
@@ -755,8 +739,15 @@ function stamp(){
   const now = new Date();
   $('clock').textContent = timeText(now).replace(/(am|pm)$/, '');
   $('date').textContent = now.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
-  $('snd').textContent = SOUND && ac && ac.state !== 'running' ? 'Tap for sound' : '';
   if(!lastOk){ $('stamp').textContent = ''; return; }
+  if(!inWindow(now) && !games.some(g => g.state === 'in')){
+    // Not checking on purpose; say when it will, rather than "out of date".
+    const next = new Date(Date.now() + nextWait());
+    $('stamp').className = 'stamp';
+    $('stamp').textContent = 'Next update ' + next.toLocaleDateString([], { weekday:'short' }) + ' ' +
+                             timeText(next).replace(':00', '');
+    return;
+  }
   // A wall screen that quietly stops updating looks exactly like one that is
   // working. Say so when the scores are getting old.
   const age = (Date.now() - lastOk) / 60000;
@@ -768,9 +759,25 @@ function stamp(){
 }
 
 /* --------------------------- polling ---------------------------
-   Once a minute while a game is on. With nothing on, wait for the next
-   kickoff (checking at least every 15 minutes); once a game is due to
-   start, back to once a minute until it does.                          */
+   Football happens Friday night and Saturday, so that is the only time
+   the board checks: from Friday 4pm until 2am Sunday, local time. Inside
+   that window, once a minute while a game is on; otherwise wait for the
+   next kickoff, checking at least every 15 minutes. Outside it, nothing at
+   all, apart from a kickoff the board already knows about (a game that
+   runs past 2am, or one on the schedule for a weeknight).               */
+const WINDOW_OPENS = { day: 5, hour: 16 };       // Friday 4pm
+function inWindow(d){
+  const day = d.getDay(), h = d.getHours();
+  return (day === 5 && h >= WINDOW_OPENS.hour) || day === 6 || (day === 0 && h < 2);
+}
+function nextWindow(d){
+  const t = new Date(d.getTime());
+  t.setHours(WINDOW_OPENS.hour, 0, 0, 0);
+  t.setDate(t.getDate() + ((WINDOW_OPENS.day - t.getDay() + 7) % 7));
+  if(t <= d) t.setDate(t.getDate() + 7);
+  return t;
+}
+
 async function tick(){
   let ok = false;
   try{
@@ -789,7 +796,7 @@ async function tick(){
     render();
     // Alerts only between fetches close together. After a long gap (the
     // Wi-Fi dropped, the screen was off) a pile of old scores is not news.
-    if(before && Date.now() - prevOk < 5 * 60000) enqueue(changes(before, games));
+    if(before && Date.now() - prevOk < 5 * 60000) enqueue(changes(before, onBoard()));
     before = snapshot(games);
   }catch(err){
     failures++;
@@ -805,20 +812,28 @@ async function tick(){
   // a good fetch: reloading with the network down would leave an error page
   // that never recovers.
   const liveNow = games.some(g => g.state === 'in');
-  if(ok && !liveNow && Date.now() - BOOT > 6 * 3600000){ location.reload(); return; }
+  if(ok && !liveNow && inWindow(new Date()) && Date.now() - BOOT > 6 * 3600000){ location.reload(); return; }
   schedule();
 }
 
 function nextWait(){
-  if(failures) return Math.min(120000 * failures, 600000);
-  if(games.some(g => g.state === 'in')) return 60000;
+  const now = new Date(), open = inWindow(now);
+  if(games.some(g => g.state === 'in')) return failures ? Math.min(120000 * failures, 600000) : 60000;
+  // The next kickoff we know of. One that should have started but hasn't
+  // counts for four hours; after that it is stale data, not a late game.
   let soonest = Infinity;
   games.forEach(g => {
-    if(g.state === 'pre' && g.kickoff && g.timeKnown) soonest = Math.min(soonest, g.kickoff - Date.now());
+    if(g.state !== 'pre' || !g.kickoff || !g.timeKnown) return;
+    const until = g.kickoff - now;
+    if(until > -4 * 3600000) soonest = Math.min(soonest, until);
   });
-  // A minute before the next kickoff, or 15 minutes, whichever comes first.
-  // A game that should have started but hasn't is checked every minute.
-  return Math.max(60000, Math.min(15 * 60000, soonest - 60000));
+  if(open){
+    if(failures) return Math.min(120000 * failures, 600000);
+    // A minute before the next kickoff, or 15 minutes, whichever comes first.
+    return Math.max(60000, Math.min(15 * 60000, soonest - 60000));
+  }
+  // Off days: sleep until Friday, or a minute before a known kickoff.
+  return Math.max(60000, Math.min(nextWindow(now) - now, soonest - 60000));
 }
 
 function schedule(){
@@ -831,14 +846,9 @@ function schedule(){
 setInterval(() => { if(games.length) render(); else stamp(); }, 30000);
 window.addEventListener('resize', () => { fitRows = 0; if(games.length) render(); });
 
-// A tap asks for full screen, to get rid of the browser's URL bar, and
-// switches sound on. The browser may refuse either; nothing depends on it.
+// A tap asks for full screen, to get rid of the browser's URL bar. The
+// browser may refuse; nothing else depends on it.
 document.addEventListener('click', () => {
-  const ctx = audio();
-  if(ctx && ctx.state !== 'running' && ctx.resume){
-    const p = ctx.resume();
-    if(p && p.then) p.then(() => { stamp(); play('kick'); }, () => {});
-  }
   const el = document.documentElement;
   const go = el.requestFullscreen || el.webkitRequestFullscreen;
   if(go && !(document.fullscreenElement || document.webkitFullscreenElement)){
@@ -861,9 +871,9 @@ function testAlerts(){
   const g2 = game(ttu, ou, { clock: '0:41' });
   const g3 = game(byu, utah, { state: 'post', status: 'STATUS_FINAL', detail: 'Final' });
   enqueue([
-    { g: g1, team: byu, word: 'TOUCHDOWN', kick: 'BYU', play: '12 Yd pass for the go-ahead touchdown', sound: 'byu', big: true, pri: 100 },
-    { g: g2, team: ttu, word: 'FIELD GOAL', kick: 'Upset alert', play: '', sound: 'upset', big: false, pri: 80 },
-    { g: g3, team: byu, word: 'BYU WINS', kick: 'Final', play: '', sound: 'byu', big: true, pri: 100 },
+    { g: g1, team: byu, word: 'TOUCHDOWN', kick: 'BYU', play: '12 Yd pass for the go-ahead touchdown', big: true, pri: 100 },
+    { g: g2, team: ttu, word: 'FIELD GOAL', kick: 'Upset alert', play: '', big: false, pri: 80 },
+    { g: g3, team: byu, word: 'BYU WINS', kick: 'Final', play: '', big: true, pri: 100 },
   ]);
 }
 
