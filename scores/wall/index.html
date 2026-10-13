@@ -335,16 +335,31 @@ function pickHero(live, soon, done){
   return hero;
 }
 
+// Measured once, and again only when the window changes size: measuring
+// means emptying the list, which would make it flash on every redraw.
+let fitRows = 0;
 function rowsThatFit(){
+  if(fitRows) return fitRows;
   const list = $('list');
   const probe = document.createElement('div');
   probe.className = 'g'; probe.textContent = 'x';
   list.innerHTML = ''; list.appendChild(probe);
   const rowH = probe.offsetHeight;
   const gap = parseFloat(getComputedStyle(list).rowGap || getComputedStyle(list).gridRowGap) || 0;
-  list.innerHTML = '';
+  list.innerHTML = ''; lastHtml.list = '';
   if(!rowH) return 8;
-  return Math.max(1, Math.floor((list.clientHeight + gap) / (rowH + gap)));
+  fitRows = Math.max(1, Math.floor((list.clientHeight + gap) / (rowH + gap)));
+  return fitRows;
+}
+
+// Only touch the screen when something on it changed. Rebuilding the cards
+// every half minute for the clock's sake would reload every logo, and on
+// this hardware that shows as a blink.
+const lastHtml = {};
+function put(id, html){
+  if(lastHtml[id] === html) return;
+  lastHtml[id] = html;
+  $(id).innerHTML = html;
 }
 
 function render(){
@@ -367,7 +382,7 @@ function render(){
   $('msg').style.display = 'none';
   $('hero').style.display = '';
   $('list').style.display = '';
-  $('hero').innerHTML = hero.map(card).join('');
+  put('hero', hero.map(card).join(''));
 
   // Section headers and rows share one column-major grid. Work out how many
   // rows a column holds, then lay the items in so no header is left stranded
@@ -400,7 +415,7 @@ function render(){
     items.push(`<div class="more">+${total - shown} more</div>`);
   }
   $('list').style.gridTemplateRows = `repeat(${rows}, auto)`;
-  $('list').innerHTML = items.join('');
+  put('list', items.join(''));
 
   const n = live.length;
   $('live').className = 'live' + (n ? '' : ' off');
@@ -413,6 +428,7 @@ function showMessage(html){
   $('hero').style.display = 'none';
   $('list').style.display = 'none';
   $('msg').style.display = '';
+  lastHtml.hero = lastHtml.list = '';
   $('msg').innerHTML = html;
 }
 
@@ -481,7 +497,7 @@ function schedule(){
 // The clock, the "in 25m" countdowns and the staleness note move on their
 // own; redraw them between fetches.
 setInterval(() => { if(games.length) render(); else stamp(); }, 30000);
-window.addEventListener('resize', () => { if(games.length) render(); });
+window.addEventListener('resize', () => { fitRows = 0; if(games.length) render(); });
 
 // A tap asks for full screen, to get rid of the browser's URL bar. The
 // browser may refuse; nothing else depends on it.
