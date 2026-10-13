@@ -16,7 +16,7 @@
   :root{
     --bg:#0B0B0C; --tile:#15161A; --tile2:#1C1E24; --line:#25272E;
     --ink:#F3F1EC; --dim:#8A8C96; --faint:#5C5F69;
-    --hot:#FF9B2F; --byu:#4D9BE6; --b12:#2F6E4F;
+    --hot:#FF9B2F; --byu:#4D9BE6; --b12:#2F6E4F; --ball:#C9884E; --red:#FF5A4F;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);}
@@ -40,52 +40,91 @@
   .hd .rt{margin-left:auto;display:flex;align-items:baseline;}
   .hd .stamp{font-size:1.9vh;font-weight:600;color:var(--faint);margin-right:1.8vw;}
   .hd .stamp.bad{color:var(--hot);}
+  .hd .watch{font:inherit;font-size:2.2vh;font-weight:800;color:var(--dim);background:var(--tile);
+    border:1px solid var(--line);border-radius:3vh;padding:1vh 1.4vw;margin-right:1.8vw;cursor:pointer;}
+  .hd .watch.on{color:var(--bg);background:var(--byu);border-color:var(--byu);}
   .hd .date{font-size:2.6vh;font-weight:700;color:var(--dim);margin-right:1.2vw;}
   .hd .clock{font-size:5vh;font-weight:800;letter-spacing:-.03em;}
 
   /* ---- the four big cards ---- */
-  .hero{flex:none;display:grid;grid-template-columns:repeat(4,1fr);grid-gap:1.2vw;height:30vh;margin-bottom:2.4vh;}
+  .hero{flex:none;display:grid;grid-template-columns:repeat(4,1fr);grid-gap:1.2vw;height:32vh;margin-bottom:2.4vh;}
   .card{background:var(--tile);border-radius:1.4vh;padding:2vh 1.3vw 1.8vh;border-left:.6vh solid var(--line);
     display:flex;flex-direction:column;justify-content:space-between;min-width:0;}
   .card.byu{border-left-color:var(--byu);}
   .card.close{border-left-color:var(--hot);background:var(--tile2);}
   .card.pre{background:#111216;}
-  .card .tm{display:flex;align-items:center;height:9vh;}
-  .card .lg{flex:none;width:6.4vh;height:6.4vh;margin-right:.9vw;object-fit:contain;}
+  .card .tm{display:flex;align-items:center;height:8.2vh;}
+  .card .lg{flex:none;width:5.8vh;height:5.8vh;margin-right:.8vw;object-fit:contain;}
   .card .lg.none{visibility:hidden;}
-  .card .nm{flex:1;min-width:0;font-size:3.2vh;font-weight:800;letter-spacing:-.015em;
+  .card .nm{flex:1;min-width:0;font-size:3.05vh;font-weight:800;letter-spacing:-.015em;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .card .sc{flex:none;font-size:6.6vh;font-weight:900;letter-spacing:-.04em;margin-left:.8vw;line-height:1;}
+  .card .sc{flex:none;font-size:6.3vh;font-weight:900;letter-spacing:-.04em;margin-left:.8vw;line-height:1;}
   .card .lo .nm,.card .lo .sc{color:var(--dim);}
   .card .lo .lg{opacity:.55;}
+  .card .sit{height:3.2vh;display:flex;align-items:center;font-size:2.3vh;font-weight:700;color:var(--dim);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card .sit.rz{color:var(--red);}
   .card .ft{display:flex;align-items:baseline;border-top:1px solid var(--line);padding-top:1.3vh;}
   .card .ck{font-size:2.7vh;font-weight:800;color:var(--hot);letter-spacing:.01em;white-space:nowrap;}
   .card.pre .ck,.card.post .ck{color:var(--dim);}
   .card .soon{font-size:2.1vh;font-weight:700;color:var(--hot);margin-left:.9vw;white-space:nowrap;}
   .card .tv{margin-left:auto;padding-left:.8vw;font-size:2.2vh;font-weight:700;color:var(--dim);letter-spacing:.03em;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ball{display:inline-block;width:1.05em;height:.62em;margin-left:.35em;vertical-align:.06em;color:var(--ball);flex:none;}
+  .ball.rz{color:var(--red);}
   .rk{font-size:.62em;font-weight:800;color:var(--hot);margin-right:.25em;vertical-align:.45em;letter-spacing:0;}
 
   /* ---- everything else, one line each, filled column by column ---- */
   .list{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-flow:column;
     grid-column-gap:1.2vw;grid-row-gap:.7vh;align-content:start;}
-  .g{display:flex;align-items:center;height:4.6vh;background:var(--tile);border-radius:.9vh;
-    padding:0 1vw;font-size:2.35vh;border-left:.45vh solid transparent;min-width:0;}
+  .g{display:flex;align-items:center;height:5.4vh;background:var(--tile);border-radius:.9vh;
+    padding:0 .9vw;font-size:2.75vh;border-left:.45vh solid transparent;min-width:0;}
   .g.byu{border-left-color:var(--byu);}
   .g.b12{border-left-color:var(--b12);}
   .g.close{background:var(--tile2);border-left-color:var(--hot);}
   .g .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;}
-  .g .at{color:var(--faint);font-weight:600;margin:0 .35em;}
+  .g .at{color:var(--faint);font-weight:600;margin:0 .3em;}
   .g .l{color:var(--dim);}
-  .g .n{flex:none;font-weight:900;margin-left:.8vw;letter-spacing:-.02em;}
+  .g .n{flex:none;font-weight:900;margin-left:.6vw;letter-spacing:-.02em;}
   .g .n .d{color:var(--faint);margin:0 .2em;}
-  .g .tv{flex:none;width:5.4vw;margin-left:.8vw;text-align:right;font-size:1.85vh;font-weight:700;color:var(--faint);
+  .g .tv{flex:none;width:4.8vw;margin-left:.6vw;text-align:right;font-size:2vh;font-weight:700;color:var(--faint);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.03em;}
-  .g .c{flex:none;width:6.8vw;margin-left:.6vw;text-align:right;font-size:2.05vh;font-weight:800;color:var(--hot);white-space:nowrap;}
+  .g .c{flex:none;min-width:6.6vw;margin-left:.5vw;text-align:right;font-size:2.4vh;font-weight:800;color:var(--hot);white-space:nowrap;}
   .g .c.pre,.g .c.post{color:var(--dim);font-weight:700;}
-  .sec{display:flex;align-items:flex-end;height:4.6vh;padding:0 .3vw .6vh;font-size:1.8vh;font-weight:800;
+  .sec{display:flex;align-items:flex-end;height:5.4vh;padding:0 .3vw .7vh;font-size:2vh;font-weight:800;
     letter-spacing:.16em;text-transform:uppercase;color:var(--faint);}
-  .more{display:flex;align-items:center;height:4.6vh;padding:0 1vw;font-size:2vh;font-weight:700;color:var(--faint);}
+  .more{display:flex;align-items:center;height:5.4vh;padding:0 1vw;font-size:2.3vh;font-weight:700;color:var(--faint);}
+
+  /* ---- score alerts: the bottom half of the screen, in the scoring team's colours ---- */
+  .al{position:fixed;left:0;right:0;bottom:0;height:50vh;z-index:10;overflow:hidden;
+    transform:translateY(105%);transition:transform .65s cubic-bezier(.2,.9,.25,1);
+    box-shadow:0 -2vh 6vh rgba(0,0,0,.6);}
+  .al.show{transform:translateY(0);}
+  .al .bar{position:absolute;left:0;right:0;top:0;height:1.1vh;}
+  .al .shine{position:absolute;top:0;bottom:0;left:0;width:28%;
+    background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.16),rgba(255,255,255,0));
+    animation:sweep 1.5s .5s ease-out both;}
+  @keyframes sweep{from{transform:translateX(-120%)}to{transform:translateX(480%)}}
+  .al .in{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;padding:3vh 4vw 2vh;}
+  .al .lg{flex:none;width:30vh;height:30vh;object-fit:contain;margin-right:3.5vw;
+    animation:drop .7s .25s cubic-bezier(.2,1.4,.4,1) both;}
+  .al .lg.none{display:none;}
+  @keyframes drop{from{transform:scale(.4) rotate(-12deg);opacity:0}to{transform:none;opacity:1}}
+  .al .txt{flex:1;min-width:0;}
+  .al .kick{font-size:3.2vh;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.82);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:rise .5s .35s both;}
+  .al .word{font-size:14vh;line-height:1.02;font-weight:900;font-style:italic;letter-spacing:-.025em;color:#fff;
+    white-space:nowrap;animation:punch .65s .45s cubic-bezier(.2,1.3,.4,1) both;}
+  @keyframes punch{from{transform:scale(.55) translateX(-6%);opacity:0}to{transform:none;opacity:1}}
+  .al .line{display:flex;align-items:center;font-size:5.2vh;font-weight:800;color:#fff;margin-top:.6vh;
+    white-space:nowrap;animation:rise .5s .7s both;}
+  .al .line .s{font-weight:900;margin:0 .4em;}
+  .al .line .l{color:rgba(255,255,255,.6);}
+  .al .line .ck{font-size:3vh;font-weight:800;margin-left:1.4vw;padding:.4vh .8vw;border-radius:.8vh;
+    background:rgba(0,0,0,.28);color:rgba(255,255,255,.9);}
+  .al .play{font-size:2.6vh;font-weight:600;color:rgba(255,255,255,.72);margin-top:1.2vh;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:rise .5s .9s both;}
+  @keyframes rise{from{transform:translateY(2vh);opacity:0}to{transform:none;opacity:1}}
 
   .msg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
     color:var(--dim);font-size:2.6vh;line-height:1.6;}
@@ -98,6 +137,7 @@
     <span class="wk" id="wk"></span>
     <span class="live off" id="live"><span class="dot"></span><span id="liveN"></span></span>
     <span class="rt">
+      <button class="watch" id="watch" style="display:none" onclick="toggleWatching()"></button>
       <span class="stamp" id="stamp"></span>
       <span class="date" id="date"></span>
       <span class="clock" id="clock"></span>
@@ -106,28 +146,88 @@
   <div class="hero" id="hero" style="display:none"></div>
   <div class="list" id="list" style="display:none"></div>
   <div class="msg" id="msg"><b>Loading the slate…</b></div>
+  <div class="al" id="alert"></div>
 
 <script>
 /* ===========================================================================
-   The gameday board, rebuilt for a screen on the wall. Same data (ESPN,
-   straight from the browser), same ranking, but nobody touches it: it
-   decides on its own what goes up top and fills the rest of the screen.
+   The gameday board, rebuilt for a screen on the wall. ESPN straight from
+   the browser; nobody touches it, so it decides on its own what goes up top,
+   fills the rest of the screen, and calls out the scores that matter.
 
    Runs on Chromium 74, so: no ?. or ??, nothing newer than ES2018.
+
+   Add ?test to the address to play a sample run of the score alerts.
    =========================================================================== */
 
 // groups=80 is all of FBS, so one request covers every game on the board.
 const URL = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
             'college-football/scoreboard?groups=80&limit=300';
 
-// Used only if ESPN stops telling us a team's conference.
+/* ------------------------- which games count -------------------------
+   Every game with a Power Four team (Notre Dame counts), whoever they
+   play. Anyone else only when ranked, and then only against an FBS
+   opponent. The Pac-12 is not Power Four. ESPN tags every FBS team with
+   its conference; FCS teams get some other number or none at all.        */
+const P4_CONF  = new Set(['1', '4', '5', '8']);          // ACC, Big 12, Big Ten, SEC
+const FBS_CONF = new Set(['1', '4', '5', '8', '9', '12', '15', '17', '18', '37', '151']);
+// Fallback for a team ESPN sends without a conference (2026 membership).
+const P4_ABBR = new Set([
+  'ALA','ARK','AUB','FLA','UGA','UK','LSU','MISS','MSST','MIZ','OU','SC','TENN','TEX','TA&M','TAMU','VAN',
+  'ILL','IND','IOWA','MD','MICH','MSU','MINN','NEB','NU','OSU','ORE','PSU','PUR','RUTG','UCLA','USC','WASH','WIS',
+  'ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU','KSU','OKST','TCU','TTU','UCF','UTAH','WVU',
+  'BC','CAL','CLEM','DUKE','FSU','GT','LOU','MIA','UNC','NCST','PITT','SMU','STAN','SYR','UVA','VT','WAKE',
+  'ND']);
 const BIG12 = new Set(['ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU',
                        'KSU','OKST','TCU','TTU','UCF','UTAH','WVU']);
 
+const isP4  = t => t.conf ? (P4_CONF.has(t.conf) || t.abbr === 'ND') : P4_ABBR.has(t.abbr);
+const isFBS = t => t.conf ? FBS_CONF.has(t.conf) : P4_ABBR.has(t.abbr);
+const counts = g => isP4(g.home) || isP4(g.away) ||
+                    (isFBS(g.home) && isFBS(g.away) && (!!g.home.rank || !!g.away.rank));
+
 const HERO = 4;
 const BOOT = Date.now();
+const QS = location.search;
 
 let games = [], week = '', timer = null, lastOk = 0, failures = 0;
+let before = null;            // each game's score and state at the previous good fetch
+
+/* --------------------------- watching BYU ---------------------------
+   When the game is on TV in the room, the board must not give it away:
+   ESPN is often ahead of the broadcast. A button in the header takes the
+   BYU game off the board and stops its alerts. It survives a reload and
+   switches itself off after six hours, so it can't be left on by mistake. */
+const WATCH_KEY = 'gamedayWall.watchingByu';
+const WATCH_FOR = 6 * 3600000;
+let watchingSince = 0;
+try{ watchingSince = Number(localStorage.getItem(WATCH_KEY)) || 0; }catch(e){}
+const watching = () => !!watchingSince && Date.now() - watchingSince < WATCH_FOR;
+
+function toggleWatching(){
+  watchingSince = watching() ? 0 : Date.now();
+  try{
+    if(watchingSince) localStorage.setItem(WATCH_KEY, String(watchingSince));
+    else localStorage.removeItem(WATCH_KEY);
+  }catch(e){}
+  if(watchingSince){
+    // Anything about BYU already waiting to be shown goes too.
+    for(let i = queue.length - 1; i >= 0; i--) if(queue[i].g.byu) queue.splice(i, 1);
+  }
+  render();
+}
+
+// The button only appears around a BYU game: live, or kicking off within
+// three hours. Or while the mode is on, so it can be switched off.
+function watchButton(){
+  const g = games.filter(x => x.byu)[0];
+  const near = g && (g.state === 'in' ||
+    (g.state === 'pre' && g.kickoff && g.kickoff - Date.now() < 3 * 3600000));
+  const on = watching();
+  const b = $('watch');
+  b.style.display = on || near ? '' : 'none';
+  b.className = 'watch' + (on ? ' on' : '');
+  b.textContent = on ? 'BYU hidden · Show' : 'Watching BYU?';
+}
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
@@ -146,17 +246,19 @@ function parse(ev){
     const t = x.team || {}, cr = x.curatedRank || {};
     let rank = parseInt(cr.current, 10);
     if(!(rank >= 1 && rank <= 25)) rank = null;
-    return { abbr: t.abbreviation || '??',
-             name: t.shortDisplayName || t.displayName || t.abbreviation || '??',
-             // upcoming rows: "Georgia" fits, "Oklahoma St" becomes OKST
-             short: t.shortDisplayName && t.shortDisplayName.length <= 9 ? t.shortDisplayName
-                                                                         : (t.abbreviation || '??'),
+    const abbr = String(t.abbreviation || '??').toUpperCase();
+    return { id: String(t.id || x.id || ''), abbr,
+             name: t.shortDisplayName || t.displayName || abbr,
+             // cards and upcoming rows: "Georgia" fits, "Oklahoma St" becomes OKST
+             short: t.shortDisplayName && t.shortDisplayName.length <= 9 ? t.shortDisplayName : abbr,
+             conf: t.conferenceId == null ? '' : String(t.conferenceId),
+             color: /^[0-9a-f]{6}$/i.test(t.color || '') ? t.color : '',
+             alt: /^[0-9a-f]{6}$/i.test(t.alternateColor || '') ? t.alternateColor : '',
              logo: t.logo || '', rank,
              score: x.score == null || x.score === '' ? null : Number(x.score) };
   };
   const H = team(h), A = team(a);
   const state = ty.state || 'pre';                       // pre | in | post
-  const isB12 = t => BIG12.has((t.abbr || '').toUpperCase());
 
   // TV: national broadcast names first, then the per-market list as a fallback.
   const tv = [];
@@ -170,6 +272,13 @@ function parse(ev){
   // or every upcoming game reads as a scoreless tie.
   if(state === 'pre'){ H.score = null; A.score = null; }
 
+  // Live detail: who has the ball, where, and ESPN's own win probability.
+  // Any of it can be missing; everything that uses it copes without.
+  const sit = (state === 'in' && c.situation) || {};
+  const lp = sit.lastPlay || {};
+  const prob = lp.probability && typeof lp.probability.homeWinPercentage === 'number'
+             ? lp.probability.homeWinPercentage : null;
+
   return {
     id: String(ev.id), home: H, away: A, state,
     status: ty.name || '',
@@ -181,43 +290,92 @@ function parse(ev){
     tv: tv.filter((n, i) => tv.indexOf(n) === i).slice(0, 2).join('/'),
     tv1: tv[0] || '',
     byu: H.abbr === 'BYU' || A.abbr === 'BYU',
-    b12: isB12(H) || isB12(A),
+    b12: BIG12.has(H.abbr) || BIG12.has(A.abbr),
     margin: (H.score != null && A.score != null) ? Math.abs(H.score - A.score) : null,
     // Postponed and canceled games come through as "post" too. They are not results.
     off: /POSTPONED|CANCELED|CANCELLED|FORFEIT/.test(ty.name || ''),
+    ball: sit.possession ? String(sit.possession) : '',
+    down: sit.downDistanceText || sit.shortDownDistanceText || '',
+    redZone: !!sit.isRedZone,
+    homeProb: prob >= 0 && prob <= 1 ? prob : null,
+    playText: lp.text || '',
+    playType: (lp.type && lp.type.text) || '',
+    playScore: Number(lp.scoreValue || 0),
   };
 }
 
 /* --------------------- how good is this game? ---------------------
-   Same scoring as the phone board. Closeness matters most, and matters
-   more the later it is; a blowout in the second half actively drops.   */
+   A game is worth watching when the result is still in doubt, and doubt
+   late is worth far more than doubt early: a tie with two minutes left
+   beats a tie after the opening kickoff. Stakes multiply that; a blowout
+   between two top-ten teams is still a blowout.                          */
+
+// How much of regulation is gone, 0 to 1. Overtime counts as the very end.
+function progress(g){
+  if(g.state !== 'in') return g.state === 'post' ? 1 : 0;
+  if(g.period >= 5) return 1;
+  if(g.status === 'STATUS_HALFTIME') return 0.5;
+  let left = clockSeconds(g.clock);
+  if(left == null || g.status === 'STATUS_END_PERIOD') left = g.status === 'STATUS_END_PERIOD' ? 0 : 450;
+  const done = (Math.max(1, g.period) - 1) * 900 + (900 - Math.min(900, left));
+  return Math.max(0, Math.min(1, done / 3600));
+}
+
+// 1 when it is a coin flip, 0 when it is over. ESPN's win probability when
+// it sends one (it knows who has the ball and where); otherwise a plain
+// estimate from the margin and the time left.
+function doubt(g){
+  if(g.state !== 'in' || g.margin == null) return 0;
+  if(g.homeProb != null) return 1 - Math.abs(2 * g.homeProb - 1);
+  if(g.period >= 5) return g.margin <= 8 ? 1 : 0.5;
+  const left = Math.max(30, 3600 * (1 - progress(g)));
+  // How far a college score swings in the time left. Never less than about
+  // one score: down seven with the ball and two minutes left is far from over.
+  const spread = Math.max(7, 16 * Math.sqrt(left / 3600));
+  return erfc(g.margin / (spread * Math.SQRT2));
+}
+
+function erfc(x){                                // Abramowitz & Stegun 7.1.26, plenty for this
+  const t = 1 / (1 + 0.3275911 * x);
+  const y = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+  return Math.max(0, Math.min(1, y * Math.exp(-x * x)));
+}
+
+// Would `dog` beating `fav` be an upset? A ranked team losing to an unranked
+// one, or to one ranked at least 15 places lower. #12 over #2 is just a good game.
+const wouldUpset = (dog, fav) => !!fav.rank && (!dog.rank || dog.rank - fav.rank >= 15);
+
+// The ranked team is losing, or barely ahead, to someone it should beat.
+function upsetWatch(g){
+  if(g.state !== 'in' || progress(g) < 0.5) return false;
+  const a = g.away, h = g.home;
+  const fav = wouldUpset(h, a) ? a : wouldUpset(a, h) ? h : null;
+  if(!fav) return false;
+  const dog = fav === a ? h : a;
+  return num(dog.score) >= num(fav.score) - 3;
+}
+
 function watchability(g){
-  if(g.state === 'post') return -1000;
-  let s = 0;
-  if(g.state === 'in'){
-    s += 120;
-    if(g.margin != null){
-      const m = g.margin;
-      const close = m <= 3 ? 46 : m <= 7 ? 34 : m <= 10 ? 24 : m <= 14 ? 14 : m <= 21 ? 6 : 0;
-      let late = g.period >= 5 ? 2.1 : g.period === 4 ? 1.65
-               : g.period === 3 ? 1.25 : g.period === 2 ? 1.0 : 0.8;
-      const left = clockSeconds(g.clock);
-      if(g.period >= 4 && left != null && m <= 10){
-        if(left <= 120) late += 0.9;
-        else if(left <= 300) late += 0.4;
-      }
-      s += close * late;
-      if(m >= 25 && g.period >= 3) s -= 30;       // garbage time
-    }
-  } else {
-    const mins = g.kickoff ? (g.kickoff - Date.now()) / 60000 : 999;
-    s += Math.max(0, 42 - Math.max(0, mins) / 12);
-  }
+  if(g.state !== 'in') return -1000;
+  const p = progress(g);
+  let s = 100 * doubt(g) * (0.45 + 1.1 * p * p);
+
   const r1 = g.away.rank, r2 = g.home.rank;
-  if(r1 && r2)      s += 34 + (r1 <= 10 ? 8 : 0) + (r2 <= 10 ? 8 : 0);
-  else if(r1 || r2) s += 16 + ((r1 || r2) <= 10 ? 6 : 0);
-  if(g.byu)      s += 500;
-  else if(g.b12) s += 26;
+  let stakes = 1;
+  if(r1 && r2)      stakes += 0.35 + (r1 <= 10 ? 0.1 : 0) + (r2 <= 10 ? 0.1 : 0);
+  else if(r1 || r2) stakes += 0.15 + ((r1 || r2) <= 10 ? 0.05 : 0);
+  if(g.b12) stakes += 0.1;                        // BYU's conference race
+  s *= stakes;
+
+  // Crunch time: a one-score game in the last five minutes, or overtime.
+  // Every snap can decide it, which a plain "how uncertain is it" undersells.
+  const left = g.period === 4 ? clockSeconds(g.clock) : null;
+  if(g.period >= 5 || (left != null && left <= 300 && g.margin <= 8)) s += 45 * stakes;
+
+  if(upsetWatch(g)) s += 18;
+  if(g.redZone && p >= 0.75 && g.margin <= 8) s += 12;
+  if(g.period >= 5) s += 10;
+  if(g.byu) s += 1000;                            // always on top
   return s;
 }
 
@@ -232,6 +390,8 @@ const isClose = g => g.state === 'in' && g.margin != null &&
 
 // The ranked games of the day, roughly: both ranked, then one, then neither.
 const stakes = g => (g.away.rank ? 1 : 0) + (g.home.rank ? 1 : 0);
+
+const byWatch = (x, y) => watchability(y) - watchability(x);
 
 /* --------------------------- text --------------------------- */
 function timeText(d){
@@ -251,7 +411,8 @@ function clockText(g){
   if(!g.kickoff) return g.detail || '';
   const sameDay = g.kickoff.toDateString() === new Date().toDateString();
   const day = sameDay ? '' : g.kickoff.toLocaleDateString([], { weekday:'short' }) + ' ';
-  return day + (g.timeKnown ? timeText(g.kickoff) : 'TBD');
+  // "Sat 10am" rather than "Sat 10:00am": the rows have no room to spare.
+  return day + (g.timeKnown ? timeText(g.kickoff).replace(':00', '') : 'TBD');
 }
 
 // "in 25m" for a kickoff inside the next hour and a half, otherwise nothing.
@@ -265,6 +426,17 @@ function soonText(g){
 
 /* --------------------------- pieces --------------------------- */
 const rankTag = t => t.rank ? `<span class="rk">${t.rank}</span>` : '';
+
+// Ball between plays only: at the half or a quarter break nobody "has" it.
+const hasBall = (g, t) => g.state === 'in' && !!g.ball && g.ball === t.id &&
+                          g.status !== 'STATUS_HALFTIME' && g.status !== 'STATUS_END_PERIOD';
+
+function ballTag(g, t){
+  if(!hasBall(g, t)) return '';
+  return `<svg class="ball${g.redZone ? ' rz' : ''}" viewBox="0 0 24 14" aria-hidden="true">` +
+    `<ellipse cx="12" cy="7" rx="11.5" ry="6.6" fill="currentColor"/>` +
+    `<path d="M7.5 7h9M10 5v4M12 5v4M14 5v4" stroke="#0B0B0C" stroke-width="1.3" fill="none"/></svg>`;
+}
 
 // ESPN's default logos are drawn for a white background, and plenty of them
 // (navy, black) vanish on this one. Most teams also have a "-dark" version;
@@ -287,14 +459,18 @@ function card(g){
   const lead = num(g.home.score) - num(g.away.score);
   const row = (t, lo) =>
     `<div class="tm${lo ? ' lo' : ''}">${logoTag(t)}` +
-      `<span class="nm">${rankTag(t)}${esc(t.name)}</span>` +
+      `<span class="nm">${rankTag(t)}${esc(t.short)}${ballTag(g, t)}</span>` +
       (g.state === 'pre' ? '' : `<span class="sc">${scoreText(t.score)}</span>`) + `</div>`;
   const live = g.state === 'in';
   const cls = (g.byu ? ' byu' : isClose(g) ? ' close' : '') + (live ? '' : ' ' + g.state);
   const soon = soonText(g);
+  const showDown = live && g.down && (hasBall(g, g.home) || hasBall(g, g.away));
+  const sit = showDown ? (g.redZone ? 'Red zone · ' : '') + g.down : '';
+  const decided = live || g.state === 'post';
   return `<div class="card${cls}">` +
-    row(g.away, live ? lead > 0 : g.state === 'post' && lead > 0) +
-    row(g.home, live ? lead < 0 : g.state === 'post' && lead < 0) +
+    row(g.away, decided && lead > 0) +
+    row(g.home, decided && lead < 0) +
+    `<div class="sit${g.redZone ? ' rz' : ''}">${esc(sit)}</div>` +
     `<div class="ft"><span class="ck">${esc(clockText(g))}</span>` +
     (soon ? `<span class="soon">${esc(soon)}</span>` : '') +
     (g.tv ? `<span class="tv">${esc(g.tv)}</span>` : '') + `</div></div>`;
@@ -306,7 +482,7 @@ function line(g){
   const aLo = decided && lead > 0, hLo = decided && lead < 0;
   // A row with a score has no room for names; upcoming rows do.
   const nm = (t, lo) => `<span class="${lo ? 'l' : ''}">${rankTag(t)}` +
-    `${esc(g.state === 'pre' ? t.short : t.abbr)}</span>`;
+    `${esc(g.state === 'pre' ? t.short : t.abbr)}</span>${ballTag(g, t)}`;
   const sc = (t, lo) => `<span class="${lo ? 'l' : ''}">${scoreText(t.score)}</span>`;
   const cls = (g.byu ? ' byu' : isClose(g) ? ' close' : g.b12 ? ' b12' : '');
   return `<div class="g${cls}">` +
@@ -363,12 +539,13 @@ function put(id, html){
 }
 
 function render(){
+  watchButton();
+  const games = onBoard();
   if(!games.length){
-    showMessage('<b>No games this week</b>Nothing on ESPN\'s FBS scoreboard right now.');
+    showMessage('<b>No games this week</b>No Power Four or ranked games on ESPN\'s scoreboard right now.');
     return;
   }
-  const live = games.filter(g => g.state === 'in')
-                    .sort((x, y) => watchability(y) - watchability(x));
+  const live = games.filter(g => g.state === 'in').sort(byWatch);
   const soon = games.filter(g => g.state === 'pre')
                     .sort((x, y) => (x.kickoff || 0) - (y.kickoff || 0));
   const done = games.filter(g => g.state === 'post')
@@ -424,6 +601,8 @@ function render(){
   stamp();
 }
 
+function onBoard(){ return watching() ? games.filter(g => !g.byu) : games; }
+
 function showMessage(html){
   $('hero').style.display = 'none';
   $('list').style.display = 'none';
@@ -432,25 +611,173 @@ function showMessage(html){
   $('msg').innerHTML = html;
 }
 
+/* --------------------------- score alerts ---------------------------
+   Compare each fetch with the one before. A score becomes an alert when it
+   matters: anything BYU does, a lead change or a one-score game in the
+   second half of a game worth caring about, and upsets. Not every field
+   goal on the board.                                                    */
+function snapshot(list){
+  const m = {};
+  list.forEach(g => { m[g.id] = { a: g.away.score, h: g.home.score, state: g.state }; });
+  return m;
+}
+
+function scoreWord(points, playType){
+  const t = String(playType || '');
+  if(/touchdown/i.test(t)) return 'TOUCHDOWN';
+  if(/safety/i.test(t)) return 'SAFETY';
+  if(points >= 6 && points <= 8) return 'TOUCHDOWN';
+  if(points === 3) return 'FIELD GOAL';
+  if(points === 1 || points === 2) return null;   // the kick or conversion after a touchdown we already showed
+  return 'SCORE';
+}
+
+function changes(prev, list){
+  const out = [];
+  list.forEach(g => {
+    const p = prev[g.id]; if(!p) return;
+
+    if(g.byu && p.state === 'pre' && g.state === 'in')
+      out.push({ g, team: null, word: 'KICKOFF', kick: `${g.away.name} at ${g.home.name}`, big: false, pri: 50 });
+
+    const da = num(g.away.score) - num(p.a), dh = num(g.home.score) - num(p.h);
+    if((g.state === 'in' || g.state === 'post') && (da > 0 || dh > 0)){
+      const team = da >= dh ? g.away : g.home, other = team === g.away ? g.home : g.away;
+      const pts = Math.max(da, dh);
+      const word = scoreWord(pts, g.playScore > 0 ? g.playType : '');
+      const was = num(p.h) - num(p.a), now = num(g.home.score) - num(g.away.score);
+      const leadChange = (was > 0) !== (now > 0) || (was < 0) !== (now < 0);
+      const prog = progress(g);
+      const matters = g.byu || !!g.away.rank || !!g.home.rank || g.b12;
+      const upset = wouldUpset(team, other) && num(team.score) > num(other.score) && prog >= 0.5;
+      const tense = (g.margin <= 8 && prog >= 0.5) || (leadChange && prog >= 0.5) ||
+                    (g.margin <= 3 && prog >= 0.75);
+      if(word && (g.byu || upset || (matters && tense))){
+        const byuScored = team.abbr === 'BYU';
+        out.push({ g, team, word,
+          kick: upset ? 'Upset alert' : byuScored ? 'BYU' : leadChange && prog >= 0.5 ? `${team.name} takes the lead` : team.name,
+          play: g.playScore > 0 ? g.playText : '',
+          big: byuScored, pri: g.byu ? 100 : upset ? 80 : 60 });
+      }
+    }
+
+    if(p.state === 'in' && g.state === 'post' && !g.off){
+      const hw = num(g.home.score) > num(g.away.score);
+      const win = hw ? g.home : g.away, lose = hw ? g.away : g.home;
+      if(g.byu){
+        const won = win.abbr === 'BYU';
+        out.push({ g, team: won ? win : null, word: won ? 'BYU WINS' : 'FINAL',
+                   kick: won ? 'Final' : `${win.name} wins`, big: won, pri: 100 });
+      } else if(wouldUpset(win, lose)){
+        out.push({ g, team: win, word: 'UPSET', kick: `${win.name} knocks off No. ${lose.rank} ${lose.name}`, big: false, pri: 80 });
+      } else if(win.rank && lose.rank && Math.min(win.rank, lose.rank) <= 10){
+        out.push({ g, team: win, word: 'FINAL', kick: `${win.name} wins`, big: false, pri: 40 });
+      }
+    }
+  });
+  return out.sort((x, y) => y.pri - x.pri);
+}
+
+const queue = [];
+let showing = false;
+
+function enqueue(list){
+  list.forEach(a => queue.push(a));
+  // On a wild Saturday don't fall behind: keep BYU's, drop the oldest of the rest.
+  while(queue.length > 4){
+    let i = -1;
+    for(let j = 0; j < queue.length; j++) if(queue[j].pri < 100){ i = j; break; }
+    queue.splice(i < 0 ? 0 : i, 1);
+  }
+  if(!showing) nextAlert();
+}
+
+// Mix a team colour toward the background, so white text always reads.
+function tint(hex, k){
+  const n = parseInt(hex || '2a2d36', 16);
+  const mix = (v, bg) => Math.round(v * k + bg * (1 - k));
+  return `rgb(${mix(n >> 16 & 255, 11)},${mix(n >> 8 & 255, 11)},${mix(n & 255, 12)})`;
+}
+
+function alertHtml(a){
+  const g = a.g, t = a.team;
+  const lead = num(g.home.score) - num(g.away.score);
+  const side = (x, lo) => `<span class="${lo ? 'l' : ''}">${esc(x.abbr)}</span>`;
+  const sc = (x, lo) => `<span class="${lo ? 'l' : ''}">${scoreText(x.score)}</span>`;
+  return `<div class="shine"></div>` +
+    `<div class="in">${t ? logoTag(t) : logoTag(g.byu ? (g.home.abbr === 'BYU' ? g.home : g.away) : g.home)}` +
+    `<div class="txt"><div class="kick">${esc(a.kick)}</div>` +
+    `<div class="word">${esc(a.word)}</div>` +
+    `<div class="line">${side(g.away, lead > 0)}<span class="s">${sc(g.away, lead > 0)}` +
+      `<span class="l"> – </span>${sc(g.home, lead < 0)}</span>${side(g.home, lead < 0)}` +
+      `<span class="ck">${esc(clockText(g))}</span></div>` +
+    (a.play ? `<div class="play">${esc(a.play)}</div>` : '') +
+    `</div></div><div class="bar"></div>`;
+}
+
+function nextAlert(){
+  const a = queue.shift();
+  if(!a){ showing = false; return; }
+  showing = true;
+  const el = $('alert');
+  const t = a.team || (a.g.home.abbr === 'BYU' ? a.g.home : a.g.away.abbr === 'BYU' ? a.g.away : null);
+  const c = t && t.color ? t.color : '2a2d36';
+  el.style.background = `linear-gradient(115deg, ${tint(c, .92)} 0%, ${tint(c, .6)} 55%, ${tint(c, .3)} 100%)`;
+  el.innerHTML = alertHtml(a);
+  const bar = el.querySelector('.bar');
+  if(bar) bar.style.background = '#' + (t && t.alt && t.alt !== c ? t.alt : 'FFFFFF');
+  void el.offsetWidth;                        // start the slide from below, every time
+  el.className = 'al show';
+  setTimeout(() => {
+    el.className = 'al';
+    setTimeout(nextAlert, 1200);
+  }, a.big ? 16000 : 11000);
+}
+
 /* --------------------------- clock & freshness --------------------------- */
 function stamp(){
   const now = new Date();
   $('clock').textContent = timeText(now).replace(/(am|pm)$/, '');
   $('date').textContent = now.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
   if(!lastOk){ $('stamp').textContent = ''; return; }
+  if(!inWindow(now) && !games.some(g => g.state === 'in')){
+    // Not checking on purpose; say when it will, rather than "out of date".
+    const next = new Date(Date.now() + nextWait());
+    $('stamp').className = 'stamp';
+    $('stamp').textContent = 'Next update ' + next.toLocaleDateString([], { weekday:'short' }) + ' ' +
+                             timeText(next).replace(':00', '');
+    return;
+  }
   // A wall screen that quietly stops updating looks exactly like one that is
   // working. Say so when the scores are getting old.
   const age = (Date.now() - lastOk) / 60000;
   const liveNow = games.some(g => g.state === 'in');
-  const stale = age > (liveNow ? 4 : 15);
+  const stale = age > (liveNow ? 4 : 20);
   $('stamp').className = 'stamp' + (stale ? ' bad' : '');
   $('stamp').textContent = stale ? `No update since ${timeText(new Date(lastOk))}`
                                  : `Updated ${timeText(new Date(lastOk))}`;
 }
 
 /* --------------------------- polling ---------------------------
-   Always on: this screen is never in a pocket. Once a minute while
-   anything is live or about to kick, every five minutes otherwise.      */
+   Football happens Friday night and Saturday, so that is the only time
+   the board checks: from Friday 4pm until 2am Sunday, local time. Inside
+   that window, once a minute while a game is on; otherwise wait for the
+   next kickoff, checking at least every 15 minutes. Outside it, nothing at
+   all, apart from a kickoff the board already knows about (a game that
+   runs past 2am, or one on the schedule for a weeknight).               */
+const WINDOW_OPENS = { day: 5, hour: 16 };       // Friday 4pm
+function inWindow(d){
+  const day = d.getDay(), h = d.getHours();
+  return (day === 5 && h >= WINDOW_OPENS.hour) || day === 6 || (day === 0 && h < 2);
+}
+function nextWindow(d){
+  const t = new Date(d.getTime());
+  t.setHours(WINDOW_OPENS.hour, 0, 0, 0);
+  t.setDate(t.getDate() + ((WINDOW_OPENS.day - t.getDay() + 7) % 7));
+  if(t <= d) t.setDate(t.getDate() + 7);
+  return t;
+}
+
 async function tick(){
   let ok = false;
   try{
@@ -461,11 +788,16 @@ async function tick(){
     if(kill) clearTimeout(kill);
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    games = (data.events || []).map(parse).filter(Boolean);
+    const prevOk = lastOk;
+    games = (data.events || []).map(parse).filter(Boolean).filter(counts);
     const wk = data.week && data.week.number;
     week = wk ? 'Week ' + wk : '';
     lastOk = Date.now(); failures = 0; ok = true;
     render();
+    // Alerts only between fetches close together. After a long gap (the
+    // Wi-Fi dropped, the screen was off) a pile of old scores is not news.
+    if(before && Date.now() - prevOk < 5 * 60000) enqueue(changes(before, onBoard()));
+    before = snapshot(games);
   }catch(err){
     failures++;
     console.warn('scoreboard fetch failed', err);
@@ -480,22 +812,37 @@ async function tick(){
   // a good fetch: reloading with the network down would leave an error page
   // that never recovers.
   const liveNow = games.some(g => g.state === 'in');
-  if(ok && !liveNow && Date.now() - BOOT > 6 * 3600000){ location.reload(); return; }
+  if(ok && !liveNow && inWindow(new Date()) && Date.now() - BOOT > 6 * 3600000){ location.reload(); return; }
   schedule();
+}
+
+function nextWait(){
+  const now = new Date(), open = inWindow(now);
+  if(games.some(g => g.state === 'in')) return failures ? Math.min(120000 * failures, 600000) : 60000;
+  // The next kickoff we know of. One that should have started but hasn't
+  // counts for four hours; after that it is stale data, not a late game.
+  let soonest = Infinity;
+  games.forEach(g => {
+    if(g.state !== 'pre' || !g.kickoff || !g.timeKnown) return;
+    const until = g.kickoff - now;
+    if(until > -4 * 3600000) soonest = Math.min(soonest, until);
+  });
+  if(open){
+    if(failures) return Math.min(120000 * failures, 600000);
+    // A minute before the next kickoff, or 15 minutes, whichever comes first.
+    return Math.max(60000, Math.min(15 * 60000, soonest - 60000));
+  }
+  // Off days: sleep until Friday, or a minute before a known kickoff.
+  return Math.max(60000, Math.min(nextWindow(now) - now, soonest - 60000));
 }
 
 function schedule(){
   clearTimeout(timer);
-  const liveNow = games.some(g => g.state === 'in');
-  const soon = games.some(g => g.state === 'pre' && g.kickoff &&
-                               g.kickoff - Date.now() < 30 * 60000);
-  const every = failures ? Math.min(120000 * failures, 600000)
-              : liveNow || soon ? 60000 : 300000;
-  timer = setTimeout(tick, every);
+  timer = setTimeout(tick, nextWait());
 }
 
 // The clock, the "in 25m" countdowns and the staleness note move on their
-// own; redraw them between fetches.
+// own; redraw them between fetches. No network involved.
 setInterval(() => { if(games.length) render(); else stamp(); }, 30000);
 window.addEventListener('resize', () => { fitRows = 0; if(games.length) render(); });
 
@@ -509,8 +856,30 @@ document.addEventListener('click', () => {
   }
 });
 
+/* --------------------------- ?test ---------------------------
+   A sample run of the alerts with made-up scores, to see and hear them on
+   the screen without waiting for Saturday.                              */
+function testAlerts(){
+  const T = (abbr, name, id, color, alt, rank, score) => ({ id: String(id), abbr, name, short: name, rank, score,
+    color, alt, conf: '4', logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${id}.png` });
+  const game = (away, home, extra) => Object.assign({ id: 'test' + Math.random(), away, home, state: 'in',
+    status: 'STATUS_IN_PROGRESS', period: 4, clock: '2:13', detail: '', byu: away.abbr === 'BYU' || home.abbr === 'BYU',
+    b12: true, margin: Math.abs(num(home.score) - num(away.score)) }, extra || {});
+  const byu = T('BYU', 'BYU', 252, '002e5d', 'ffffff', 14, 24), utah = T('UTAH', 'Utah', 254, 'cc0000', 'ffffff', 22, 21);
+  const g1 = game(byu, utah);
+  const ttu = T('TTU', 'Texas Tech', 2641, 'cc0000', '000000', null, 27), ou = T('OU', 'Oklahoma', 201, '841617', 'fdf9d8', 6, 24);
+  const g2 = game(ttu, ou, { clock: '0:41' });
+  const g3 = game(byu, utah, { state: 'post', status: 'STATUS_FINAL', detail: 'Final' });
+  enqueue([
+    { g: g1, team: byu, word: 'TOUCHDOWN', kick: 'BYU', play: '12 Yd pass for the go-ahead touchdown', big: true, pri: 100 },
+    { g: g2, team: ttu, word: 'FIELD GOAL', kick: 'Upset alert', play: '', big: false, pri: 80 },
+    { g: g3, team: byu, word: 'BYU WINS', kick: 'Final', play: '', big: true, pri: 100 },
+  ]);
+}
+
 stamp();
 tick();
+if(/[?&]test\b/.test(QS)) setTimeout(testAlerts, 2500);
 </script>
 </body>
 </html>
