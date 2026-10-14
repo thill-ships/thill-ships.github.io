@@ -75,7 +75,8 @@
   .rk{font-size:.62em;font-weight:800;color:var(--hot);margin-right:.25em;vertical-align:.45em;letter-spacing:0;}
 
   /* ---- everything else, one line each, filled column by column ---- */
-  .list{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-flow:column;
+  .main{flex:1;min-height:0;display:flex;}
+  .list{flex:1;min-width:0;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-flow:column;
     grid-column-gap:1.2vw;grid-row-gap:.7vh;align-content:start;}
   .g{display:flex;align-items:center;height:5.4vh;background:var(--tile);border-radius:.9vh;
     padding:0 .9vw;font-size:2.75vh;border-left:.45vh solid transparent;min-width:0;}
@@ -94,6 +95,50 @@
   .sec{display:flex;align-items:flex-end;height:5.4vh;padding:0 .3vw .7vh;font-size:2vh;font-weight:800;
     letter-spacing:.16em;text-transform:uppercase;color:var(--faint);}
   .more{display:flex;align-items:center;height:5.4vh;padding:0 1vw;font-size:2.3vh;font-weight:700;color:var(--faint);}
+
+  /* ---- BYU box score: the left of the screen while BYU plays ---- */
+  .box{flex:none;width:63%;margin-right:1.6vw;display:flex;flex-direction:column;min-width:0;}
+  body.byumode .list{grid-template-columns:1fr;}
+  .bx-sb{flex:none;display:flex;align-items:center;background:var(--tile);border-radius:1.4vh;
+    border-left:.6vh solid var(--byu);padding:1.8vh 1.6vw;height:17vh;}
+  .bx-tm{flex:1;display:flex;align-items:center;min-width:0;}
+  .bx-tm.hm{flex-direction:row-reverse;text-align:right;}
+  .bx-tm .lg{flex:none;width:9vh;height:9vh;object-fit:contain;}
+  .bx-tm .lg.none{visibility:hidden;}
+  .bx-tm .nm{font-size:3.4vh;font-weight:800;margin:0 1.2vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bx-tm .sc{font-size:9vh;font-weight:900;letter-spacing:-.04em;line-height:1;}
+  .bx-tm.lo .nm,.bx-tm.lo .sc{color:var(--dim);}
+  .bx-tm.lo .lg{opacity:.55;}
+  .bx-mid{flex:none;width:23%;text-align:center;}
+  .bx-mid .ck{font-size:3.4vh;font-weight:800;color:var(--hot);}
+  .bx-mid.post .ck{color:var(--dim);}
+  .bx-mid .dn{font-size:2.1vh;font-weight:700;color:var(--dim);margin-top:.6vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bx-mid .dn.rz{color:var(--red);}
+  .bx-mid .tv{font-size:1.9vh;font-weight:700;color:var(--faint);margin-top:.5vh;letter-spacing:.04em;}
+  .bx-body{flex:1;min-height:0;display:flex;margin-top:1.6vh;}
+  .bx-col{flex:1;min-width:0;background:var(--tile);border-radius:1.4vh;padding:1.4vh 1.2vw;}
+  .bx-col + .bx-col{margin-left:1.2vw;}
+  .bx-h{display:flex;align-items:center;font-size:1.8vh;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--faint);padding-bottom:1vh;border-bottom:1px solid var(--line);margin-bottom:.4vh;}
+  .bx-h .ab{margin-left:auto;letter-spacing:.04em;}
+  .bx-h .ab + .ab{margin-left:1.6vw;}
+  .st{display:flex;align-items:center;height:6.4vh;font-size:3vh;font-weight:800;}
+  .st .lb{flex:1;min-width:0;font-size:2.4vh;font-weight:700;color:var(--dim);white-space:nowrap;}
+  .st .v{flex:none;width:7vw;text-align:right;}
+  .st .v.lo{color:var(--dim);}
+  .st .bar{display:flex;height:.6vh;border-radius:.3vh;margin-top:.6vh;margin-right:1.2vw;overflow:hidden;}
+  .st .bar i{display:block;height:100%;background:var(--faint);}
+  .st .bar i.byu{background:var(--byu);}
+  .st .bar i + i{margin-left:2px;}
+  .ld{padding:1.1vh 0;border-bottom:1px solid var(--line);}
+  .ld:last-child{border-bottom:0;}
+  .ld .cat{font-size:1.7vh;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);}
+  .ld .p{display:flex;align-items:baseline;font-size:2.6vh;font-weight:800;margin-top:.5vh;white-space:nowrap;}
+  .ld .p .t{flex:none;width:3.6vw;font-size:1.7vh;color:var(--faint);letter-spacing:.04em;}
+  .ld .p .who{flex:none;max-width:42%;overflow:hidden;text-overflow:ellipsis;}
+  .ld .p .ln{flex:1;min-width:0;margin-left:.8vw;font-size:2.3vh;font-weight:700;color:var(--dim);
+    overflow:hidden;text-overflow:ellipsis;text-align:right;}
+  .bx-none{color:var(--faint);font-size:2.2vh;font-weight:700;padding-top:2vh;}
 
   /* ---- score alerts: the bottom half of the screen, in the scoring team's colours ---- */
   .al{position:fixed;left:0;right:0;bottom:0;height:50vh;z-index:10;overflow:hidden;
@@ -144,7 +189,10 @@
     </span>
   </div>
   <div class="hero" id="hero" style="display:none"></div>
-  <div class="list" id="list" style="display:none"></div>
+  <div class="main">
+    <div class="box" id="box" style="display:none"></div>
+    <div class="list" id="list" style="display:none"></div>
+  </div>
   <div class="msg" id="msg"><b>Loading the slate…</b></div>
   <div class="al" id="alert"></div>
 
@@ -156,7 +204,8 @@
 
    Runs on Chromium 74, so: no ?. or ??, nothing newer than ES2018.
 
-   Add ?test to the address to play a sample run of the score alerts.
+   Add ?test to the address to play a sample run of the score alerts, or
+   ?boxdemo to see the BYU box-score layout with made-up numbers.
    =========================================================================== */
 
 // groups=80 is all of FBS, so one request covers every game on the board.
@@ -193,10 +242,11 @@ let games = [], week = '', timer = null, lastOk = 0, failures = 0;
 let before = null;            // each game's score and state at the previous good fetch
 
 /* --------------------------- watching BYU ---------------------------
-   When the game is on TV in the room, the board must not give it away:
-   ESPN is often ahead of the broadcast. A button in the header takes the
-   BYU game off the board and stops its alerts. It survives a reload and
-   switches itself off after six hours, so it can't be left on by mistake. */
+   A button in the header turns the board into a companion for the BYU
+   game on TV: BYU's box score takes the left of the screen and every
+   other game moves to a column on the right. Off again, the normal board
+   comes back. It survives a reload, and switches itself off an hour
+   after the final (or after six hours, whichever comes first).         */
 const WATCH_KEY = 'gamedayWall.watchingByu';
 const WATCH_FOR = 6 * 3600000;
 let watchingSince = 0;
@@ -209,24 +259,41 @@ function toggleWatching(){
     if(watchingSince) localStorage.setItem(WATCH_KEY, String(watchingSince));
     else localStorage.removeItem(WATCH_KEY);
   }catch(e){}
-  if(watchingSince){
-    // Anything about BYU already waiting to be shown goes too.
-    for(let i = queue.length - 1; i >= 0; i--) if(queue[i].g.byu) queue.splice(i, 1);
-  }
   render();
+  // Turned on mid-game: fetch the box score now rather than at the next tick.
+  const f = byuFeature(games);
+  if(f && !DEMO_BOX && !(box && box.id === f.id)) fetchBox(f).then(render);
 }
 
-// The button only appears around a BYU game: live, or kicking off within
-// three hours. Or while the mode is on, so it can be switched off.
+// Around a BYU game: from ten minutes before kickoff until an hour after
+// the final. ESPN doesn't say when a game ended, so it is the first time
+// this page saw it final, or, if it was already over when the page
+// loaded, about three and a half hours after kickoff.
+const finalSeen = {};
+function byuNear(g){
+  if(!g || g.off) return false;
+  const now = Date.now();
+  if(g.state === 'in') return true;
+  if(g.state === 'pre') return !!g.kickoff && g.kickoff - now < 10 * 60000;
+  if(g.state !== 'post') return false;
+  const ended = finalSeen[g.id] || (g.kickoff ? g.kickoff.getTime() + 3.5 * 3600000 : 0);
+  return now - ended < 3600000;
+}
+
+// The button only appears around a BYU game. Once that window closes the
+// BYU view switches itself off.
 function watchButton(){
   const g = games.filter(x => x.byu)[0];
-  const near = g && (g.state === 'in' ||
-    (g.state === 'pre' && g.kickoff && g.kickoff - Date.now() < 3 * 3600000));
+  const near = byuNear(g);
+  if(watching() && lastOk && !near){
+    watchingSince = 0;
+    try{ localStorage.removeItem(WATCH_KEY); }catch(e){}
+  }
   const on = watching();
   const b = $('watch');
-  b.style.display = on || near ? '' : 'none';
+  b.style.display = near ? '' : 'none';
   b.className = 'watch' + (on ? ' on' : '');
-  b.textContent = on ? 'BYU hidden · Show' : 'Watching BYU?';
+  b.textContent = on ? 'Back to all games' : 'Watching BYU?';
 }
 
 const $ = id => document.getElementById(id);
@@ -552,21 +619,29 @@ function render(){
                     .sort((x, y) => (x.off - y.off) || (y.byu - x.byu) || (stakes(y) - stakes(x)) ||
                                     (y.b12 - x.b12) || ((y.kickoff || 0) - (x.kickoff || 0)));
 
-  const hero = pickHero(live, soon, done);
+  // While BYU plays, its box score takes the left of the screen and every
+  // other game shares one column on the right.
+  const feature = byuFeature(games);
+  setMode(!!feature);
+
+  const hero = feature ? [] : pickHero(live, soon, done);
   const used = {}; hero.forEach(g => { used[g.id] = true; });
+  if(feature) used[feature.id] = true;
   const left = arr => arr.filter(g => !used[g.id]);
 
   $('msg').style.display = 'none';
-  $('hero').style.display = '';
+  $('hero').style.display = feature ? 'none' : '';
+  $('box').style.display = feature ? '' : 'none';
   $('list').style.display = '';
-  put('hero', hero.map(card).join(''));
+  if(feature) put('box', boxPanel(feature));
+  else put('hero', hero.map(card).join(''));
 
   // Section headers and rows share one column-major grid. Work out how many
   // rows a column holds, then lay the items in so no header is left stranded
   // at the foot of a column.
-  const rows = rowsThatFit(), cols = 3, cap = rows * cols;
+  const rows = rowsThatFit(), cols = feature ? 1 : 3, cap = rows * cols;
   const groups = [
-    ['More live', left(live)],
+    [feature ? 'Around the country' : 'More live', left(live)],
     ['Up next', left(soon)],
     ['Final', left(done)],
   ].filter(x => x[1].length);
@@ -601,7 +676,167 @@ function render(){
   stamp();
 }
 
-function onBoard(){ return watching() ? games.filter(g => !g.byu) : games; }
+function onBoard(){ return games; }
+
+let byuMode = false;
+function setMode(on){
+  if(on === byuMode) return;
+  byuMode = on;
+  document.body.className = on ? 'byumode' : '';
+  fitRows = 0;                   // the list's height changes with the layout
+  lastHtml.list = lastHtml.hero = lastHtml.box = '';
+}
+
+/* --------------------------- BYU box score ---------------------------
+   With "Watching BYU" on, the left of the screen is BYU's game: the score,
+   the team stats, and who is doing what. ESPN's per-game summary has all
+   of it; one extra request a minute, only while the view is on.          */
+const SUMMARY = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=';
+let box = null;                  // { id, teams: {teamId: {stat: {label, value}}}, leaders: {teamId: {cat: [...]}} }
+
+function byuFeature(list){
+  if(!watching()) return null;
+  const g = list.filter(x => x.byu)[0];
+  return byuNear(g) ? g : null;
+}
+
+async function fetchBox(g){
+  try{
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const kill = ctl ? setTimeout(() => ctl.abort(), 20000) : null;
+    const res = await fetch(SUMMARY + encodeURIComponent(g.id), { cache:'no-store', signal: ctl ? ctl.signal : undefined });
+    if(kill) clearTimeout(kill);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    box = parseBox(g.id, await res.json());
+  }catch(err){
+    console.warn('box score fetch failed', err);   // keep the last one; the panel copes without
+  }
+}
+
+function parseBox(id, d){
+  const bs = (d && d.boxscore) || {};
+  const teams = {}, leaders = {};
+  (bs.teams || []).forEach(t => {
+    const m = {};
+    (t.statistics || []).forEach(x => { if(x && x.name) m[x.name] = { label: x.label || '', value: x.displayValue == null ? '' : String(x.displayValue) }; });
+    teams[String((t.team || {}).id || '')] = m;
+  });
+  (bs.players || []).forEach(t => {
+    const cats = {};
+    (t.statistics || []).forEach(c => {
+      if(!/^(passing|rushing|receiving)$/.test(c.name || '')) return;
+      const col = keyFinder(c);
+      const people = (c.athletes || []).map(a => {
+        const st = a.stats || [];
+        const get = k => { const i = col(k); return i < 0 ? '' : String(st[i] == null ? '' : st[i]); };
+        const ath = a.athlete || {};
+        return { name: ath.shortName || ath.displayName || '', yds: Number(get('YDS')) || 0, line: statLine(c.name, get) };
+      }).filter(x => x.name);
+      people.sort((x, y) => y.yds - x.yds);
+      cats[c.name] = people;
+    });
+    leaders[String((t.team || {}).id || '')] = cats;
+  });
+  return { id, teams, leaders };
+}
+
+// ESPN labels its columns (C/ATT, YDS, TD...) and keys them too; accept either.
+function keyFinder(c){
+  const labels = (c.labels || []).map(x => String(x).toUpperCase());
+  const keys = (c.keys || []).map(x => String(x));
+  const byKey = { 'C/ATT': /completions/i, 'YDS': /yards$/i, 'TD': /touchdowns$/i, 'INT': /^interceptions$/i,
+                  'CAR': /rushingAttempts/i, 'REC': /^receptions$/i };
+  return k => {
+    const i = labels.indexOf(k);
+    if(i >= 0) return i;
+    const re = byKey[k];
+    return re ? keys.findIndex(x => re.test(x)) : -1;
+  };
+}
+
+function statLine(cat, get){
+  const td = Number(get('TD')) || 0, yds = get('YDS');
+  const tdText = td ? ` · ${td} TD` : '';
+  if(cat === 'passing'){
+    const int = Number(get('INT')) || 0;
+    return `${get('C/ATT')} · ${yds} yds${tdText}${int ? ` · ${int} INT` : ''}`;
+  }
+  if(cat === 'rushing') return `${get('CAR')} car · ${yds} yds${tdText}`;
+  return `${get('REC')} rec · ${yds} yds${tdText}`;
+}
+
+// The rows that matter, in the order of ESPN's own game page.
+const TEAM_STATS = [
+  ['totalYards', 'Total yards', true],
+  ['netPassingYards', 'Passing', true],
+  ['rushingYards', 'Rushing', true],
+  ['firstDowns', '1st downs', true],
+  ['thirdDownEff', '3rd down', false],
+  ['turnovers', 'Turnovers', false],
+  ['totalPenaltiesYards', 'Penalties', false],
+  ['possessionTime', 'Possession', false],
+];
+
+function boxPanel(g){
+  const a = g.away, h = g.home;
+  const lead = num(h.score) - num(a.score);
+  const decided = g.state === 'in' || g.state === 'post';
+  const side = (t, lo, cls) => `<div class="bx-tm ${cls}${lo ? ' lo' : ''}">${logoTag(t)}` +
+    `<span class="nm">${rankTag(t)}${esc(t.short)}${ballTag(g, t)}</span>` +
+    `<span class="sc">${scoreText(t.score)}</span></div>`;
+  const showDown = g.state === 'in' && g.down && (hasBall(g, a) || hasBall(g, h));
+  const sb = `<div class="bx-sb">${side(a, decided && lead > 0, 'aw')}` +
+    `<div class="bx-mid ${g.state}"><div class="ck">${esc(clockText(g))}</div>` +
+    `<div class="dn${g.redZone ? ' rz' : ''}">${esc(showDown ? (g.redZone ? 'Red zone · ' : '') + g.down : '')}</div>` +
+    `<div class="tv">${esc(g.tv)}</div></div>` +
+    `${side(h, decided && lead < 0, 'hm')}</div>`;
+
+  const b = box && box.id === g.id ? box : null;
+  const head = title => `<div class="bx-h">${title}<span class="ab">${esc(a.abbr)}</span><span class="ab">${esc(h.abbr)}</span></div>`;
+
+  let stats = '';
+  const ta = b && b.teams[a.id], th = b && b.teams[h.id];
+  if(ta && th){
+    TEAM_STATS.forEach(row => {
+      const x = ta[row[0]], y = th[row[0]];
+      if(!x || !y) return;
+      // For the yardage rows, a bar shows how the two sides compare.
+      let bar = '';
+      const nx = parseFloat(x.value), ny = parseFloat(y.value);
+      if(row[2] && nx + ny > 0){
+        // Each side's share, BYU in blue.
+        const pct = Math.round(100 * nx / (nx + ny));
+        bar = `<span class="bar"><i class="${a.abbr === 'BYU' ? 'byu' : ''}" style="width:${pct}%"></i>` +
+              `<i class="${h.abbr === 'BYU' ? 'byu' : ''}" style="flex:1"></i></span>`;
+      }
+      const better = row[0] === 'turnovers' || row[0] === 'totalPenaltiesYards' ? -1 : 1;
+      const xl = row[2] && better * (nx - ny) < 0, yl = row[2] && better * (ny - nx) < 0;
+      stats += `<div class="st"><span class="lb">${esc(row[1])}${bar}</span>` +
+        `<span class="v${xl ? ' lo' : ''}">${esc(x.value)}</span><span class="v${yl ? ' lo' : ''}">${esc(y.value)}</span></div>`;
+    });
+  }
+  if(!stats) stats = `<div class="bx-none">${g.state === 'in' ? 'Team stats appear once ESPN posts them.' : 'No team stats yet.'}</div>`;
+
+  let ldr = '';
+  const la = b && b.leaders[a.id], lh = b && b.leaders[h.id];
+  if(la || lh){
+    [['passing', 'Passing', 1], ['rushing', 'Rushing', 2], ['receiving', 'Receiving', 2]].forEach(c => {
+      const people = [];
+      [[a, la], [h, lh]].forEach(pair => {
+        const list = (pair[1] && pair[1][c[0]]) || [];
+        list.slice(0, c[2]).forEach(p => people.push({ t: pair[0], p }));
+      });
+      if(!people.length) return;
+      ldr += `<div class="ld"><div class="cat">${c[1]}</div>` + people.map(x =>
+        `<div class="p"><span class="t">${esc(x.t.abbr)}</span><span class="who">${esc(x.p.name)}</span>` +
+        `<span class="ln">${esc(x.p.line)}</span></div>`).join('') + `</div>`;
+    });
+  }
+  if(!ldr) ldr = `<div class="bx-none">Leaders appear once ESPN posts the box score.</div>`;
+
+  return sb + `<div class="bx-body"><div class="bx-col">${head('Team stats')}${stats}</div>` +
+    `<div class="bx-col"><div class="bx-h">Leaders</div>${ldr}</div></div>`;
+}
 
 function showMessage(html){
   $('hero').style.display = 'none';
@@ -793,7 +1028,14 @@ async function tick(){
     const wk = data.week && data.week.number;
     week = wk ? 'Week ' + wk : '';
     lastOk = Date.now(); failures = 0; ok = true;
+    games.forEach(g => {
+      if(g.state === 'post' && before && before[g.id] && before[g.id].state === 'in' && !finalSeen[g.id])
+        finalSeen[g.id] = Date.now();
+    });
+    if(DEMO_BOX) demoBox();
     render();
+    const f = byuFeature(onBoard());
+    if(f && !DEMO_BOX){ await fetchBox(f); render(); }
     // Alerts only between fetches close together. After a long gap (the
     // Wi-Fi dropped, the screen was off) a pile of old scores is not news.
     if(before && Date.now() - prevOk < 5 * 60000) enqueue(changes(before, onBoard()));
@@ -875,6 +1117,34 @@ function testAlerts(){
     { g: g2, team: ttu, word: 'FIELD GOAL', kick: 'Upset alert', play: '', big: false, pri: 80 },
     { g: g3, team: byu, word: 'BYU WINS', kick: 'Final', play: '', big: true, pri: 100 },
   ]);
+}
+
+/* --------------------------- ?boxdemo ---------------------------
+   The BYU layout with made-up numbers, so it can be judged on the screen
+   before a real game. Replaces whatever BYU game ESPN has this week, and
+   turns the view on (without remembering it).                          */
+const DEMO_BOX = /[?&]boxdemo\b/.test(QS);
+if(DEMO_BOX) watchingSince = Date.now();
+function demoBox(){
+  const T = (abbr, name, id, rank, score) => ({ id: String(id), abbr, name, short: name, rank, score, conf: '4',
+    color: '', alt: '', logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${id}.png` });
+  const g = { id: 'demo', away: Object.assign(T('ISU', 'Iowa State', 66, null, 10), { short: 'ISU' }), home: T('BYU', 'BYU', 252, 14, 24),
+    state: 'in', status: 'STATUS_IN_PROGRESS', period: 4, clock: '6:42', detail: '', kickoff: new Date(Date.now() - 3 * 3600000),
+    timeKnown: true, tv: 'ESPN', tv1: 'ESPN', byu: true, b12: true, margin: 14, off: false,
+    ball: '252', down: '2nd & 7 at ISU 38', redZone: false, homeProb: 0.93, playText: '', playType: '', playScore: 0 };
+  games = games.filter(x => !x.byu);
+  games.unshift(g);
+  const st = (pairs) => { const m = {}; pairs.forEach(p => { m[p[0]] = { label: '', value: p[1] }; }); return m; };
+  const P = (name, yds, line) => ({ name, yds, line });
+  box = { id: 'demo',
+    teams: {
+      '66':  st([['totalYards','200'],['netPassingYards','98'],['rushingYards','102'],['firstDowns','14'],['thirdDownEff','2-13'],['turnovers','0'],['totalPenaltiesYards','6-27'],['possessionTime','27:17']]),
+      '252': st([['totalYards','506'],['netPassingYards','329'],['rushingYards','177'],['firstDowns','18'],['thirdDownEff','4-10'],['turnovers','1'],['totalPenaltiesYards','6-65'],['possessionTime','32:43']]) },
+    leaders: {
+      '66':  { passing: [P('A. Passer', 98, '16/29 · 98 yds')], rushing: [P('B. Runner', 61, '14 car · 61 yds'), P('C. Back', 28, '8 car · 28 yds')],
+               receiving: [P('D. Wideout', 41, '5 rec · 41 yds'), P('E. End', 30, '3 rec · 30 yds')] },
+      '252': { passing: [P('Q. Back', 329, '22/30 · 329 yds · 2 TD')], rushing: [P('R. Runner', 96, '15 car · 96 yds · 1 TD'), P('Q. Back', 54, '9 car · 54 yds')],
+               receiving: [P('W. Receiver', 128, '6 rec · 128 yds · 1 TD'), P('T. Catcher', 87, '5 rec · 87 yds · 1 TD')] } } };
 }
 
 stamp();
