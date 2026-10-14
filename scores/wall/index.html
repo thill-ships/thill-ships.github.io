@@ -99,6 +99,20 @@
   /* ---- BYU box score: the left of the screen while BYU plays ---- */
   .box{flex:none;width:63%;margin-right:1.6vw;display:flex;flex-direction:column;min-width:0;}
   body.byumode .list{grid-template-columns:1fr;}
+  body.solo .box{width:100%;margin-right:0;}
+  body.solo .list{display:none !important;}
+  /* basketball box score */
+  .pl{display:flex;align-items:center;height:4.3vh;font-size:2.4vh;font-weight:700;border-bottom:1px solid var(--line);}
+  .pl:last-child{border-bottom:0;}
+  .pl.hd{height:3.6vh;font-size:1.7vh;font-weight:800;letter-spacing:.1em;color:var(--faint);}
+  .pl .who{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pl .who .s{color:var(--faint);font-size:.75em;margin-left:.4em;}
+  .pl .n{flex:none;width:4.4vw;text-align:right;color:var(--dim);}
+  .pl .n.pts{color:var(--ink);font-weight:900;}
+  body.solo .pl .n{width:5.4vw;}
+  .opp{margin-top:1.4vh;}
+  .st .v.w{width:10.5vw;white-space:nowrap;}
+  .st .v em{font-style:normal;font-size:.68em;font-weight:700;color:var(--dim);margin-left:.35em;}
   .bx-sb{flex:none;display:flex;align-items:center;background:var(--tile);border-radius:1.4vh;
     border-left:.6vh solid var(--byu);padding:1.8vh 1.6vw;height:17vh;}
   .bx-tm{flex:1;display:flex;align-items:center;min-width:0;}
@@ -205,7 +219,8 @@
    Runs on Chromium 74, so: no ?. or ??, nothing newer than ES2018.
 
    Add ?test to the address to play a sample run of the score alerts, or
-   ?boxdemo to see the BYU box-score layout with made-up numbers.
+   ?boxdemo to see the BYU box-score layout with made-up numbers, or
+   ?hoopsdemo for the BYU basketball view.
    =========================================================================== */
 
 // groups=80 is all of FBS, so one request covers every game on the board.
@@ -608,7 +623,8 @@ function put(id, html){
 function render(){
   watchButton();
   const games = onBoard();
-  if(!games.length){
+  const hv = hoopsView();
+  if(!games.length && !hv){
     showMessage('<b>No games this week</b>No Power Four or ranked games on ESPN\'s scoreboard right now.');
     return;
   }
@@ -619,29 +635,35 @@ function render(){
                     .sort((x, y) => (x.off - y.off) || (y.byu - x.byu) || (stakes(y) - stakes(x)) ||
                                     (y.b12 - x.b12) || ((y.kickoff || 0) - (x.kickoff || 0)));
 
-  // While BYU plays, its box score takes the left of the screen and every
-  // other game shares one column on the right.
+  // With "Watching BYU" on, BYU football's box score takes the left of the
+  // screen and every other game shares one column on the right. A live BYU
+  // basketball game does the same on its own; with no football on, it gets
+  // the whole screen.
   const feature = byuFeature(games);
-  setMode(!!feature);
+  const hoopsOn = !feature && !!hv;
+  const solo = hoopsOn && !live.length;
+  setMode(!!feature || hoopsOn, solo);
 
-  const hero = feature ? [] : pickHero(live, soon, done);
+  const hero = feature || hoopsOn ? [] : pickHero(live, soon, done);
   const used = {}; hero.forEach(g => { used[g.id] = true; });
   if(feature) used[feature.id] = true;
   const left = arr => arr.filter(g => !used[g.id]);
 
   $('msg').style.display = 'none';
-  $('hero').style.display = feature ? 'none' : '';
-  $('box').style.display = feature ? '' : 'none';
+  $('hero').style.display = byuMode ? 'none' : '';
+  $('box').style.display = byuMode ? '' : 'none';
   $('list').style.display = '';
   if(feature) put('box', boxPanel(feature));
+  else if(hoopsOn) put('box', hoopsPanel(hv, solo));
   else put('hero', hero.map(card).join(''));
+  if(solo){ finishHeader(live, hv); return; }
 
   // Section headers and rows share one column-major grid. Work out how many
   // rows a column holds, then lay the items in so no header is left stranded
   // at the foot of a column.
-  const rows = rowsThatFit(), cols = feature ? 1 : 3, cap = rows * cols;
+  const rows = rowsThatFit(), cols = byuMode ? 1 : 3, cap = rows * cols;
   const groups = [
-    [feature ? 'Around the country' : 'More live', left(live)],
+    [byuMode ? 'Around the country' : 'More live', left(live)],
     ['Up next', left(soon)],
     ['Final', left(done)],
   ].filter(x => x[1].length);
@@ -668,21 +690,25 @@ function render(){
   }
   $('list').style.gridTemplateRows = `repeat(${rows}, auto)`;
   put('list', items.join(''));
+  finishHeader(live, hv);
+}
 
-  const n = live.length;
-  $('live').className = 'live' + (n ? '' : ' off');
-  $('liveN').textContent = n ? `${n} live` : 'Nothing live';
-  $('wk').textContent = week;
+function finishHeader(live, hv){
+  const n = live.length, hoopsLive = !!hv && hv.state === 'in';
+  $('live').className = 'live' + (n || hoopsLive ? '' : ' off');
+  $('liveN').textContent = n ? `${n} live` : hoopsLive ? 'BYU basketball' : 'Nothing live';
+  $('wk').textContent = n || !hv ? week : '';
   stamp();
 }
 
 function onBoard(){ return games; }
 
-let byuMode = false;
-function setMode(on){
-  if(on === byuMode) return;
-  byuMode = on;
-  document.body.className = on ? 'byumode' : '';
+let byuMode = false, soloMode = false;
+function setMode(on, solo){
+  solo = !!(on && solo);
+  if(on === byuMode && solo === soloMode) return;
+  byuMode = on; soloMode = solo;
+  document.body.className = (on ? 'byumode' : '') + (solo ? ' solo' : '');
   fitRows = 0;                   // the list's height changes with the layout
   lastHtml.list = lastHtml.hero = lastHtml.box = '';
 }
@@ -839,6 +865,8 @@ function boxPanel(g){
 }
 
 function showMessage(html){
+  setMode(false);
+  $('box').style.display = 'none';
   $('hero').style.display = 'none';
   $('list').style.display = 'none';
   $('msg').style.display = '';
@@ -974,6 +1002,12 @@ function stamp(){
   const now = new Date();
   $('clock').textContent = timeText(now).replace(/(am|pm)$/, '');
   $('date').textContent = now.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
+  const hv = hoopsView();
+  if(hv && soloMode){
+    $('stamp').className = 'stamp';
+    $('stamp').textContent = hv.at ? `Updated ${timeText(new Date(hv.at))}` : '';
+    return;
+  }
   if(!lastOk){ $('stamp').textContent = ''; return; }
   if(!inWindow(now) && !games.some(g => g.state === 'in')){
     // Not checking on purpose; say when it will, rather than "out of date".
@@ -1119,6 +1153,248 @@ function testAlerts(){
   ]);
 }
 
+/* --------------------------- BYU basketball ---------------------------
+   BYU men's basketball only. Its schedule is fetched twice a day (one small
+   request). Ten minutes before tipoff the board starts checking the game
+   once a minute and switches to the basketball view: the score, team stats
+   and BYU's box score. An hour after the final it goes back to normal.
+   Nothing on days without a game.                                       */
+const HOOPS = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/';
+const HOOPS_TEAM = '252';                        // BYU
+const HOOPS_DEMO = /[?&]hoopsdemo\b/.test(QS);
+let hoopsSched = [], hoopsSchedAt = 0;          // [{ id, date }]
+let hoops = null;                                // the game being shown, parsed
+let hoopsTimer = null;
+const hoopsEnded = {};                           // game id -> when it went final
+
+async function getJSON(url){
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const kill = ctl ? setTimeout(() => ctl.abort(), 20000) : null;
+  try{
+    const res = await fetch(url, { cache:'no-store', signal: ctl ? ctl.signal : undefined });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally { if(kill) clearTimeout(kill); }
+}
+
+// When a game went final: when we saw it, or about two and a quarter hours
+// after tipoff if it was already over when we first looked.
+function hoopsEnd(g){
+  return hoopsEnded[g.id] || (g.date ? g.date.getTime() + 2.25 * 3600000 : 0);
+}
+
+// The game worth watching right now, from the schedule: tipoff in the next
+// ten minutes, under way, or finished less than an hour ago.
+function hoopsDue(){
+  const now = Date.now();
+  for(let i = 0; i < hoopsSched.length; i++){
+    const g = hoopsSched[i], since = now - g.date;
+    if(since < -10 * 60000 || since > 5 * 3600000) continue;
+    if(g.done && now - hoopsEnd(g) > 3600000) continue;
+    return g;
+  }
+  return null;
+}
+
+// What the screen shows: the parsed game, while it is due.
+function hoopsView(){
+  if(!hoops) return null;
+  if(hoops.state === 'post' && Date.now() - hoopsEnd(hoops) > 3600000) return null;
+  if(hoops.state === 'pre' && hoops.date && hoops.date - Date.now() > 10 * 60000) return null;
+  return hoops;
+}
+
+async function hoopsTick(){
+  clearTimeout(hoopsTimer);
+  if(HOOPS_DEMO) return;
+  try{
+    if(!hoopsSchedAt || Date.now() - hoopsSchedAt > 12 * 3600000){
+      const d = await getJSON(HOOPS + 'teams/' + HOOPS_TEAM + '/schedule');
+      hoopsSched = (d.events || []).map(e => {
+        const c = (e.competitions || [])[0] || {};
+        const ty = ((c.status || e.status || {}).type) || {};
+        return { id: String(e.id), date: e.date ? new Date(e.date) : null, done: ty.state === 'post' };
+      }).filter(g => g.date && !isNaN(g.date)).sort((x, y) => x.date - y.date);
+      hoopsSchedAt = Date.now();
+    }
+    const due = hoopsDue();
+    if(due){
+      const was = hoops && hoops.id === due.id ? hoops.state : null;
+      hoops = parseHoops(due.id, await getJSON(HOOPS + 'summary?event=' + encodeURIComponent(due.id)));
+      if(hoops.state === 'post'){
+        due.done = true;
+        if(was === 'in' && !hoopsEnded[due.id]) hoopsEnded[due.id] = Date.now();
+      }
+    } else hoops = null;
+  }catch(err){
+    console.warn('basketball fetch failed', err);   // keep what we had; try again shortly
+  }
+  render();
+  hoopsTimer = setTimeout(hoopsTick, hoopsWait());
+}
+
+// Once a minute around a game; otherwise until ten minutes before the next
+// tipoff, and never longer than twelve hours so the schedule stays fresh.
+function hoopsWait(){
+  if(hoopsDue()) return 60000;
+  const now = Date.now();
+  let next = 12 * 3600000;
+  hoopsSched.forEach(g => { const t = g.date - 10 * 60000 - now; if(t > 0) next = Math.min(next, t); });
+  return Math.max(60000, next);
+}
+
+function parseHoops(id, d){
+  const comp = ((d && d.header && d.header.competitions) || [])[0] || {};
+  const st = comp.status || {}, ty = st.type || {};
+  const side = {}; (comp.competitors || []).forEach(x => { side[x.homeAway] = x; });
+  const team = x => {
+    x = x || {};
+    const t = x.team || {};
+    const abbr = String(t.abbreviation || '??').toUpperCase();
+    const name = t.shortDisplayName || t.location || t.displayName || abbr;
+    let rank = parseInt(x.rank != null ? x.rank : (x.curatedRank || {}).current, 10);
+    if(!(rank >= 1 && rank <= 25)) rank = null;
+    const logo = (t.logos && t.logos[0] && t.logos[0].href) || t.logo || '';
+    return { id: String(t.id || x.id || ''), abbr, name, short: name.length <= 9 ? name : abbr, rank,
+             logo, color: '', alt: '', score: x.score == null || x.score === '' ? null : Number(x.score) };
+  };
+  const tv = [];
+  (comp.broadcasts || []).forEach(b => {
+    const n = (b.media && (b.media.shortName || b.media.name)) || (b.names && b.names[0]);
+    if(n && tv.indexOf(n) < 0) tv.push(n);
+  });
+  const state = ty.state || 'pre';
+  const g = { id, away: team(side.away), home: team(side.home), state, status: ty.name || '',
+    period: Number(st.period || 0), clock: st.displayClock || '', detail: ty.shortDetail || '',
+    date: comp.date ? new Date(comp.date) : null, tv: tv.slice(0, 2).join('/'), at: Date.now(), teams: {}, players: {} };
+  if(state === 'pre'){ g.away.score = null; g.home.score = null; }
+
+  const bs = (d && d.boxscore) || {};
+  (bs.teams || []).forEach(t => {
+    const m = {};
+    (t.statistics || []).forEach(x => { if(x && x.name) m[x.name] = String(x.displayValue == null ? '' : x.displayValue); });
+    g.teams[String((t.team || {}).id || '')] = m;
+  });
+  (bs.players || []).forEach(t => {
+    const block = (t.statistics || [])[0] || {};
+    const labels = (block.labels || []).map(x => String(x).toUpperCase());
+    const col = k => labels.indexOf(k);
+    g.players[String((t.team || {}).id || '')] = (block.athletes || []).filter(a => !a.didNotPlay).map(a => {
+      const v = a.stats || [], get = k => { const i = col(k); return i < 0 || v[i] == null ? '' : String(v[i]); };
+      const ath = a.athlete || {};
+      return { name: ath.shortName || ath.displayName || '', starter: !!a.starter, min: get('MIN'), pts: get('PTS'),
+               reb: get('REB'), ast: get('AST'), fg: get('FG'), three: get('3PT') };
+    }).filter(p => p.name && (p.min === '' || p.min !== '0'));
+  });
+  return g;
+}
+
+function hoopsClock(g){
+  if(g.state === 'post') return /OT/.test(g.detail) ? g.detail : 'Final';
+  if(g.state === 'pre') return g.date ? timeText(g.date) : 'Tipoff soon';
+  if(g.status === 'STATUS_HALFTIME') return 'Half';
+  const p = g.period <= 2 ? (g.period === 1 ? '1st' : '2nd') : (g.period === 3 ? 'OT' : (g.period - 2) + 'OT');
+  if(g.status === 'STATUS_END_PERIOD') return 'End ' + p;
+  return g.clock ? p + ' ' + g.clock : (g.detail || 'Live');
+}
+
+// Team stats, in the order a basketball box score reads.
+const HOOPS_STATS = [
+  ['FG', 'fieldGoalsMade-fieldGoalsAttempted', 'fieldGoalPct'],
+  ['3PT', 'threePointFieldGoalsMade-threePointFieldGoalsAttempted', 'threePointFieldGoalPct'],
+  ['FT', 'freeThrowsMade-freeThrowsAttempted', 'freeThrowPct'],
+  ['Rebounds', 'totalRebounds', null, true],
+  ['Assists', 'assists', null, true],
+  ['Turnovers', 'turnovers'],
+  ['Steals', 'steals'],
+  ['Blocks', 'blocks'],
+  ['Fouls', 'fouls'],
+  ['Largest lead', 'largestLead'],
+];
+
+function hoopsPanel(g, solo){
+  const a = g.away, h = g.home;
+  const lead = num(h.score) - num(a.score), decided = g.state !== 'pre';
+  const side = (t, lo, cls) => `<div class="bx-tm ${cls}${lo ? ' lo' : ''}">${logoTag(t)}` +
+    `<span class="nm">${rankTag(t)}${esc(t.short)}</span><span class="sc">${scoreText(t.score)}</span></div>`;
+  const sb = `<div class="bx-sb">${side(a, decided && lead > 0, 'aw')}` +
+    `<div class="bx-mid ${g.state}"><div class="ck">${esc(hoopsClock(g))}</div>` +
+    `<div class="dn">${g.state === 'pre' ? 'Tipoff' : ''}</div>` +
+    `<div class="tv">${esc(g.tv)}</div></div>${side(h, decided && lead < 0, 'hm')}</div>`;
+
+  const head = title => `<div class="bx-h">${title}<span class="ab">${esc(a.abbr)}</span><span class="ab">${esc(h.abbr)}</span></div>`;
+  const ta = g.teams[a.id], th = g.teams[h.id];
+  let stats = '';
+  if(ta && th){
+    HOOPS_STATS.forEach(row => {
+      let x = ta[row[1]], y = th[row[1]];
+      if(x == null || y == null || x === '' || y === '') return;
+      // Made-attempted, with the percentage beside it in smaller type.
+      let px = '', py = '';
+      if(row[2] && ta[row[2]] && th[row[2]]){
+        px = ` <em>${Math.round(parseFloat(ta[row[2]]))}%</em>`;
+        py = ` <em>${Math.round(parseFloat(th[row[2]]))}%</em>`;
+      }
+      let bar = '';
+      const nx = parseFloat(x), ny = parseFloat(y);
+      if(row[3] && nx + ny > 0){
+        const pct = Math.round(100 * nx / (nx + ny));
+        bar = `<span class="bar"><i class="${a.abbr === 'BYU' ? 'byu' : ''}" style="width:${pct}%"></i>` +
+              `<i class="${h.abbr === 'BYU' ? 'byu' : ''}" style="flex:1"></i></span>`;
+      }
+      stats += `<div class="st"><span class="lb">${esc(row[0])}${bar}</span>` +
+               `<span class="v w">${esc(x)}${px}</span><span class="v w">${esc(y)}${py}</span></div>`;
+    });
+  }
+  if(!stats) stats = `<div class="bx-none">${g.state === 'pre' ? 'Stats start at tipoff.' : 'Team stats appear once ESPN posts them.'}</div>`;
+
+  // BYU's box score: everyone who has played, most points first.
+  const byu = a.abbr === 'BYU' ? a : h, opp = byu === a ? h : a;
+  const pts = p => Number(p.pts) || 0;
+  const mine = (g.players[byu.id] || []).slice().sort((x, y) => pts(y) - pts(x));
+  const theirs = (g.players[opp.id] || []).slice().sort((x, y) => pts(y) - pts(x)).slice(0, 3);
+  const maxRows = solo ? 10 : 8;
+  let box = '';
+  if(mine.length){
+    box = `<div class="pl hd"><span class="who">BYU</span><span class="n">MIN</span><span class="n">PTS</span>` +
+      `<span class="n">REB</span><span class="n">AST</span>` + (solo ? `<span class="n">FG</span><span class="n">3PT</span>` : '') + `</div>` +
+      mine.slice(0, maxRows).map(p => `<div class="pl"><span class="who">${esc(p.name)}</span>` +
+        `<span class="n">${esc(p.min)}</span><span class="n pts">${esc(p.pts)}</span><span class="n">${esc(p.reb)}</span>` +
+        `<span class="n">${esc(p.ast)}</span>` + (solo ? `<span class="n">${esc(p.fg)}</span><span class="n">${esc(p.three)}</span>` : '') +
+        `</div>`).join('');
+  }
+  if(theirs.length){
+    box += `<div class="ld opp"><div class="cat">${esc(opp.name)} leaders</div>` + theirs.map(p =>
+      `<div class="p"><span class="who">${esc(p.name)}</span>` +
+      `<span class="ln">${esc(p.pts)} pts · ${esc(p.reb)} reb · ${esc(p.ast)} ast</span></div>`).join('') + `</div>`;
+  }
+  if(!box) box = `<div class="bx-none">The box score appears once ESPN posts it.</div>`;
+
+  return sb + `<div class="bx-body"><div class="bx-col">${head('Team stats')}${stats}</div>` +
+    `<div class="bx-col">${box}</div></div>`;
+}
+
+function hoopsDemoData(){
+  const T = (abbr, name, id, rank, score) => ({ id: String(id), abbr, name, short: name.length <= 9 ? name : abbr, rank, score,
+    color: '', alt: '', logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${id}.png` });
+  const P = (name, starter, min, pts, reb, ast, fg, three) => ({ name, starter, min, pts, reb, ast, fg, three });
+  const st = (fg, fgp, tp, tpp, ft, ftp, reb, ast, to, stl, blk, pf, lg) => ({
+    'fieldGoalsMade-fieldGoalsAttempted': fg, fieldGoalPct: fgp, 'threePointFieldGoalsMade-threePointFieldGoalsAttempted': tp,
+    threePointFieldGoalPct: tpp, 'freeThrowsMade-freeThrowsAttempted': ft, freeThrowPct: ftp, totalRebounds: reb, assists: ast,
+    turnovers: to, steals: stl, blocks: blk, fouls: pf, largestLead: lg });
+  return { id: 'hoopsdemo', away: T('ARIZ', 'Arizona', 12, 9, 61), home: T('BYU', 'BYU', 252, 18, 66), state: 'in',
+    status: 'STATUS_IN_PROGRESS', period: 2, clock: '7:42', detail: '', date: new Date(Date.now() - 5400000), tv: 'ESPN', at: Date.now(),
+    teams: { '12': st('23-55', '41.8', '6-21', '28.6', '9-12', '75.0', '31', '11', '9', '5', '3', '14', '6'),
+             '252': st('25-52', '48.1', '9-24', '37.5', '7-10', '70.0', '33', '15', '7', '6', '4', '12', '9') },
+    players: {
+      '252': [P('A. Guard', true, '29', '19', '4', '6', '7-13', '3-7'), P('B. Wing', true, '27', '14', '5', '2', '5-11', '2-5'),
+              P('C. Forward', true, '25', '11', '9', '1', '5-8', '0-1'), P('D. Center', true, '22', '8', '8', '1', '4-6', '0-0'),
+              P('E. Shooter', false, '18', '7', '2', '2', '2-7', '2-6'), P('F. Guard', true, '24', '5', '3', '3', '2-6', '1-4'),
+              P('G. Big', false, '9', '2', '2', '0', '0-1', '0-0')],
+      '12': [P('H. Scorer', true, '30', '21', '5', '3', '8-17', '3-8'), P('J. Post', true, '26', '13', '10', '1', '6-10', '0-0'),
+             P('K. Wing', true, '28', '10', '4', '2', '4-11', '2-6')] } };
+}
+
 /* --------------------------- ?boxdemo ---------------------------
    The BYU layout with made-up numbers, so it can be judged on the screen
    before a real game. Replaces whatever BYU game ESPN has this week, and
@@ -1147,8 +1423,11 @@ function demoBox(){
                receiving: [P('W. Receiver', 128, '6 rec · 128 yds · 1 TD'), P('T. Catcher', 87, '5 rec · 87 yds · 1 TD')] } } };
 }
 
+if(HOOPS_DEMO) hoops = hoopsDemoData();
+
 stamp();
 tick();
+hoopsTick();
 if(/[?&]test\b/.test(QS)) setTimeout(testAlerts, 2500);
 </script>
 </body>
