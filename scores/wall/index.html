@@ -245,8 +245,8 @@ let before = null;            // each game's score and state at the previous goo
    A button in the header turns the board into a companion for the BYU
    game on TV: BYU's box score takes the left of the screen and every
    other game moves to a column on the right. Off again, the normal board
-   comes back. It survives a reload and switches itself off after six
-   hours, so it can't be left on by mistake.                            */
+   comes back. It survives a reload, and switches itself off an hour
+   after the final (or after six hours, whichever comes first).         */
 const WATCH_KEY = 'gamedayWall.watchingByu';
 const WATCH_FOR = 6 * 3600000;
 let watchingSince = 0;
@@ -265,22 +265,33 @@ function toggleWatching(){
   if(f && !DEMO_BOX && !(box && box.id === f.id)) fetchBox(f).then(render);
 }
 
-// Around a BYU game: kicking off within three hours, live, or finished
-// within six hours of kickoff.
+// Around a BYU game: from ten minutes before kickoff until an hour after
+// the final. ESPN doesn't say when a game ended, so it is the first time
+// this page saw it final, or, if it was already over when the page
+// loaded, about three and a half hours after kickoff.
+const finalSeen = {};
 function byuNear(g){
   if(!g || g.off) return false;
-  const since = g.kickoff ? Date.now() - g.kickoff : 0;
-  return g.state === 'in' || (g.state === 'pre' && since > -3 * 3600000) ||
-         (g.state === 'post' && since < 6 * 3600000);
+  const now = Date.now();
+  if(g.state === 'in') return true;
+  if(g.state === 'pre') return !!g.kickoff && g.kickoff - now < 10 * 60000;
+  if(g.state !== 'post') return false;
+  const ended = finalSeen[g.id] || (g.kickoff ? g.kickoff.getTime() + 3.5 * 3600000 : 0);
+  return now - ended < 3600000;
 }
 
-// The button only appears around a BYU game, or while the view is on so
-// it can be switched off.
+// The button only appears around a BYU game. Once that window closes the
+// BYU view switches itself off.
 function watchButton(){
-  const near = byuNear(games.filter(x => x.byu)[0]);
+  const g = games.filter(x => x.byu)[0];
+  const near = byuNear(g);
+  if(watching() && lastOk && !near){
+    watchingSince = 0;
+    try{ localStorage.removeItem(WATCH_KEY); }catch(e){}
+  }
   const on = watching();
   const b = $('watch');
-  b.style.display = on || near ? '' : 'none';
+  b.style.display = near ? '' : 'none';
   b.className = 'watch' + (on ? ' on' : '');
   b.textContent = on ? 'Back to all games' : 'Watching BYU?';
 }
@@ -1017,6 +1028,10 @@ async function tick(){
     const wk = data.week && data.week.number;
     week = wk ? 'Week ' + wk : '';
     lastOk = Date.now(); failures = 0; ok = true;
+    games.forEach(g => {
+      if(g.state === 'post' && before && before[g.id] && before[g.id].state === 'in' && !finalSeen[g.id])
+        finalSeen[g.id] = Date.now();
+    });
     if(DEMO_BOX) demoBox();
     render();
     const f = byuFeature(onBoard());
