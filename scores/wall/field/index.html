@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BYU Gameday · Field demo</title>
+<meta name="theme-color" content="#03060F" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ---------------------------------------------------------------------------
+     A demo of the BYU gameday screen "under the lights", built the way the
+     real one will run on the kitchen calendar (Chromium 74, slow hardware):
+     the sky, glows and tilted field are ONE pre-baked picture; the lines, the
+     drive and the ball are drawn flat on top at positions worked out with the
+     same perspective math the picture was baked with. Nothing here is 3D and
+     nothing is blurred live.
+
+     The whole screen is laid out at 1280x720 and scaled to fit the window.
+     No ?. or ??, no flex gap: Chromium 74.
+     --------------------------------------------------------------------------- */
+  :root{
+    --ink:#FFFFFF; --dim:rgba(255,255,255,0.62); --faint:rgba(255,255,255,0.4);
+    --gold:#FFE7A3; --byu:#9DC3F0; --panel:rgba(4,10,26,0.82); --rule:rgba(255,255,255,0.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overflow:hidden;background:#03060F;}
+  body{font-family:'Public Sans',Helvetica,Arial,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;cursor:default;user-select:none;-webkit-user-select:none;}
+  #stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;
+    background:#03060F url(lights.jpg) 0 0 / 1280px 720px no-repeat;}
+  #overlay{position:absolute;left:0;top:0;}
+  .abs{position:absolute;}
+
+  /* ---- the ball and things that sit on the turf ---- */
+  #ball{left:0;top:0;width:40px;height:25px;margin:-12px 0 0 -20px;border-radius:50%;
+    background:radial-gradient(ellipse at 40% 35%,#A8622F 0%,#7A3F18 70%);border:3px solid #FFFFFF;
+    box-shadow:0 4px 10px rgba(0,0,0,0.7);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);will-change:transform;}
+  .chip{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:19px;line-height:22px;padding:0 7px;
+    border-radius:6px;background:rgba(0,0,0,0.62);white-space:nowrap;transform:translate(-50%,-100%);}
+  .chip.last{background:#FFFFFF;color:#0B1220;}
+  #downbox{width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:4px;background:#FF7A1A;text-align:center;
+    font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:21px;line-height:26px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.6);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);}
+
+  /* ---- top: score in the middle, panels either side ---- */
+  .panel{top:12px;width:424px;height:362px;padding:12px 18px;background:var(--panel);
+    border:1px solid rgba(255,255,255,0.12);border-radius:16px;}
+  .ph{display:flex;align-items:baseline;font-size:13px;font-weight:800;letter-spacing:2px;color:var(--dim);padding-bottom:4px;}
+  .ph .c{width:72px;text-align:right;}
+  .ph .c.byu{color:var(--byu);}
+  .row{display:flex;align-items:center;height:26px;border-top:1px solid var(--rule);font-size:18px;font-weight:700;}
+  .row .k{flex:1;min-width:0;font-size:15px;font-weight:500;color:rgba(255,255,255,0.78);white-space:nowrap;}
+  .row .c{width:72px;text-align:right;white-space:nowrap;}
+  .row .c.o{color:var(--dim);}
+  .row.flash .c.b{color:var(--gold);}
+  .ld{display:flex;align-items:center;height:26px;border-top:1px solid var(--rule);}
+  .ld .t{width:42px;font-size:11px;font-weight:800;letter-spacing:1px;color:var(--gold);}
+  .ld .t.o{color:var(--faint);}
+  .ld .n{flex:1;min-width:0;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ld .n.o{color:var(--dim);font-weight:600;}
+  .ld .v{font-size:15px;color:rgba(255,255,255,0.82);white-space:nowrap;margin-left:8px;}
+  .ld .v.o{color:var(--faint);}
+
+  #score{left:440px;top:10px;width:400px;display:flex;flex-direction:column;align-items:center;}
+  .sc{display:flex;align-items:flex-end;}
+  .tm{display:flex;flex-direction:column;align-items:center;width:132px;}
+  .tm .nm{font-size:16px;font-weight:700;}
+  .tm .pts{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:98px;line-height:0.9;}
+  .tm.o .nm,.tm.o .pts{color:var(--dim);}
+  .rk{color:var(--gold);font-size:12px;margin-right:4px;}
+  .mid{display:flex;flex-direction:column;align-items:center;width:136px;padding-bottom:12px;}
+  .clk{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:32px;color:var(--gold);}
+  .net{font-size:12px;font-weight:700;letter-spacing:2px;color:var(--faint);}
+  .dd{font-size:17px;font-weight:600;margin-top:2px;}
+  .lines{margin-top:6px;background:rgba(4,10,26,0.6);border-radius:10px;padding:4px 12px;font-size:14px;}
+  .lines table{border-collapse:collapse;}
+  .lines td{padding:1px 7px;text-align:center;color:rgba(255,255,255,0.8);}
+  .lines td.h{color:var(--faint);font-size:11px;font-weight:800;letter-spacing:1px;}
+  .lines td.t{text-align:left;font-weight:700;color:#FFFFFF;}
+  .lines td.tot{font-weight:800;color:#FFFFFF;}
+
+  #drive{right:16px;bottom:12px;max-width:520px;background:rgba(3,6,15,0.8);border-radius:10px;padding:8px 14px;}
+  #drive .a{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--dim);}
+  #drive .b{font-size:17px;font-weight:600;margin-top:1px;}
+  #demo{left:16px;bottom:12px;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--faint);
+    background:rgba(3,6,15,0.6);border-radius:8px;padding:6px 10px;}
+
+  /* ---- touchdown ---- */
+  #td{left:0;right:0;top:400px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;
+    font-size:150px;line-height:1;letter-spacing:4px;color:#FFFFFF;text-shadow:0 6px 30px rgba(0,46,93,0.9);
+    opacity:0;transform:scale(0.7);transition:opacity .35s, transform .5s cubic-bezier(.2,1.4,.4,1);pointer-events:none;}
+  #td.on{opacity:1;transform:none;}
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="overlay" width="1280" height="720" viewBox="0 0 1280 720" aria-hidden="true">
+    <g id="lines"></g>
+    <g id="trail"></g>
+  </svg>
+  <div id="chips"></div>
+  <div class="abs" id="downbox" style="transition:none">1</div>
+  <div class="abs" id="ball" style="transition:none"></div>
+
+  <div class="abs panel" style="left:12px">
+    <div class="ph"><span style="flex:1">TEAM STATS</span><span class="c">ISU</span><span class="c byu">BYU</span></div>
+    <div id="team"></div>
+  </div>
+
+  <div class="abs" id="score">
+    <div class="sc">
+      <div class="tm o"><div class="nm">Iowa State</div><div class="pts" id="sA">10</div></div>
+      <div class="mid"><div class="clk" id="clk">Q4 8:20</div><div class="net">ESPN</div></div>
+      <div class="tm"><div class="nm"><span class="rk">14</span>BYU</div><div class="pts" id="sH">24</div></div>
+    </div>
+    <div class="dd" id="dd">1st &amp; 10 at BYU 25</div>
+    <div class="lines"><table>
+      <tr><td class="h"></td><td class="h">1</td><td class="h">2</td><td class="h">3</td><td class="h">4</td><td class="h">T</td></tr>
+      <tr><td class="t">ISU</td><td>0</td><td>3</td><td>7</td><td>0</td><td class="tot" id="tA">10</td></tr>
+      <tr><td class="t">BYU</td><td>7</td><td>10</td><td>0</td><td id="q4H">7</td><td class="tot" id="tH">24</td></tr>
+    </table></div>
+  </div>
+
+  <div class="abs panel" style="right:12px">
+    <div class="ph"><span style="flex:1">LEADERS</span></div>
+    <div id="leaders"></div>
+  </div>
+
+  <div class="abs" id="drive"><div class="a" id="dA">THIS DRIVE</div><div class="b" id="dB">BYU ball at its own 25</div></div>
+  <div class="abs" id="demo">DEMO · MADE-UP GAME</div>
+  <div class="abs" id="td">TOUCHDOWN</div>
+</div>
+
+<script>
+/* ===========================================================================
+   Perspective: the picture was baked as a 1240x573 plane (the field image) at
+   (20,110) tilted back 38deg with perspective 1100px, perspective origin at
+   50% -40%. project() maps a point on that plane to the screen, so anything
+   drawn here lands on the right spot of the turf.
+   =========================================================================== */
+var PW = 1240, PH = 573, OX = 20, OY = 110, D = 1100, TH = 38 * Math.PI / 180;
+var POX = PW / 2, POY = -0.4 * PH;
+function project(u, v){
+  var X = u - PW / 2, Y = v - PH;
+  var yp = Y * Math.cos(TH), z = Y * Math.sin(TH);
+  var s = D / (D - z);
+  var px = X + PW / 2, py = yp + PH;
+  return { x: OX + POX + (px - POX) * s, y: OY + POY + (py - POY) * s, s: s };
+}
+// Field coordinates: yards from BYU's goal line (0-100, BYU attacks right),
+// and yards in from the far sideline (0-53.3). The image is 10 CSS px a yard,
+// with a 20 px apron and 10-yard end zones.
+function spot(yd, lat){ return project(20 + (10 + yd) * 10, 20 + lat * 10); }
+
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+
+/* ---------------------------- fit the window ---------------------------- */
+function fit(){
+  var k = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+  var st = $('stage');
+  st.style.transform = 'scale(' + k + ')';
+  st.style.left = Math.round((window.innerWidth - 1280 * k) / 2) + 'px';
+  st.style.top = Math.round((window.innerHeight - 720 * k) / 2) + 'px';
+}
+window.addEventListener('resize', fit);
+fit();
+
+/* ------------------------------ drawing ------------------------------ */
+function quad(yd, half, color, opacity){
+  var a = spot(yd - half, 0), b = spot(yd + half, 0), c = spot(yd + half, 53.3), d = spot(yd - half, 53.3);
+  return '<polygon points="' + [a, b, c, d].map(function(p){ return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ') +
+         '" fill="' + color + '" fill-opacity="' + opacity + '"/>';
+}
+// A soft glow is just a wider, fainter copy underneath: no blur filters.
+function fieldLine(yd, color){
+  return quad(yd, 1.4, color, 0.18) + quad(yd, 0.8, color, 0.3) + quad(yd, 0.38, color, 0.95);
+}
+
+var LANE = 38;                       // the drive trail runs between the near hashes and the numbers
+function placeAt(el, p){ el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px)'; }
+
+function drawField(){
+  var g = state.game, firstYd = Math.min(100, g.spot + g.toGo);
+  // No scrimmage or first-down line once the ball is in the end zone.
+  $('lines').innerHTML = g.spot >= 100 ? '' :
+    fieldLine(g.spot, '#3D8BFF') + (g.toGo > 0 && firstYd < 100 ? fieldLine(firstYd, '#FFD633') : '');
+
+  // drive trail: start, every play's spot, the ball
+  var pts = [state.drive.start].concat(state.drive.plays.map(function(p){ return p.to; }));
+  var proj = pts.map(function(y){ return spot(y, LANE); });
+  var svg = '';
+  if(proj.length > 1){
+    svg += '<polyline points="' + proj.map(function(p){ return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ') +
+           '" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>';
+    svg += '<polyline points="' + proj.map(function(p){ return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ') +
+           '" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+  proj.forEach(function(p, i){
+    if(i === proj.length - 1 && i > 0) return;
+    svg += i === 0 ? '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="7" fill="#0047BA" stroke="#FFFFFF" stroke-width="3"/>'
+                   : '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="7" fill="#FFFFFF"/>';
+  });
+  $('trail').innerHTML = svg;
+
+  // yardage chips over each step, the latest one highlighted
+  var chips = '';
+  state.drive.plays.forEach(function(pl, i){
+    var a = spot((i ? state.drive.plays[i - 1].to : state.drive.start), LANE), b = spot(pl.to, LANE);
+    var n = pl.to - (i ? state.drive.plays[i - 1].to : state.drive.start);
+    chips += '<div class="abs chip' + (i === state.drive.plays.length - 1 ? ' last' : '') + '" style="left:' +
+             ((a.x + b.x) / 2).toFixed(0) + 'px;top:' + (Math.min(a.y, b.y) - 9).toFixed(0) + 'px">' + (n >= 0 ? '+' : '') + n + '</div>';
+  });
+  $('chips').innerHTML = chips;
+
+  placeAt($('ball'), spot(g.spot, LANE));
+  // the chain crew stands on the near sideline
+  var db = $('downbox'); db.textContent = g.down; db.style.visibility = g.spot >= 100 ? 'hidden' : ''; placeAt(db, spot(g.spot, 55));
+}
+
+/* ------------------------------ panels ------------------------------ */
+function teamRows(){
+  var a = state.stats.ISU, h = state.stats.BYU;
+  var pct = function(s){ return s.plays ? (s.yds / s.plays).toFixed(1) : '0.0'; };
+  var rows = [
+    ['Total yards', a.yds, h.yds, 'yds'],
+    ['Yards per play', pct(a), pct(h), 'yds'],
+    ['Passing', a.pass, h.pass, 'pass'],
+    ['Comp-Att', a.comp + '-' + a.att, h.comp + '-' + h.att, 'pass'],
+    ['Rushing', a.rush, h.rush, 'rush'],
+    ['Rush attempts', a.car, h.car, 'rush'],
+    ['1st downs', a.fd, h.fd, 'fd'],
+    ['3rd down', a.d3, h.d3, ''],
+    ['4th down', a.d4, h.d4, ''],
+    ['Penalties', a.pen, h.pen, ''],
+    ['Turnovers', a.to, h.to, ''],
+    ['Possession', a.top, h.top, ''],
+  ];
+  $('team').innerHTML = rows.map(function(r){
+    return '<div class="row' + (r[3] && state.flash.indexOf(r[3]) >= 0 ? ' flash' : '') + '"><span class="k">' + r[0] +
+           '</span><span class="c o">' + esc(r[1]) + '</span><span class="c b">' + esc(r[2]) + '</span></div>';
+  }).join('');
+}
+
+function leaderRows(){
+  var L = state.leaders;
+  var line = function(tag, own, name, val){
+    return '<div class="ld"><span class="t' + (own ? '' : ' o') + '">' + tag + '</span><span class="n' + (own ? '' : ' o') + '">' +
+           esc(name) + '</span><span class="v' + (own ? '' : ' o') + '">' + esc(val) + '</span></div>';
+  };
+  var p = L.pass, r1 = L.rush[0], r2 = L.rush[1], w = L.rec;
+  $('leaders').innerHTML =
+    line('PASS', true, p.name, p.comp + '/' + p.att + ' · ' + p.yds + ' · ' + p.td + ' TD') +
+    line('ISU', false, 'A. Passer', '16/29 · 98') +
+    line('RUSH', true, r1.name, r1.car + ' · ' + r1.yds + (r1.td ? ' · ' + r1.td + ' TD' : '')) +
+    line('RUSH', true, r2.name, r2.car + ' · ' + r2.yds) +
+    line('ISU', false, 'B. Runner', '14 · 61') +
+    line('REC', true, w[0].name, w[0].rec + ' · ' + w[0].yds + (w[0].td ? ' · TD' : '')) +
+    line('REC', true, w[1].name, w[1].rec + ' · ' + w[1].yds + (w[1].td ? ' · TD' : '')) +
+    line('REC', true, w[2].name, w[2].rec + ' · ' + w[2].yds) +
+    line('ISU', false, 'D. Wideout', '5 · 41') +
+    line('DEF', true, 'L. Backer', '9 tkl · 1.5 TFL') +
+    line('SACK', true, 'E. Rusher', '2 sacks') +
+    line('KICK', true, 'K. Leg', 'FG 1/1 · long 38');
+}
+
+function fieldPos(yd){ return yd === 50 ? '50' : yd < 50 ? 'BYU ' + yd : 'ISU ' + (100 - yd); }
+function ord(n){ return ['', '1st', '2nd', '3rd', '4th'][n]; }
+
+function drawScore(){
+  var g = state.game;
+  $('sA').textContent = g.away; $('sH').textContent = g.home;
+  $('tA').textContent = g.away; $('tH').textContent = g.home; $('q4H').textContent = g.q4home;
+  $('clk').textContent = 'Q4 ' + g.clock;
+  var goal = g.spot + g.toGo >= 100;
+  $('dd').textContent = g.spot >= 100 ? 'Touchdown, BYU' :
+    ord(g.down) + ' & ' + (goal ? 'Goal' : g.toGo) + ' at ' + fieldPos(g.spot);
+  var d = state.drive, yds = (d.plays.length ? d.plays[d.plays.length - 1].to : d.start) - d.start;
+  $('dA').textContent = 'THIS DRIVE · ' + d.plays.length + ' PLAYS · ' + yds + ' YDS';
+  $('dB').textContent = d.plays.length ? d.plays[d.plays.length - 1].text : 'BYU ball at its own 25';
+}
+
+function render(){ drawField(); drawScore(); teamRows(); leaderRows(); }
+
+/* ---------------------------------------------------------------------------
+   The demo game: BYU up 24-10 in the 4th, driving from its own 25. A play
+   every few seconds, ending in a touchdown, then it starts over.
+   --------------------------------------------------------------------------- */
+var SCRIPT = [
+  { kind: 'rush', who: 0, gain: 4,  clock: '7:48', text: 'R. Runner up the middle for 4' },
+  { kind: 'pass', who: 0, gain: 12, clock: '7:20', text: 'Q. Back to W. Receiver for 12, first down' },
+  { kind: 'rush', who: 1, gain: 3,  clock: '6:51', text: 'B. Back off right tackle for 3' },
+  { kind: 'pass', who: 1, gain: 18, clock: '6:28', text: 'Q. Back to T. Catcher for 18, first down' },
+  { kind: 'rush', who: 0, gain: 9,  clock: '5:57', text: 'R. Runner around left end for 9' },
+  { kind: 'pass', who: 2, gain: 20, clock: '5:31', text: 'Q. Back to S. Slot for 20, first down' },
+  { kind: 'rush', who: 0, gain: 9,  clock: '5:04', text: 'R. Runner 9 yards, TOUCHDOWN' },
+];
+
+var state;
+function fresh(){
+  return {
+    game: { away: 10, home: 24, q4home: 7, clock: '8:20', spot: 25, down: 1, toGo: 10 },
+    drive: { start: 25, plays: [] },
+    stats: {
+      ISU: { yds: 200, plays: 56, pass: 98, comp: 16, att: 29, rush: 102, car: 27, fd: 14, d3: '2-13', d4: '1-2', pen: '6-27', to: 0, top: '27:17' },
+      BYU: { yds: 431, plays: 54, pass: 279, comp: 19, att: 26, rush: 152, car: 28, fd: 15, d3: '4-10', d4: '0-3', pen: '6-65', to: 1, top: '29:31' },
+    },
+    leaders: {
+      pass: { name: 'Q. Back', comp: 19, att: 26, yds: 279, td: 2 },
+      rush: [ { name: 'R. Runner', car: 13, yds: 74, td: 1 }, { name: 'B. Back', car: 8, yds: 41, td: 0 } ],
+      rec: [ { name: 'W. Receiver', rec: 5, yds: 116, td: 1 }, { name: 'T. Catcher', rec: 4, yds: 69, td: 1 }, { name: 'S. Slot', rec: 3, yds: 31, td: 0 } ],
+    },
+    flash: '',
+    step: 0,
+  };
+}
+
+function runPlay(){
+  var pl = SCRIPT[state.step], g = state.game, s = state.stats.BYU, L = state.leaders;
+  var to = Math.min(100, g.spot + pl.gain);
+  state.drive.plays.push({ to: to, text: pl.text });
+  s.yds += pl.gain; s.plays += 1;
+  if(pl.kind === 'pass'){
+    s.pass += pl.gain; s.comp += 1; s.att += 1;
+    L.pass.comp += 1; L.pass.att += 1; L.pass.yds += pl.gain;
+    L.rec[pl.who].rec += 1; L.rec[pl.who].yds += pl.gain;
+    state.flash = 'yds pass';
+  } else {
+    s.rush += pl.gain; s.car += 1;
+    L.rush[pl.who].car += 1; L.rush[pl.who].yds += pl.gain;
+    state.flash = 'yds rush';
+  }
+  g.clock = pl.clock;
+  if(to >= 100){
+    g.home += 7; g.q4home += 7; L.rush[pl.who].td += 1;
+    g.spot = 100; g.down = 1; g.toGo = 0;
+    render(); touchdown();
+    return;
+  }
+  if(pl.gain >= g.toGo){ g.down = 1; g.toGo = Math.min(10, 100 - to); s.fd += 1; state.flash += ' fd'; }
+  else { g.down += 1; g.toGo -= pl.gain; }
+  g.spot = to;
+  state.step += 1;
+  render();
+  setTimeout(runPlay, 3600);
+}
+
+function touchdown(){
+  var el = $('td');
+  el.className = 'abs on';
+  setTimeout(function(){ el.className = 'abs'; }, 3200);
+  setTimeout(function(){ state = fresh(); render(); setTimeout(runPlay, 3000); }, 6000);
+}
+
+state = fresh();
+render();
+// Place the ball without sliding it in from the corner, then let later moves animate.
+setTimeout(function(){ $('ball').style.transition = ''; $('downbox').style.transition = ''; }, 50);
+setTimeout(runPlay, 2500);
+</script>
+</body>
+</html>
