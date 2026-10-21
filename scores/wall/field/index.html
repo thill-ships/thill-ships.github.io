@@ -603,8 +603,8 @@ function startReplay(drive, why, done){
    The demo game. BYU leads Iowa State 24-10 with 9:52 left; the earlier
    drives are filled in so "All drives" has a whole game to show. The script
    then plays out: an ISU three-and-out with a sack and a punt, a BYU
-   touchdown drive with a loss, a flag, an incompletion, an ISU timeout and
-   a likely TV timeout, the replay, an interception, and a field goal.
+   touchdown drive with a loss, a flag, an incompletion and an ISU
+   timeout, the replay, an interception, and a field goal.
    =========================================================================== */
 var PAST = [
   ['BYU', 25, 100, 'TD', 1, '7–0'], ['ISU', 75, 48, 'Punt', 1], ['BYU', 12, 40, 'INT', 1],
@@ -643,7 +643,6 @@ var SCRIPT = [
   { t: 'pass', yds: 22, clock: '6:50', text: 'Q. Back to T. Catcher for 22, first down', p: 'Q. Back', c: 'T. Catcher' },
   { t: 'rush', yds: -2, clock: '6:22', text: 'B. Back stopped for a loss of 2', r: 'B. Back' },
   { t: 'pass', yds: 15, clock: '5:58', text: 'Q. Back to S. Slot for 15, first down', p: 'Q. Back', c: 'S. Slot' },
-  { ev: 'tv', clock: '5:58' },
   { t: 'rush', yds: 9, clock: '5:31', text: 'R. Runner up the middle for 9', r: 'R. Runner' },
   { t: 'rush', yds: 16, clock: '5:04', text: 'R. Runner 16 yards, TOUCHDOWN', r: 'R. Runner' },
   { t: 'pass', yds: 8, clock: '4:41', text: 'A. Passer to D. Wideout for 8', p: 'A. Passer', c: 'D. Wideout', tk: 'C. Safety' },
@@ -789,10 +788,6 @@ function step(){
   if(e.ev === 'timeout'){
     state.game.tos[e.team] -= 1; state.game.clock = e.clock;
     state.banner = { a: 'TIMEOUT · ' + TEAMS[e.team].full.toUpperCase(), b: state.game.tos[e.team] + ' left this half' };
-    render(); later(4200); return;
-  }
-  if(e.ev === 'tv'){
-    state.banner = { a: 'TV TIMEOUT', b: 'probably · clock stopped and no snap for 2+ minutes' };
     render(); later(4200); return;
   }
 
