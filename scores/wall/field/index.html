@@ -16,7 +16,8 @@
      same perspective math the picture was baked with. Nothing here is 3D and
      nothing is blurred live.
 
-     The whole screen is laid out at 1280x720 and scaled to fit the window.
+     The whole screen is laid out at 1280x695, the calendar's page size, so
+     it shows there unscaled; anywhere else it is scaled to fit the window.
      No ?. or ??, no flex gap: Chromium 74.
      --------------------------------------------------------------------------- */
   :root{
@@ -28,52 +29,54 @@
   html,body{height:100%;overflow:hidden;background:#03060F;}
   body{font-family:'Public Sans',Helvetica,Arial,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums;
     -webkit-font-smoothing:antialiased;cursor:default;user-select:none;-webkit-user-select:none;}
-  #stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;
-    background:#03060F url(lights.jpg) 0 0 / 1280px 720px no-repeat;}
+  #stage{position:absolute;left:0;top:0;width:1280px;height:695px;transform-origin:0 0;overflow:hidden;
+    background:#03060F url(lights.jpg) 0 0 / 1280px 695px no-repeat;visibility:hidden;}
+  #stage.ready{visibility:visible;}
   #overlay{position:absolute;left:0;top:0;pointer-events:none;}
   .abs{position:absolute;}
   .np{pointer-events:none;}
-  #tap{left:0;top:380px;width:1280px;height:340px;cursor:pointer;}
+  #tap{left:0;top:380px;width:1280px;height:315px;cursor:pointer;}
 
   /* ---- the ball and things that sit on the turf ---- */
   #ball{left:0;top:0;width:40px;height:25px;margin:-12px 0 0 -20px;border-radius:50%;
     background:radial-gradient(ellipse at 40% 35%,#A8622F 0%,#7A3F18 70%);border:3px solid #FFFFFF;
     box-shadow:0 4px 10px rgba(0,0,0,0.7);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);will-change:transform;}
-  .chip{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:19px;line-height:22px;padding:0 7px;
+  .chip{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:24px;line-height:27px;padding:0 8px;
     border-radius:6px;background:rgba(0,0,0,0.62);white-space:nowrap;transform:translate(-50%,-100%);}
   .chip.last{background:#FFFFFF;color:#0B1220;}
   .chip.neg{background:var(--bad);color:#FFFFFF;}
   .chip.flag{background:#FFD633;color:#2A1405;}
   .chip.kick{color:var(--gold);}
-  #downbox{width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:4px;background:#FF7A1A;text-align:center;
-    font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:21px;line-height:26px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.6);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);}
+  #downbox{width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:4px;background:#FF7A1A;text-align:center;
+    font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:25px;line-height:30px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.6);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);z-index:2;}
 
   /* ---- top: score in the middle, panels either side ---- */
-  .panel{top:12px;width:424px;height:362px;padding:12px 18px;background:var(--panel);
+  .panel{top:10px;width:424px;height:350px;padding:10px 18px;background:var(--panel);
     border:1px solid rgba(255,255,255,0.12);border-radius:16px;}
-  .ph{display:flex;align-items:baseline;font-size:13px;font-weight:800;letter-spacing:2px;color:var(--dim);padding-bottom:4px;}
-  .ph .c{width:72px;text-align:right;}
+  .ph{display:flex;align-items:center;height:30px;font-size:15px;font-weight:800;letter-spacing:2px;color:var(--dim);}
+  .ph .c{width:86px;text-align:right;}
   .ph .c.byu{color:var(--byu);}
-  .ph .hint{font-size:11px;font-weight:600;letter-spacing:0;color:var(--faint);}
-  .row{display:flex;align-items:center;height:26px;border-top:1px solid var(--rule);font-size:18px;font-weight:700;}
-  .row .k{flex:1;min-width:0;font-size:15px;font-weight:500;color:rgba(255,255,255,0.78);white-space:nowrap;}
-  .row .c{width:72px;text-align:right;white-space:nowrap;}
+  .dots i{display:inline-block;width:9px;height:9px;border-radius:5px;margin-left:6px;background:rgba(255,255,255,0.2);}
+  .dots i.on{background:var(--gold);}
+  .row{display:flex;align-items:center;height:51px;border-top:1px solid var(--rule);font-size:30px;font-weight:700;}
+  .row .k{flex:1;min-width:0;font-size:22px;font-weight:500;color:rgba(255,255,255,0.78);white-space:nowrap;}
+  .row .c{width:86px;text-align:right;white-space:nowrap;}
   .row .c.o{color:var(--dim);}
   .row.fB .c.b,.row.fA .c.o{color:var(--gold);}
-  .ld{display:flex;align-items:center;height:26px;border-top:1px solid var(--rule);}
-  .ld .t{width:42px;font-size:11px;font-weight:800;letter-spacing:1px;color:var(--gold);}
+  .ld{display:flex;align-items:center;height:51px;border-top:1px solid var(--rule);}
+  .ld .t{width:52px;font-size:14px;font-weight:800;letter-spacing:1px;color:var(--gold);}
   .ld .t.o{color:var(--faint);}
-  .ld .n{flex:1;min-width:0;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ld .n{flex:1;min-width:0;font-size:23px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ld .n.o{color:var(--dim);font-weight:600;}
-  .ld .v{font-size:15px;color:rgba(255,255,255,0.82);white-space:nowrap;margin-left:8px;}
+  .ld .v{font-size:21px;color:rgba(255,255,255,0.82);white-space:nowrap;margin-left:8px;}
   .ld .v.o{color:var(--faint);}
   .ld.new .n{color:var(--gold);}
 
-  #score{left:440px;top:10px;width:400px;display:flex;flex-direction:column;align-items:center;}
+  #score{left:438px;top:8px;width:404px;display:flex;flex-direction:column;align-items:center;}
   .sc{display:flex;align-items:flex-end;}
-  .tm{display:flex;flex-direction:column;align-items:center;width:132px;}
-  .tm .nm{font-size:16px;font-weight:700;white-space:nowrap;}
+  .tm{display:flex;flex-direction:column;align-items:center;width:124px;}
+  .tm .nm{font-size:21px;font-weight:700;white-space:nowrap;}
   .tm .pts{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:92px;line-height:0.9;}
   .tm.o .nm,.tm.o .pts{color:var(--dim);}
   .tos{height:8px;margin-top:3px;}
@@ -82,55 +85,55 @@
   .poss{display:inline-block;width:14px;height:9px;border-radius:50%;background:#A8622F;border:1.5px solid #FFFFFF;
     margin-right:5px;vertical-align:1px;visibility:hidden;}
   .poss.on{visibility:visible;}
-  .rk{color:var(--gold);font-size:12px;margin-right:4px;}
-  .mid{display:flex;flex-direction:column;align-items:center;width:136px;padding-bottom:14px;}
-  .clk{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:32px;color:var(--gold);}
-  .net{font-size:12px;font-weight:700;letter-spacing:2px;color:var(--faint);}
-  .dd{font-size:17px;font-weight:600;margin-top:2px;}
-  .lines{margin-top:6px;background:rgba(4,10,26,0.6);border-radius:10px;padding:4px 12px;font-size:14px;}
+  .rk{color:var(--gold);font-size:15px;margin-right:4px;}
+  .mid{display:flex;flex-direction:column;align-items:center;width:156px;padding-bottom:14px;}
+  .clk{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:36px;white-space:nowrap;color:var(--gold);}
+  .net{font-size:14px;font-weight:700;letter-spacing:2px;color:var(--faint);}
+  .dd{font-size:24px;font-weight:700;margin-top:2px;}
+  .lines{margin-top:6px;background:rgba(4,10,26,0.75);border-radius:10px;padding:4px 12px;font-size:18px;}
   .lines table{border-collapse:collapse;}
   .lines td{padding:1px 7px;text-align:center;color:rgba(255,255,255,0.8);}
-  .lines td.h{color:var(--faint);font-size:11px;font-weight:800;letter-spacing:1px;}
+  .lines td.h{color:var(--faint);font-size:13px;font-weight:800;letter-spacing:1px;}
   .lines td.t{text-align:left;font-weight:700;color:#FFFFFF;}
   .lines td.tot{font-weight:800;color:#FFFFFF;}
 
   /* timeouts and replays get a pill just under the score */
-  .pill{left:640px;top:226px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:12px;
+  .pill{left:640px;top:262px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:12px;
     padding:6px 16px 7px;background:rgba(3,6,15,0.9);border:1px solid rgba(255,231,163,0.5);display:none;}
   .pill.on{display:block;}
-  .pill .a{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:24px;letter-spacing:2px;color:var(--gold);}
-  .pill .b{font-size:13px;font-weight:600;color:var(--dim);}
+  .pill .a{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:32px;letter-spacing:2px;color:var(--gold);}
+  .pill .b{font-size:17px;font-weight:600;color:var(--dim);}
   #replay .a{color:#FFFFFF;}
   #replay .dot{display:inline-block;width:12px;height:12px;border-radius:6px;background:var(--bad);margin-right:8px;vertical-align:1px;}
 
-  #drive{right:16px;bottom:12px;max-width:560px;background:rgba(3,6,15,0.8);border-radius:10px;padding:8px 14px;}
-  #drive .a{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--dim);}
-  #drive .b{font-size:17px;font-weight:600;margin-top:1px;}
-  #key{left:16px;bottom:60px;font-size:12px;font-weight:600;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
+  #drive{right:14px;bottom:10px;max-width:640px;background:rgba(3,6,15,0.8);border-radius:10px;padding:8px 14px;}
+  #drive .a{font-size:15px;font-weight:700;letter-spacing:1px;color:var(--dim);}
+  #drive .b{font-size:23px;font-weight:600;margin-top:1px;}
+  #key{left:14px;bottom:62px;font-size:15px;font-weight:600;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
   #key svg{vertical-align:middle;margin:0 4px 0 10px;}
   #key svg:first-child{margin-left:0;}
-  #btnDrives{left:16px;bottom:12px;font-size:14px;font-weight:800;letter-spacing:1px;color:#0B1220;background:#FFFFFF;
-    border-radius:20px;padding:9px 16px;cursor:pointer;}
-  #demo{left:160px;bottom:22px;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--faint);}
+  #btnDrives{left:14px;bottom:10px;font-size:17px;font-weight:800;letter-spacing:1px;color:#0B1220;background:#FFFFFF;
+    border-radius:22px;padding:10px 18px;cursor:pointer;}
+  #demo{left:180px;bottom:22px;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--faint);}
 
   /* ---- touchdown ---- */
-  #td{left:0;right:0;top:400px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;
+  #td{left:0;right:0;top:390px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;
     font-size:150px;line-height:1;letter-spacing:4px;color:#FFFFFF;text-shadow:0 6px 30px rgba(0,46,93,0.9);
     opacity:0;transform:scale(0.7);transition:opacity .35s, transform .5s cubic-bezier(.2,1.4,.4,1);}
   #td.on{opacity:1;transform:none;}
 
   /* ---- every drive: flat field, one bar per drive ---- */
-  #drives{left:0;top:0;width:1280px;height:720px;background:#0B1220;display:none;cursor:pointer;}
+  #drives{left:0;top:0;width:1280px;height:695px;background:#0B1220;display:none;cursor:pointer;}
   #drives.on{display:block;}
-  #drives .hd{position:absolute;left:24px;right:24px;top:10px;height:54px;display:flex;align-items:center;}
+  #drives .hd{position:absolute;left:24px;right:24px;top:4px;height:52px;display:flex;align-items:center;}
   #drives .ttl{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:32px;letter-spacing:1px;margin-right:18px;}
   #drives .sub{font-size:17px;color:var(--dim);}
   #drives .sco{margin-left:auto;font-size:20px;font-weight:700;}
   #drives .sco b{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:34px;margin:0 16px 0 6px;}
   #drives .sco .o{color:var(--dim);}
   #drives .sco .q{font-family:'Big Shoulders Display',sans-serif;font-size:26px;color:var(--gold);}
-  #flat{left:20px;top:72px;width:1240px;height:573px;border-radius:6px;}
-  #flatDim{left:20px;top:72px;width:1240px;height:573px;border-radius:6px;background:rgba(4,14,9,0.5);}
+  #flat{left:20px;top:60px;width:1240px;height:573px;border-radius:6px;}
+  #flatDim{left:20px;top:60px;width:1240px;height:573px;border-radius:6px;background:rgba(4,14,9,0.5);}
   .bar{position:absolute;border-radius:15px;font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:18px;
     white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.5);display:flex;align-items:center;cursor:pointer;}
   .bar.BYU{background:#FFFFFF;color:#002E5D;justify-content:flex-end;padding-right:14px;}
@@ -140,7 +143,7 @@
   .bar .out{position:absolute;color:#FFFFFF;}
   .half{position:absolute;left:40px;width:1200px;height:2px;background:rgba(255,255,255,0.8);}
   .halfT{position:absolute;left:46px;font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:14px;letter-spacing:3px;color:rgba(255,255,255,0.85);}
-  #drives .ft{position:absolute;left:24px;right:24px;top:656px;height:54px;display:flex;align-items:center;font-size:17px;color:rgba(255,255,255,0.85);}
+  #drives .ft{position:absolute;left:24px;right:24px;top:638px;height:54px;display:flex;align-items:center;font-size:19px;color:rgba(255,255,255,0.85);}
   #drives .ft .k{display:inline-block;width:26px;height:12px;border-radius:6px;margin:0 8px 0 0;vertical-align:-1px;}
   #drives .ft span.it{margin-right:26px;}
   #drives .ft .back{margin-left:auto;font-size:16px;font-weight:700;color:#0B1220;background:#FFFFFF;border-radius:22px;padding:10px 18px;}
@@ -148,7 +151,7 @@
 </head>
 <body>
 <div id="stage">
-  <svg id="overlay" width="1280" height="720" viewBox="0 0 1280 720" aria-hidden="true">
+  <svg id="overlay" width="1280" height="695" viewBox="0 0 1280 695" aria-hidden="true">
     <g id="lines"></g>
     <g id="trail"></g>
   </svg>
@@ -158,7 +161,7 @@
   <div class="abs np" id="ball" style="transition:none"></div>
 
   <div class="abs panel" style="left:12px">
-    <div class="ph"><span style="flex:1">TEAM STATS</span><span class="c">ISU</span><span class="c byu">BYU</span></div>
+    <div class="ph"><span style="flex:1"><span id="tT">TEAM STATS</span><span class="dots" id="tD"></span></span><span class="c">ISU</span><span class="c byu">BYU</span></div>
     <div id="team"></div>
   </div>
 
@@ -173,7 +176,7 @@
   </div>
 
   <div class="abs panel" style="right:12px">
-    <div class="ph"><span style="flex:1">LEADERS</span><span class="hint">by yards · tackles · sacks</span></div>
+    <div class="ph"><span style="flex:1" id="lT">BYU OFFENSE</span><span class="dots" id="lD"></span></div>
     <div id="leaders"></div>
   </div>
 
@@ -213,11 +216,11 @@
 <script>
 /* ===========================================================================
    Perspective: the picture was baked as a 1240x573 plane (the field image) at
-   (20,110) tilted back 38deg with perspective 1100px, perspective origin at
+   (20,85) tilted back 38deg with perspective 1100px, perspective origin at
    50% -40%. project() maps a point on that plane to the screen, so anything
    drawn here lands on the right spot of the turf.
    =========================================================================== */
-var PW = 1240, PH = 573, OX = 20, OY = 110, D = 1100, TH = 38 * Math.PI / 180;
+var PW = 1240, PH = 573, OX = 20, OY = 85, D = 1100, TH = 38 * Math.PI / 180;
 var POX = PW / 2, POY = -0.4 * PH;
 function project(u, v){
   var X = u - PW / 2, Y = v - PH;
@@ -239,11 +242,11 @@ function signed(n){ return n > 0 ? '+' + n : n < 0 ? MINUS + (-n) : '0'; }
 
 /* ---------------------------- fit the window ---------------------------- */
 function fit(){
-  var k = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+  var k = Math.min(window.innerWidth / 1280, window.innerHeight / 695);
   var st = $('stage');
   st.style.transform = 'scale(' + k + ')';
   st.style.left = Math.round((window.innerWidth - 1280 * k) / 2) + 'px';
-  st.style.top = Math.round((window.innerHeight - 720 * k) / 2) + 'px';
+  st.style.top = Math.round((window.innerHeight - 695 * k) / 2) + 'px';
 }
 window.addEventListener('resize', fit);
 fit();
@@ -395,7 +398,7 @@ function drawField(){
 
   placeAt($('ball'), spot(v.spot, LANE));
   // the chain crew stands on the near sideline
-  var db = $('downbox'); db.textContent = v.down; db.style.visibility = v.over ? 'hidden' : ''; placeAt(db, spot(v.spot, 55));
+  var db = $('downbox'); db.textContent = v.down; db.style.visibility = v.over ? 'hidden' : ''; placeAt(db, spot(v.spot, 51));
 
   // drive card
   var net = 0, last = v.plays[v.plays.length - 1];
@@ -406,6 +409,15 @@ function drawField(){
 }
 
 /* ------------------------------ panels ------------------------------ */
+// Both panels flip between two pages every 10 s, and jump back to the first
+// page (yards, the leaders on offense) whenever a play happens.
+var statPage = 0, pageTimer = 0;
+function dots(){ return '<i' + (statPage ? '' : ' class="on"') + '></i><i' + (statPage ? ' class="on"' : '') + '></i>'; }
+function firstPage(){
+  statPage = 0;
+  clearInterval(pageTimer);
+  pageTimer = setInterval(function(){ statPage = 1 - statPage; teamRows(); leaderRows(); }, 10000);
+}
 function teamRows(){
   var a = state.stats.ISU, h = state.stats.BYU;
   var ypp = function(s){ return s.plays ? (s.yds / s.plays).toFixed(1) : '0.0'; };
@@ -423,6 +435,10 @@ function teamRows(){
     ['Turnovers', a.to, h.to, 'to'],
     ['Possession', a.top, h.top, ''],
   ];
+  // Big enough to read across the kitchen means six rows at a time: two pages that take turns.
+  rows = statPage ? [rows[7], rows[8], rows[5], rows[9], rows[10], rows[11]] : [rows[0], rows[1], rows[2], rows[3], rows[4], rows[6]];
+  $('tT').textContent = statPage ? 'DOWNS & MORE' : 'TEAM STATS';
+  $('tD').innerHTML = dots();
   var f = state.flash, fc = f.team === 'BYU' ? ' fB' : ' fA';
   $('team').innerHTML = rows.map(function(r){
     return '<div class="row' + (r[3] && f.keys.indexOf(r[3]) >= 0 ? fc : '') + '"><span class="k">' + r[0] +
@@ -441,6 +457,7 @@ function teamRows(){
           KICK  the kicker
      ISU  one line each for passing, rushing and receiving yards
    So a name can move up or drop off as the game goes; a new name shows gold.
+   Page 1 is BYU's offense; page 2 is the BYU defense, the kicker and ISU.
    --------------------------------------------------------------------------- */
 function best(list, key, n, tie){
   return list.slice().sort(function(x, y){ return (y[key] - x[key]) || (tie ? y[tie] - x[tie] : 0); }).slice(0, n);
@@ -451,25 +468,28 @@ function leaderRows(){
   var td = function(n){ return n ? ' · ' + (n > 1 ? n + ' TD' : 'TD') : ''; };
   var p = best(B.pass, 'y', 1)[0];
   add('PASS', true, p, p.c + '/' + p.a + ' · ' + p.y + ' · ' + p.td + ' TD' + (p.int ? ' · ' + p.int + ' INT' : ''));
-  p = best(A.pass, 'y', 1)[0];
-  add('ISU', false, p, p.c + '/' + p.a + ' · ' + p.y);
   best(B.rush, 'y', 2).forEach(function(r){ add('RUSH', true, r, r.car + ' · ' + r.y + td(r.td)); });
-  p = best(A.rush, 'y', 1)[0];
-  add('ISU', false, p, p.car + ' · ' + p.y);
   best(B.rec, 'y', 3).forEach(function(r){ add('REC', true, r, r.r + ' · ' + r.y + td(r.td)); });
-  p = best(A.rec, 'y', 1)[0];
-  add('ISU', false, p, p.r + ' · ' + p.y);
   p = best(B.def, 'tkl', 1, 'tfl')[0];
   add('DEF', true, p, p.tkl + ' tkl · ' + p.tfl + ' TFL' + (p.int ? ' · INT' : ''));
   p = best(B.def, 'sk', 1, 'tfl')[0];
   if(p.sk) add('SACK', true, p, p.sk + (p.sk === 1 ? ' sack' : ' sacks'));
   else { p = best(B.def, 'tfl', 1)[0]; add('TFL', true, p, p.tfl + ' TFL'); }
   p = B.kick[0];
-  add('KICK', true, p, 'FG ' + p.fgm + '/' + p.fga + (p.lng ? ' · long ' + p.lng : '') + ' · XP ' + p.xpm + '/' + p.xpa);
+  add('KICK', true, p, 'FG ' + p.fgm + '/' + p.fga + (p.lng ? ' · ' + p.lng : '') + ' · XP ' + p.xpm + '/' + p.xpa);
+  p = best(A.pass, 'y', 1)[0];
+  add('ISU', false, p, p.c + '/' + p.a + ' · ' + p.y);
+  p = best(A.rush, 'y', 1)[0];
+  add('ISU', false, p, p.car + ' · ' + p.y);
+  p = best(A.rec, 'y', 1)[0];
+  add('ISU', false, p, p.r + ' · ' + p.y);
 
   var before = state.leaderNames, now = lines.map(function(l){ return l.tag + l.name; });
-  $('leaders').innerHTML = lines.map(function(l, i){
-    var o = l.own ? '' : ' o', isNew = before && before.indexOf(now[i]) < 0;
+  $('lT').textContent = statPage ? 'DEFENSE · IOWA STATE' : 'BYU OFFENSE';
+  $('lD').innerHTML = dots();
+  var first = statPage ? 6 : 0;
+  $('leaders').innerHTML = lines.slice(first, first + 6).map(function(l, i){
+    var o = l.own ? '' : ' o', isNew = before && before.indexOf(now[first + i]) < 0;
     return '<div class="ld' + (isNew ? ' new' : '') + '"><span class="t' + o + '">' + l.tag + '</span><span class="n' + o + '">' +
            esc(l.name) + '</span><span class="v' + o + '">' + esc(l.val) + '</span></div>';
   }).join('');
@@ -515,7 +535,7 @@ function drawDrives(){
   $('dvA').textContent = g.score.ISU; $('dvH').textContent = g.score.BYU; $('dvC').textContent = 'Q4 ' + g.clock;
   var list = state.drives.slice();
   if(!state.over && state.cur.plays.length) list.push({ team: state.cur.team, start: state.cur.start, end: g.spot, result: 'NOW', q: 4, now: true });
-  var sep = 22, n = list.length, h = Math.min(42, (537 - sep) / Math.max(n, 1)), bh = Math.max(16, Math.round(h - 8)), y = 90, html = '';
+  var sep = 22, n = list.length, h = Math.min(42, (537 - sep) / Math.max(n, 1)), bh = Math.max(16, Math.round(h - 8)), y = 78, html = '';
   list.forEach(function(d, i){
     if(i && list[i - 1].q <= 2 && d.q >= 3){
       html += '<div class="half" style="top:' + (y + sep / 2 - 6).toFixed(0) + 'px"></div><div class="halfT" style="top:' + (y + sep / 2 - 2).toFixed(0) + 'px">HALFTIME</div>';
@@ -777,6 +797,7 @@ function step(){
   }
 
   var r = runPlay(e);
+  firstPage();
   render();
   if(r === 'td'){
     state.hold = true;
@@ -803,11 +824,24 @@ function restart(){
   state = fresh(); snapBall(); render(); later(2500);
 }
 
-state = fresh();
-render();
-// Place the ball without sliding it in from the corner, then let later moves animate.
-snapBall();
-later(2500);
+// Start only once the background picture has fully arrived, so the screen
+// never shows it half-loaded; give up waiting after 20 s and start anyway.
+var started = false;
+function start(){
+  if(started) return;
+  started = true;
+  state = fresh();
+  firstPage();
+  render();
+  // Place the ball without sliding it in from the corner, then let later moves animate.
+  snapBall();
+  $('stage').className = 'ready';
+  later(2500);
+}
+var bg = new Image();
+bg.onload = start; bg.onerror = start;
+bg.src = 'lights.jpg';
+setTimeout(start, 20000);
 </script>
 </body>
 </html>
