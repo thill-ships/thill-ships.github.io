@@ -56,13 +56,13 @@
   .row .c{width:108px;text-align:right;white-space:nowrap;font-family:var(--num);font-weight:600;font-size:42px;}
   .row .c.o{color:var(--dim);}
   .row.fB .c.b,.row.fA .c.o{color:var(--hi);}
-  .ld{height:66px;border-top:1px solid var(--rule);padding-top:5px;}
-  .ld .l1{display:flex;align-items:baseline;}
-  .ld .n{flex:1;min-width:0;font-size:26px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ld{height:66px;border-top:1px solid var(--rule);padding-top:3px;}
+  .ld .l1{display:flex;align-items:baseline;height:33px;}
+  .ld .n{flex:1;min-width:0;font-size:25px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ld .n img{display:inline-block;width:24px;height:24px;margin-right:8px;vertical-align:-3px;}
-  .ld .big{font-family:var(--num);font-weight:600;font-size:34px;line-height:1;}
-  .ld .u{font-size:17px;color:var(--dim);margin-left:5px;}
-  .ld .l2{font-size:21px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+  .ld .big{font-family:var(--num);font-weight:600;font-size:32px;line-height:1;}
+  .ld .u{font-size:19px;color:var(--dim);margin-left:5px;}
+  .ld .l2{font-size:24px;line-height:28px;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ld.o .n,.ld.o .big{color:rgba(255,255,255,0.75);}
   .ld.new .n{color:var(--hi);}
 
@@ -112,8 +112,8 @@
     display:flex;align-items:center;padding:0 6px 0 18px;}
   #strip .tag{font-size:21px;color:var(--hi);margin-right:14px;white-space:nowrap;}
   #strip .txt{flex:1;min-width:0;font-size:27px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  #strip .drv{font-size:21px;color:var(--dim);margin:0 16px;white-space:nowrap;}
-  #btnDrives{font-size:21px;font-weight:600;color:#0B1220;background:#FFFFFF;border-radius:20px;padding:6px 18px;cursor:pointer;white-space:nowrap;}
+  #strip .drv{font-size:25px;color:var(--dim);margin:0 16px;white-space:nowrap;}
+  #btnDrives{font-size:21px;color:rgba(255,255,255,0.75);border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:5px 16px;cursor:pointer;white-space:nowrap;}
 
   /* ---- the four best other games ---- */
   .gc{position:absolute;top:534px;width:305px;height:152px;padding:8px 14px 0;border-radius:14px;background:rgba(8,16,36,0.88);
@@ -127,12 +127,48 @@
   .gt .s{font-family:var(--num);font-weight:600;font-size:42px;}
   .gt.lo .n,.gt.lo .s{color:var(--dim);}
   .gt .bl{display:inline-block;width:16px;height:10px;border-radius:50%;background:#A8622F;border:1.5px solid #FFFFFF;margin-left:8px;vertical-align:2px;}
-  .gf{display:flex;align-items:center;height:42px;border-top:1px solid var(--rule);margin-top:8px;font-size:22px;}
-  .gf .ck{font-family:var(--num);font-weight:600;font-size:27px;color:var(--hi);white-space:nowrap;}
+  .gf{display:flex;align-items:center;height:42px;border-top:1px solid var(--rule);margin-top:8px;font-size:25px;}
+  .gf .ck{font-family:var(--num);font-weight:600;font-size:31px;color:var(--hi);white-space:nowrap;}
   .gf .st{flex:1;min-width:0;margin-left:10px;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .gf .st.rz{color:#FF8A80;}
-  .gf .tv{font-size:20px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
+  .gf .tv{font-size:23px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
   .gc.post .gf .ck{color:var(--dim);}
+  /* ?cards=logos: logos and scores only, side by side, scoreboard style */
+  .gl{display:flex;align-items:center;height:88px;}
+  .gl .lw{position:relative;width:70px;height:70px;}
+  .gl .lw img{width:70px;height:70px;}
+  .gl .rkb{font-size:17px;line-height:20px;}
+  .gl .s{width:76px;text-align:center;font-family:var(--num);font-weight:600;font-size:58px;line-height:1;}
+  .gl .s.lo{color:var(--dim);}
+  .gl .vs{flex:1;text-align:center;font-size:22px;color:var(--faint);}
+  /* ?cards=five: five narrower cards */
+  .cards-five .gc{width:243px;padding:8px 10px 0;}
+  .cards-five .gl .lw,.cards-five .gl .lw img{width:52px;height:52px;}
+  .cards-five .gl .s{width:56px;font-size:48px;}
+  .cards-five .gl .vs{font-size:18px;}
+  .cards-five .gf{font-size:22px;}
+  .cards-five .gf .ck{font-size:27px;}
+  .cards-five .gf .tv{font-size:20px;}
+  /* ?cards=tall: four shorter cards, and the 32px they give up goes to the stats */
+  .cards-tall .panel{height:490px;}
+  .cards-tall .row{height:71px;}
+  .cards-tall .row .k{font-size:27px;}
+  .cards-tall .row .c{font-size:44px;width:110px;}
+  .cards-tall .ph .c{width:110px;}
+  .cards-tall .ld{height:71px;}
+  .cards-tall .ld .l1{height:37px;}
+  .cards-tall .ld .n{font-size:27px;}
+  .cards-tall .ld .big{font-size:36px;}
+  .cards-tall .ld .l2{font-size:26px;line-height:30px;}
+  .cards-tall #mini{top:394px;}
+  .cards-tall #demo{top:466px;}
+  .cards-tall .pill{top:386px;}
+  .cards-tall #strip{top:508px;}
+  .cards-tall .gc{top:568px;height:118px;padding-top:4px;}
+  .cards-tall .gl{height:72px;}
+  .cards-tall .gl .lw,.cards-tall .gl .lw img{width:62px;height:62px;}
+  .cards-tall .gl .s{font-size:54px;}
+  .cards-tall .gf{margin-top:2px;}
 
   /* ---- banners: timeouts on the board ---- */
   .pill{left:640px;top:358px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:14px;
@@ -169,11 +205,11 @@
   #replay{top:14px;}
   #replay .a{color:#FFFFFF;}
   #replay .dot{display:inline-block;width:13px;height:13px;border-radius:7px;background:var(--bad);margin-right:10px;vertical-align:3px;}
-  #key{left:14px;bottom:70px;font-size:20px;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
-  #key svg{vertical-align:middle;margin:0 4px 0 10px;}
+  #key{left:14px;bottom:72px;font-size:25px;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
+  #key svg{vertical-align:middle;margin:0 6px 0 14px;width:44px;height:16px;}
   #key svg:first-child{margin-left:0;}
   #drive{right:14px;bottom:10px;max-width:640px;background:rgba(3,6,15,0.8);border-radius:12px;padding:8px 16px;}
-  #drive .a{font-size:19px;color:var(--dim);}
+  #drive .a{font-size:22px;color:var(--dim);}
   #drive .b{font-size:24px;margin-top:1px;}
 
   /* ---- every drive: flat field, one bar per drive ---- */
@@ -247,10 +283,10 @@
     <div class="abs np" id="bug"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/66.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/66.png" onerror="logoFailed(this)"><b class="o" id="bgA"></b><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/252.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" onerror="logoFailed(this)"><b id="bgH"></b><span class="q" id="bgC"></span></div>
     <div class="abs pill np on" id="replay"><div class="a"><span class="dot"></span>Replay</div><div class="b" id="rB"></div></div>
     <div class="abs np" id="key">
-      <svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#FFF" stroke-width="4" stroke-linecap="round"/></svg>run
-      <svg width="34" height="14"><path d="M2 12 Q17 -4 32 12" fill="none" stroke="#FFF" stroke-width="3" stroke-dasharray="6 4"/></svg>pass
-      <svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#FF5A4E" stroke-width="4" stroke-linecap="round"/></svg>loss
-      <svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#FFD633" stroke-width="3" stroke-dasharray="2 4"/></svg>flag
+      <svg width="34" height="10" viewBox="0 0 34 10" preserveAspectRatio="none"><line x1="2" y1="5" x2="32" y2="5" stroke="#FFF" stroke-width="4" stroke-linecap="round"/></svg>run
+      <svg width="34" height="14" viewBox="0 0 34 14" preserveAspectRatio="none"><path d="M2 12 Q17 -4 32 12" fill="none" stroke="#FFF" stroke-width="3" stroke-dasharray="6 4"/></svg>pass
+      <svg width="34" height="10" viewBox="0 0 34 10" preserveAspectRatio="none"><line x1="2" y1="5" x2="32" y2="5" stroke="#FF5A4E" stroke-width="4" stroke-linecap="round"/></svg>loss
+      <svg width="34" height="10" viewBox="0 0 34 10" preserveAspectRatio="none"><line x1="2" y1="5" x2="32" y2="5" stroke="#FFD633" stroke-width="3" stroke-dasharray="2 4"/></svg>flag
     </div>
     <div class="abs np" id="drive"><div class="a" id="dA"></div><div class="b" id="dB"></div></div>
   </div>
@@ -537,27 +573,29 @@ function best(list, key, n, tie){
 function leaderRows(){
   var B = state.players.BYU, A = state.players.ISU, lines = [];
   // big: the number that matters, u: its unit, sub: the rest in plain words
-  var add = function(team, p, big, u, sub){ lines.push({ team: team, name: p.n, big: big, u: u, sub: sub }); };
+  // big: the number that matters, u: its unit, sub: the rest. cat only tells
+  // a passer from a runner when spotting a new name; it isn't shown.
+  var add = function(team, cat, p, big, u, sub){ lines.push({ team: team, cat: cat, name: p.n, big: big, u: u, sub: sub }); };
   var tds = function(n){ return n ? ', ' + (n > 1 ? n + ' TD' : 'TD') : ''; };
   var p = best(B.pass, 'y', 1)[0];
-  add('BYU', p, p.y, 'yds', 'Passing, ' + p.c + ' of ' + p.a + tds(p.td) + (p.int ? ', ' + p.int + ' INT' : ''));
-  best(B.rush, 'y', 2).forEach(function(r){ add('BYU', r, r.y, 'yds', 'Rushing, ' + r.car + ' carries' + tds(r.td)); });
-  best(B.rec, 'y', 3).forEach(function(r){ add('BYU', r, r.y, 'yds', 'Receiving, ' + r.r + ' catches' + tds(r.td)); });
+  add('BYU', 'pass', p, p.y, 'yds', p.c + ' of ' + p.a + tds(p.td) + (p.int ? ', ' + p.int + ' INT' : ''));
+  best(B.rush, 'y', 2).forEach(function(r){ add('BYU', 'rush', r, r.y, 'yds', r.car + ' carries' + tds(r.td)); });
+  best(B.rec, 'y', 3).forEach(function(r){ add('BYU', 'rec', r, r.y, 'yds', r.r + ' catches' + tds(r.td)); });
   p = best(B.def, 'tkl', 1, 'tfl')[0];
-  add('BYU', p, p.tkl, 'tackles', 'Defense, ' + p.tfl + ' for loss' + (p.int ? ', an interception' : ''));
+  add('BYU', 'def', p, p.tkl, 'tackles', p.tfl + ' for loss' + (p.int ? ', an interception' : ''));
   p = best(B.def, 'sk', 1, 'tfl')[0];
-  if(p.sk) add('BYU', p, p.sk, p.sk === 1 ? 'sack' : 'sacks', 'Pass rush, ' + p.tfl + ' for loss');
-  else { p = best(B.def, 'tfl', 1)[0]; add('BYU', p, p.tfl, 'for loss', 'Defense'); }
+  if(p.sk) add('BYU', 'sack', p, p.sk, p.sk === 1 ? 'sack' : 'sacks', p.tfl + ' for loss');
+  else { p = best(B.def, 'tfl', 1)[0]; add('BYU', 'sack', p, p.tfl, 'for loss', ''); }
   p = B.kick[0];
-  add('BYU', p, p.fgm + '/' + p.fga, 'FG', 'Kicking' + (p.lng ? ', long of ' + p.lng : '') + ', extra points ' + p.xpm + '/' + p.xpa);
+  add('BYU', 'kick', p, p.fgm + '/' + p.fga, 'FG', (p.lng ? 'Long of ' + p.lng + ', e' : 'E') + 'xtra points ' + p.xpm + '/' + p.xpa);
   p = best(A.pass, 'y', 1)[0];
-  add('ISU', p, p.y, 'yds', 'Passing, ' + p.c + ' of ' + p.a);
+  add('ISU', 'pass', p, p.y, 'yds', p.c + ' of ' + p.a);
   p = best(A.rush, 'y', 1)[0];
-  add('ISU', p, p.y, 'yds', 'Rushing, ' + p.car + ' carries');
+  add('ISU', 'rush', p, p.y, 'yds', p.car + ' carries');
   p = best(A.rec, 'y', 1)[0];
-  add('ISU', p, p.y, 'yds', 'Receiving, ' + p.r + ' catches');
+  add('ISU', 'rec', p, p.y, 'yds', p.r + ' catches');
 
-  var before = state.leaderNames, now = lines.map(function(l){ return l.sub.split(',')[0] + l.name; });
+  var before = state.leaderNames, now = lines.map(function(l){ return l.cat + l.name; });
   $('lT').textContent = statPage ? 'Defense & Iowa State' : 'BYU offense';
   $('lD').innerHTML = dots();
   var first = statPage ? 6 : 0;
@@ -668,11 +706,24 @@ function watchability(g){
   return s;
 }
 function isClose(g){ return g.state === 'in' && g.period >= 3 && Math.abs(g.home.score - g.away.score) <= 8; }
+// The other games' cards: logos by default; ?cards=names for logo + name rows,
+// ?cards=five for five narrower logo cards, ?cards=tall for four shorter
+// ones with the room handed to the stats above.
+var CARDS = (/[?&]cards=(\w+)/.exec(location.search) || [])[1] || 'logos';
+var LOGOS_ONLY = CARDS !== 'names', FIVE = CARDS === 'five';
 function drawGames(){
   var live = GAMES.filter(function(g){ return g.state === 'in'; }).sort(function(x, y){ return watchability(y) - watchability(x); });
-  var list = live.concat(GAMES.filter(function(g){ return g.state === 'pre'; }), GAMES.filter(function(g){ return g.state === 'post'; })).slice(0, 4);
+  var list = live.concat(GAMES.filter(function(g){ return g.state === 'pre'; }), GAMES.filter(function(g){ return g.state === 'post'; })).slice(0, FIVE ? 5 : 4);
   $('games').innerHTML = list.map(function(g, i){
     var lead = (g.home.score || 0) - (g.away.score || 0), decided = g.state !== 'pre';
+    // Logos only: the logo carries the name, its badge the ranking, a ball under it who has it.
+    var side = function(t, s){
+      return '<div class="lw">' + logo(t.id) + (t.rank ? '<span class="rkb">' + t.rank + '</span>' : '') +
+             (g.state === 'in' && !g.half && g.ball === s ? '<span class="poss on"></span>' : '') + '</div>';
+    };
+    var pts = function(t, lo){ return decided ? '<span class="s' + (lo ? ' lo' : '') + '">' + t.score + '</span>' : ''; };
+    var logosOnly = LOGOS_ONLY ? '<div class="gl">' + side(g.away, 'away') + pts(g.away, decided && lead > 0) +
+      '<span class="vs">' + (decided ? '\u2013' : 'at') + '</span>' + pts(g.home, decided && lead < 0) + side(g.home, 'home') + '</div>' : '';
     var row = function(t, side, lo){
       return '<div class="gt' + (lo ? ' lo' : '') + '">' + logo(t.id) + '<span class="n">' + (t.rank ? '<span class="rk">' + t.rank + '</span>' : '') + esc(t.n) +
              (g.state === 'in' && !g.half && g.ball === side ? '<span class="bl"></span>' : '') + '</span>' +
@@ -680,8 +731,8 @@ function drawGames(){
     };
     var ck = g.state === 'post' ? 'Final' : g.state === 'pre' ? g.when : g.half ? 'Half' : 'Q' + g.period + ' ' + g.clock;
     var st = g.state === 'pre' ? g.soon : g.state === 'in' && !g.half ? g.sit : '';
-    return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + (12 + i * 317) + 'px">' +
-           row(g.away, 'away', decided && lead > 0) + row(g.home, 'home', decided && lead < 0) +
+    return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + (12 + i * (FIVE ? 253 : 317)) + 'px">' +
+           (LOGOS_ONLY ? logosOnly : row(g.away, 'away', decided && lead > 0) + row(g.home, 'home', decided && lead < 0)) +
            '<div class="gf"><span class="ck">' + esc(ck) + '</span><span class="st' + (g.rz ? ' rz' : '') + '">' + esc(st || '') + '</span>' +
            '<span class="tv">' + esc(g.tv) + '</span></div></div>';
   }).join('');
@@ -1005,7 +1056,7 @@ state = fresh();
 firstPage();
 render();
 drawGames();
-$('stage').className = 'ready';
+$('stage').className = 'ready cards-' + CARDS;
 later(2500);
 // Fetch the field picture now, so the first replay never shows it half-loaded.
 new Image().src = 'lights.jpg';
