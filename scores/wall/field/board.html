@@ -133,6 +133,14 @@
   .gf .st.rz{color:#FF8A80;}
   .gf .tv{font-size:23px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
   .gc.post .gf .ck{color:var(--dim);}
+  /* ?cards=logos: logos and scores only, side by side, scoreboard style */
+  .gl{display:flex;align-items:center;height:88px;}
+  .gl .lw{position:relative;width:70px;height:70px;}
+  .gl .lw img{width:70px;height:70px;}
+  .gl .rkb{font-size:17px;line-height:20px;}
+  .gl .s{width:76px;text-align:center;font-family:var(--num);font-weight:600;font-size:58px;line-height:1;}
+  .gl .s.lo{color:var(--dim);}
+  .gl .vs{flex:1;text-align:center;font-size:22px;color:var(--faint);}
 
   /* ---- banners: timeouts on the board ---- */
   .pill{left:640px;top:358px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:14px;
@@ -537,27 +545,29 @@ function best(list, key, n, tie){
 function leaderRows(){
   var B = state.players.BYU, A = state.players.ISU, lines = [];
   // big: the number that matters, u: its unit, sub: the rest in plain words
-  var add = function(team, p, big, u, sub){ lines.push({ team: team, name: p.n, big: big, u: u, sub: sub }); };
+  // big: the number that matters, u: its unit, sub: the rest. cat only tells
+  // a passer from a runner when spotting a new name; it isn't shown.
+  var add = function(team, cat, p, big, u, sub){ lines.push({ team: team, cat: cat, name: p.n, big: big, u: u, sub: sub }); };
   var tds = function(n){ return n ? ', ' + (n > 1 ? n + ' TD' : 'TD') : ''; };
   var p = best(B.pass, 'y', 1)[0];
-  add('BYU', p, p.y, 'yds', 'Passing, ' + p.c + ' of ' + p.a + tds(p.td) + (p.int ? ', ' + p.int + ' INT' : ''));
-  best(B.rush, 'y', 2).forEach(function(r){ add('BYU', r, r.y, 'yds', 'Rushing, ' + r.car + ' carries' + tds(r.td)); });
-  best(B.rec, 'y', 3).forEach(function(r){ add('BYU', r, r.y, 'yds', 'Receiving, ' + r.r + ' catches' + tds(r.td)); });
+  add('BYU', 'pass', p, p.y, 'yds', p.c + ' of ' + p.a + tds(p.td) + (p.int ? ', ' + p.int + ' INT' : ''));
+  best(B.rush, 'y', 2).forEach(function(r){ add('BYU', 'rush', r, r.y, 'yds', r.car + ' carries' + tds(r.td)); });
+  best(B.rec, 'y', 3).forEach(function(r){ add('BYU', 'rec', r, r.y, 'yds', r.r + ' catches' + tds(r.td)); });
   p = best(B.def, 'tkl', 1, 'tfl')[0];
-  add('BYU', p, p.tkl, 'tackles', 'Defense, ' + p.tfl + ' for loss' + (p.int ? ', an interception' : ''));
+  add('BYU', 'def', p, p.tkl, 'tackles', p.tfl + ' for loss' + (p.int ? ', an interception' : ''));
   p = best(B.def, 'sk', 1, 'tfl')[0];
-  if(p.sk) add('BYU', p, p.sk, p.sk === 1 ? 'sack' : 'sacks', 'Pass rush, ' + p.tfl + ' for loss');
-  else { p = best(B.def, 'tfl', 1)[0]; add('BYU', p, p.tfl, 'for loss', 'Defense'); }
+  if(p.sk) add('BYU', 'sack', p, p.sk, p.sk === 1 ? 'sack' : 'sacks', p.tfl + ' for loss');
+  else { p = best(B.def, 'tfl', 1)[0]; add('BYU', 'sack', p, p.tfl, 'for loss', ''); }
   p = B.kick[0];
-  add('BYU', p, p.fgm + '/' + p.fga, 'FG', 'Kicking' + (p.lng ? ', long of ' + p.lng : '') + ', extra points ' + p.xpm + '/' + p.xpa);
+  add('BYU', 'kick', p, p.fgm + '/' + p.fga, 'FG', (p.lng ? 'Long of ' + p.lng + ', e' : 'E') + 'xtra points ' + p.xpm + '/' + p.xpa);
   p = best(A.pass, 'y', 1)[0];
-  add('ISU', p, p.y, 'yds', 'Passing, ' + p.c + ' of ' + p.a);
+  add('ISU', 'pass', p, p.y, 'yds', p.c + ' of ' + p.a);
   p = best(A.rush, 'y', 1)[0];
-  add('ISU', p, p.y, 'yds', 'Rushing, ' + p.car + ' carries');
+  add('ISU', 'rush', p, p.y, 'yds', p.car + ' carries');
   p = best(A.rec, 'y', 1)[0];
-  add('ISU', p, p.y, 'yds', 'Receiving, ' + p.r + ' catches');
+  add('ISU', 'rec', p, p.y, 'yds', p.r + ' catches');
 
-  var before = state.leaderNames, now = lines.map(function(l){ return l.sub.split(',')[0] + l.name; });
+  var before = state.leaderNames, now = lines.map(function(l){ return l.cat + l.name; });
   $('lT').textContent = statPage ? 'Defense & Iowa State' : 'BYU offense';
   $('lD').innerHTML = dots();
   var first = statPage ? 6 : 0;
@@ -668,11 +678,20 @@ function watchability(g){
   return s;
 }
 function isClose(g){ return g.state === 'in' && g.period >= 3 && Math.abs(g.home.score - g.away.score) <= 8; }
+var LOGOS_ONLY = /[?&]cards=logos\b/.test(location.search);
 function drawGames(){
   var live = GAMES.filter(function(g){ return g.state === 'in'; }).sort(function(x, y){ return watchability(y) - watchability(x); });
   var list = live.concat(GAMES.filter(function(g){ return g.state === 'pre'; }), GAMES.filter(function(g){ return g.state === 'post'; })).slice(0, 4);
   $('games').innerHTML = list.map(function(g, i){
     var lead = (g.home.score || 0) - (g.away.score || 0), decided = g.state !== 'pre';
+    // Logos only: the logo carries the name, its badge the ranking, a ball under it who has it.
+    var side = function(t, s){
+      return '<div class="lw">' + logo(t.id) + (t.rank ? '<span class="rkb">' + t.rank + '</span>' : '') +
+             (g.state === 'in' && !g.half && g.ball === s ? '<span class="poss on"></span>' : '') + '</div>';
+    };
+    var pts = function(t, lo){ return decided ? '<span class="s' + (lo ? ' lo' : '') + '">' + t.score + '</span>' : ''; };
+    var logosOnly = LOGOS_ONLY ? '<div class="gl">' + side(g.away, 'away') + pts(g.away, decided && lead > 0) +
+      '<span class="vs">' + (decided ? '\u2013' : 'at') + '</span>' + pts(g.home, decided && lead < 0) + side(g.home, 'home') + '</div>' : '';
     var row = function(t, side, lo){
       return '<div class="gt' + (lo ? ' lo' : '') + '">' + logo(t.id) + '<span class="n">' + (t.rank ? '<span class="rk">' + t.rank + '</span>' : '') + esc(t.n) +
              (g.state === 'in' && !g.half && g.ball === side ? '<span class="bl"></span>' : '') + '</span>' +
@@ -681,7 +700,7 @@ function drawGames(){
     var ck = g.state === 'post' ? 'Final' : g.state === 'pre' ? g.when : g.half ? 'Half' : 'Q' + g.period + ' ' + g.clock;
     var st = g.state === 'pre' ? g.soon : g.state === 'in' && !g.half ? g.sit : '';
     return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + (12 + i * 317) + 'px">' +
-           row(g.away, 'away', decided && lead > 0) + row(g.home, 'home', decided && lead < 0) +
+           (LOGOS_ONLY ? logosOnly : row(g.away, 'away', decided && lead > 0) + row(g.home, 'home', decided && lead < 0)) +
            '<div class="gf"><span class="ck">' + esc(ck) + '</span><span class="st' + (g.rz ? ' rz' : '') + '">' + esc(st || '') + '</span>' +
            '<span class="tv">' + esc(g.tv) + '</span></div></div>';
   }).join('');
