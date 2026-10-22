@@ -25,7 +25,7 @@
      --------------------------------------------------------------------------- */
   :root{
     --ink:#FFFFFF; --dim:rgba(255,255,255,0.64); --faint:rgba(255,255,255,0.42);
-    --gold:#F5D98B; --panel:rgba(6,13,30,0.84); --rule:rgba(255,255,255,0.09);
+    --royal:#0062B8; --hi:#5FA8FF; --panel:rgba(6,13,30,0.84); --rule:rgba(255,255,255,0.09);
     --isu:#F1BE48; --bad:#FF5A4E;
     --txt:'Barlow',Roboto,Helvetica,Arial,sans-serif;
     --num:'Barlow Condensed','Roboto Condensed','Arial Narrow',sans-serif;
@@ -50,21 +50,21 @@
   .ph .c{width:108px;}
   .ph .c img{width:34px;height:34px;margin-left:auto;}
   .dots i{display:inline-block;width:8px;height:8px;border-radius:4px;margin-left:7px;background:rgba(255,255,255,0.2);vertical-align:2px;}
-  .dots i.on{background:var(--gold);}
+  .dots i.on{background:var(--hi);}
   .row{display:flex;align-items:center;height:66px;border-top:1px solid var(--rule);}
   .row .k{flex:1;min-width:0;font-size:25px;color:rgba(255,255,255,0.82);white-space:nowrap;}
   .row .c{width:108px;text-align:right;white-space:nowrap;font-family:var(--num);font-weight:600;font-size:42px;}
   .row .c.o{color:var(--dim);}
-  .row.fB .c.b,.row.fA .c.o{color:var(--gold);}
+  .row.fB .c.b,.row.fA .c.o{color:var(--hi);}
   .ld{height:66px;border-top:1px solid var(--rule);padding-top:5px;}
   .ld .l1{display:flex;align-items:baseline;}
   .ld .n{flex:1;min-width:0;font-size:26px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ld .n img{display:inline-block;width:24px;height:24px;margin-right:8px;vertical-align:-3px;}
   .ld .big{font-family:var(--num);font-weight:600;font-size:34px;line-height:1;}
   .ld .u{font-size:17px;color:var(--dim);margin-left:5px;}
-  .ld .l2{font-size:18px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+  .ld .l2{font-size:21px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
   .ld.o .n,.ld.o .big{color:rgba(255,255,255,0.75);}
-  .ld.new .n{color:var(--gold);}
+  .ld.new .n{color:var(--hi);}
 
   /* ---- the score ---- */
   #score{left:436px;top:6px;width:408px;}
@@ -73,17 +73,17 @@
   .lgw{position:relative;width:76px;height:76px;}
   .lgw img{width:76px;height:76px;}
   .rkb{position:absolute;left:-8px;top:-4px;font-family:var(--num);font-weight:600;font-size:19px;line-height:22px;padding:0 6px;
-    border-radius:11px;background:var(--gold);color:#0B1220;}
+    border-radius:11px;background:var(--royal);color:#FFFFFF;box-shadow:0 0 0 2px #0A1630;}
   .poss{position:absolute;right:-6px;bottom:0;width:20px;height:13px;border-radius:50%;background:#A8622F;border:2px solid #FFFFFF;display:none;}
   .poss.on{display:block;}
   .tos{height:8px;margin-top:8px;white-space:nowrap;}
-  .tos i{display:inline-block;width:16px;height:4px;border-radius:2px;margin:0 2px;background:var(--gold);vertical-align:top;}
+  .tos i{display:inline-block;width:16px;height:4px;border-radius:2px;margin:0 2px;background:var(--hi);vertical-align:top;}
   .tos i.used{background:rgba(255,255,255,0.18);}
   .pts{width:104px;text-align:center;font-family:var(--num);font-weight:600;font-size:96px;line-height:1;}
   .pts.o{color:var(--dim);}
   .mid{width:36px;}
   .clkrow{text-align:center;margin-top:4px;white-space:nowrap;}
-  .clk{font-family:var(--num);font-weight:600;font-size:36px;color:var(--gold);}
+  .clk{font-family:var(--num);font-weight:600;font-size:36px;color:var(--hi);}
   .net{font-size:18px;font-weight:600;letter-spacing:1px;color:rgba(255,255,255,0.8);margin-left:14px;vertical-align:4px;}
   .dd{text-align:center;font-size:30px;font-weight:600;margin-top:2px;}
   .lines{margin:10px auto 0;width:300px;background:rgba(6,13,30,0.8);border-radius:12px;padding:6px 14px;}
@@ -108,37 +108,37 @@
   #demo{left:440px;top:436px;width:400px;text-align:center;font-size:14px;color:var(--faint);}
 
   /* ---- last play, this drive, and the way into every drive ---- */
-  #strip{left:12px;top:478px;width:1256px;height:46px;border-radius:12px;background:var(--panel);border:1px solid rgba(255,255,255,0.1);
+  #strip{left:12px;top:476px;width:1256px;height:52px;border-radius:12px;background:var(--panel);border:1px solid rgba(255,255,255,0.1);
     display:flex;align-items:center;padding:0 6px 0 18px;}
-  #strip .tag{font-size:17px;color:var(--gold);margin-right:14px;white-space:nowrap;}
-  #strip .txt{flex:1;min-width:0;font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  #strip .drv{font-size:18px;color:var(--dim);margin:0 16px;white-space:nowrap;}
-  #btnDrives{font-size:18px;font-weight:600;color:#0B1220;background:#FFFFFF;border-radius:20px;padding:6px 18px;cursor:pointer;white-space:nowrap;}
+  #strip .tag{font-size:21px;color:var(--hi);margin-right:14px;white-space:nowrap;}
+  #strip .txt{flex:1;min-width:0;font-size:27px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #strip .drv{font-size:21px;color:var(--dim);margin:0 16px;white-space:nowrap;}
+  #btnDrives{font-size:21px;font-weight:600;color:#0B1220;background:#FFFFFF;border-radius:20px;padding:6px 18px;cursor:pointer;white-space:nowrap;}
 
   /* ---- the four best other games ---- */
   .gc{position:absolute;top:534px;width:305px;height:152px;padding:8px 14px 0;border-radius:14px;background:rgba(8,16,36,0.88);
     border:1px solid rgba(255,255,255,0.1);}
-  .gc.close{border:2px solid rgba(245,217,139,0.7);}
+  .gc.close{border:2px solid var(--royal);box-shadow:0 0 18px rgba(0,98,184,0.45);}
   .gc.post{background:rgba(8,16,36,0.55);}
   .gt{display:flex;align-items:center;height:46px;}
   .gt img{width:38px;height:38px;margin-right:10px;}
   .gt .n{flex:1;min-width:0;font-size:24px;font-weight:600;white-space:nowrap;}
-  .gt .n .rk{font-family:var(--num);font-size:19px;color:var(--gold);margin-right:6px;}
+  .gt .n .rk{font-family:var(--num);font-size:19px;color:var(--hi);margin-right:6px;}
   .gt .s{font-family:var(--num);font-weight:600;font-size:42px;}
   .gt.lo .n,.gt.lo .s{color:var(--dim);}
   .gt .bl{display:inline-block;width:16px;height:10px;border-radius:50%;background:#A8622F;border:1.5px solid #FFFFFF;margin-left:8px;vertical-align:2px;}
-  .gf{display:flex;align-items:center;height:42px;border-top:1px solid var(--rule);margin-top:8px;font-size:19px;}
-  .gf .ck{font-family:var(--num);font-weight:600;font-size:23px;color:var(--gold);white-space:nowrap;}
+  .gf{display:flex;align-items:center;height:42px;border-top:1px solid var(--rule);margin-top:8px;font-size:22px;}
+  .gf .ck{font-family:var(--num);font-weight:600;font-size:27px;color:var(--hi);white-space:nowrap;}
   .gf .st{flex:1;min-width:0;margin-left:10px;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .gf .st.rz{color:#FF8A80;}
-  .gf .tv{font-size:16px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
+  .gf .tv{font-size:20px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
   .gc.post .gf .ck{color:var(--dim);}
 
   /* ---- banners: timeouts on the board ---- */
   .pill{left:640px;top:358px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:14px;
-    padding:8px 22px 9px;background:rgba(3,6,15,0.94);border:1px solid rgba(245,217,139,0.5);display:none;}
+    padding:8px 22px 9px;background:rgba(3,6,15,0.94);border:2px solid var(--royal);display:none;}
   .pill.on{display:block;}
-  .pill .a{font-family:var(--num);font-weight:600;font-size:36px;color:var(--gold);}
+  .pill .a{font-family:var(--num);font-weight:600;font-size:36px;color:var(--hi);}
   .pill .b{font-size:18px;color:var(--dim);}
   #td{left:0;right:0;top:500px;text-align:center;font-family:var(--num);font-weight:700;
     font-size:150px;line-height:1;letter-spacing:4px;color:#FFFFFF;text-shadow:0 6px 30px rgba(0,46,93,0.9);
@@ -157,7 +157,7 @@
   .chip.last{background:#FFFFFF;color:#0B1220;}
   .chip.neg{background:var(--bad);color:#FFFFFF;}
   .chip.flag{background:#FFD633;color:#2A1405;}
-  .chip.kick{color:var(--gold);}
+  .chip.kick{color:var(--hi);}
   #downbox{width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:4px;background:#FF7A1A;text-align:center;
     font-family:var(--num);font-weight:700;font-size:25px;line-height:30px;
     box-shadow:0 2px 6px rgba(0,0,0,0.6);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);z-index:2;}
@@ -165,15 +165,15 @@
   #bug img{width:40px;height:40px;}
   #bug b{font-family:var(--num);font-weight:600;font-size:40px;margin:0 18px 0 8px;}
   #bug .o{color:var(--dim);}
-  #bug .q{font-family:var(--num);font-weight:600;font-size:30px;color:var(--gold);}
+  #bug .q{font-family:var(--num);font-weight:600;font-size:30px;color:var(--hi);}
   #replay{top:14px;}
   #replay .a{color:#FFFFFF;}
   #replay .dot{display:inline-block;width:13px;height:13px;border-radius:7px;background:var(--bad);margin-right:10px;vertical-align:3px;}
-  #key{left:14px;bottom:62px;font-size:16px;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
+  #key{left:14px;bottom:70px;font-size:20px;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
   #key svg{vertical-align:middle;margin:0 4px 0 10px;}
   #key svg:first-child{margin-left:0;}
   #drive{right:14px;bottom:10px;max-width:640px;background:rgba(3,6,15,0.8);border-radius:12px;padding:8px 16px;}
-  #drive .a{font-size:16px;color:var(--dim);}
+  #drive .a{font-size:19px;color:var(--dim);}
   #drive .b{font-size:24px;margin-top:1px;}
 
   /* ---- every drive: flat field, one bar per drive ---- */
@@ -185,7 +185,7 @@
   #drives .sco{margin-left:auto;font-size:20px;font-weight:700;}
   #drives .sco b{font-family:var(--num);font-weight:800;font-size:34px;margin:0 16px 0 6px;}
   #drives .sco .o{color:var(--dim);}
-  #drives .sco .q{font-family:var(--num);font-size:26px;color:var(--gold);}
+  #drives .sco .q{font-family:var(--num);font-size:26px;color:var(--hi);}
   #flat{left:20px;top:60px;width:1240px;height:573px;border-radius:6px;}
   #flatDim{left:20px;top:60px;width:1240px;height:573px;border-radius:6px;background:rgba(4,14,9,0.5);}
   .bar{position:absolute;border-radius:15px;font-family:var(--num);font-weight:800;font-size:18px;
@@ -193,7 +193,7 @@
   .bar.BYU{background:#FFFFFF;color:#002E5D;justify-content:flex-end;padding-right:14px;}
   .bar.ISU{background:var(--isu);color:#2A1405;padding-left:14px;}
   .bar.fade{opacity:0.55;box-shadow:none;}
-  .bar.now{border:3px solid #FFD23F;box-shadow:0 0 16px rgba(255,210,63,0.6);}
+  .bar.now{border:3px solid var(--hi);box-shadow:0 0 16px rgba(95,168,255,0.6);}
   .bar .out{position:absolute;color:#FFFFFF;}
   .half{position:absolute;left:40px;width:1200px;height:2px;background:rgba(255,255,255,0.8);}
   .halfT{position:absolute;left:46px;font-family:var(--num);font-weight:800;font-size:14px;letter-spacing:3px;color:rgba(255,255,255,0.85);}
@@ -528,7 +528,7 @@ function teamRows(){
           SACK  the most sacks (if nobody has one yet: TFL, the most TFLs)
           KICK  the kicker
      ISU  one line each for passing, rushing and receiving yards
-   So a name can move up or drop off as the game goes; a new name shows gold.
+   So a name can move up or drop off as the game goes; a new name shows in blue.
    Page 1 is BYU's offense; page 2 is the BYU defense, the kicker and ISU.
    --------------------------------------------------------------------------- */
 function best(list, key, n, tie){
@@ -636,7 +636,7 @@ function drawMini(){
    --------------------------------------------------------------------------- */
 var GAMES = [
   { away: { n: 'TTU', id: 2641, rank: 8, score: 27 }, home: { n: 'UTAH', id: 254, rank: 19, score: 24 }, state: 'in', period: 4, clock: '3:12', ball: 'home', sit: '2nd & 6', tv: 'ESPN', b12: true },
-  { away: { n: 'OSU', id: 194, rank: 3, score: 20 }, home: { n: 'PSU', id: 213, rank: 6, score: 23 }, state: 'in', period: 4, clock: '6:40', ball: 'away', sit: '3rd & 2, red zone', rz: true, tv: 'NBC' },
+  { away: { n: 'OSU', id: 194, rank: 3, score: 20 }, home: { n: 'PSU', id: 213, rank: 6, score: 23 }, state: 'in', period: 4, clock: '6:40', ball: 'away', sit: '3rd & 2', rz: true, tv: 'NBC' },
   { away: { n: 'MISS', id: 145, rank: 11, score: 14 }, home: { n: 'LSU', id: 99, score: 17 }, state: 'in', period: 3, clock: '8:01', ball: 'away', sit: '1st & 10', tv: 'SECN' },
   { away: { n: 'ARIZ', id: 12, score: 17 }, home: { n: 'ASU', id: 9, rank: 22, score: 31 }, state: 'in', period: 3, clock: '2:15', ball: 'home', sit: '1st & 10', tv: 'FS1', b12: true },
   { away: { n: 'KSU', id: 2306, score: 10 }, home: { n: 'BAY', id: 239, score: 13 }, state: 'in', period: 2, clock: '0:00', half: true, tv: 'ESPN2', b12: true },

@@ -1,0 +1,47 @@
+name: Wall app — build the Android app
+
+# Builds the full-screen app for the kitchen calendar (scores/wall/app) and,
+# on main, publishes it as the latest release so it can always be downloaded from
+#   https://github.com/thill-ships/thill-ships.github.io/releases/latest/download/gameday-wall.apk
+# Builds on other branches only check that it compiles and keep the APK as a
+# workflow artifact.
+on:
+  push:
+    paths:
+      - 'scores/wall/app/**'
+      - '.github/workflows/wall-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Build
+        run: gradle -p scores/wall/app assembleDebug
+      # The file is named after the project (GamedayWall-debug.apk); take whatever it built.
+      - run: cp scores/wall/app/build/outputs/apk/debug/*.apk gameday-wall.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gameday-wall
+          path: gameday-wall.apk
+      - name: Publish as the latest release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "wall-app-${{ github.run_number }}" gameday-wall.apk \
+            --title "Gameday Wall app, build ${{ github.run_number }}" \
+            --notes "The full-screen app for the kitchen calendar. Install it with: .\wall install" \
+            --latest
