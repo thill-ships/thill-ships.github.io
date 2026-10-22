@@ -141,6 +141,34 @@
   .gl .s{width:76px;text-align:center;font-family:var(--num);font-weight:600;font-size:58px;line-height:1;}
   .gl .s.lo{color:var(--dim);}
   .gl .vs{flex:1;text-align:center;font-size:22px;color:var(--faint);}
+  /* ?cards=five: five narrower cards */
+  .cards-five .gc{width:243px;padding:8px 10px 0;}
+  .cards-five .gl .lw,.cards-five .gl .lw img{width:52px;height:52px;}
+  .cards-five .gl .s{width:56px;font-size:48px;}
+  .cards-five .gl .vs{font-size:18px;}
+  .cards-five .gf{font-size:22px;}
+  .cards-five .gf .ck{font-size:27px;}
+  .cards-five .gf .tv{font-size:20px;}
+  /* ?cards=tall: four shorter cards, and the 32px they give up goes to the stats */
+  .cards-tall .panel{height:490px;}
+  .cards-tall .row{height:71px;}
+  .cards-tall .row .k{font-size:27px;}
+  .cards-tall .row .c{font-size:44px;width:110px;}
+  .cards-tall .ph .c{width:110px;}
+  .cards-tall .ld{height:71px;}
+  .cards-tall .ld .l1{height:37px;}
+  .cards-tall .ld .n{font-size:27px;}
+  .cards-tall .ld .big{font-size:36px;}
+  .cards-tall .ld .l2{font-size:26px;line-height:30px;}
+  .cards-tall #mini{top:394px;}
+  .cards-tall #demo{top:466px;}
+  .cards-tall .pill{top:386px;}
+  .cards-tall #strip{top:508px;}
+  .cards-tall .gc{top:568px;height:118px;padding-top:4px;}
+  .cards-tall .gl{height:72px;}
+  .cards-tall .gl .lw,.cards-tall .gl .lw img{width:62px;height:62px;}
+  .cards-tall .gl .s{font-size:54px;}
+  .cards-tall .gf{margin-top:2px;}
 
   /* ---- banners: timeouts on the board ---- */
   .pill{left:640px;top:358px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:14px;
@@ -678,10 +706,14 @@ function watchability(g){
   return s;
 }
 function isClose(g){ return g.state === 'in' && g.period >= 3 && Math.abs(g.home.score - g.away.score) <= 8; }
-var LOGOS_ONLY = /[?&]cards=logos\b/.test(location.search);
+// The other games' cards: logos by default; ?cards=names for logo + name rows,
+// ?cards=five for five narrower logo cards, ?cards=tall for four shorter
+// ones with the room handed to the stats above.
+var CARDS = (/[?&]cards=(\w+)/.exec(location.search) || [])[1] || 'logos';
+var LOGOS_ONLY = CARDS !== 'names', FIVE = CARDS === 'five';
 function drawGames(){
   var live = GAMES.filter(function(g){ return g.state === 'in'; }).sort(function(x, y){ return watchability(y) - watchability(x); });
-  var list = live.concat(GAMES.filter(function(g){ return g.state === 'pre'; }), GAMES.filter(function(g){ return g.state === 'post'; })).slice(0, 4);
+  var list = live.concat(GAMES.filter(function(g){ return g.state === 'pre'; }), GAMES.filter(function(g){ return g.state === 'post'; })).slice(0, FIVE ? 5 : 4);
   $('games').innerHTML = list.map(function(g, i){
     var lead = (g.home.score || 0) - (g.away.score || 0), decided = g.state !== 'pre';
     // Logos only: the logo carries the name, its badge the ranking, a ball under it who has it.
@@ -699,7 +731,7 @@ function drawGames(){
     };
     var ck = g.state === 'post' ? 'Final' : g.state === 'pre' ? g.when : g.half ? 'Half' : 'Q' + g.period + ' ' + g.clock;
     var st = g.state === 'pre' ? g.soon : g.state === 'in' && !g.half ? g.sit : '';
-    return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + (12 + i * 317) + 'px">' +
+    return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + (12 + i * (FIVE ? 253 : 317)) + 'px">' +
            (LOGOS_ONLY ? logosOnly : row(g.away, 'away', decided && lead > 0) + row(g.home, 'home', decided && lead < 0)) +
            '<div class="gf"><span class="ck">' + esc(ck) + '</span><span class="st' + (g.rz ? ' rz' : '') + '">' + esc(st || '') + '</span>' +
            '<span class="tv">' + esc(g.tv) + '</span></div></div>';
@@ -1024,7 +1056,7 @@ state = fresh();
 firstPage();
 render();
 drawGames();
-$('stage').className = 'ready';
+$('stage').className = 'ready cards-' + CARDS;
 later(2500);
 // Fetch the field picture now, so the first replay never shows it half-loaded.
 new Image().src = 'lights.jpg';
