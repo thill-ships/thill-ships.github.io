@@ -30,7 +30,8 @@ jobs:
           gradle-version: '8.7'
       - name: Build
         run: gradle -p scores/wall/app assembleDebug
-      - run: cp scores/wall/app/build/outputs/apk/debug/app-debug.apk gameday-wall.apk
+      # The file is named after the project (GamedayWall-debug.apk); take whatever it built.
+      - run: cp scores/wall/app/build/outputs/apk/debug/*.apk gameday-wall.apk
       - uses: actions/upload-artifact@v4
         with:
           name: gameday-wall
