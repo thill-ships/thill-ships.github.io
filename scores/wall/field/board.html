@@ -6,135 +6,189 @@
 <title>BYU Gameday · Board demo</title>
 <meta name="theme-color" content="#03060F" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ---------------------------------------------------------------------------
-     A demo of the BYU gameday board: the box score up top, a small flat
-     drive tracker under the score, and the other games across the bottom.
+     A demo of the BYU gameday board: the box score up top, a flat drive
+     tracker under the score, and the four best other games along the bottom.
      The big tilted field ("under the lights") only comes up for replays: it
      is one pre-baked picture with the drive drawn flat on top, using the
      same perspective math the picture was baked with.
+
+     Type is Barlow (text) and Barlow Condensed (numbers), the sort of faces
+     TV score graphics use, at medium weights; logos stand in for team names
+     wherever there is room for one.
 
      The whole screen is laid out at 1280x695, the calendar's page size, so
      it shows there unscaled; anywhere else it is scaled to fit the window.
      No ?. or ??, no flex gap: Chromium 74.
      --------------------------------------------------------------------------- */
   :root{
-    --ink:#FFFFFF; --dim:rgba(255,255,255,0.62); --faint:rgba(255,255,255,0.4);
-    --gold:#FFE7A3; --byu:#9DC3F0; --panel:rgba(4,10,26,0.82); --rule:rgba(255,255,255,0.08);
+    --ink:#FFFFFF; --dim:rgba(255,255,255,0.64); --faint:rgba(255,255,255,0.42);
+    --gold:#F5D98B; --panel:rgba(6,13,30,0.84); --rule:rgba(255,255,255,0.09);
     --isu:#F1BE48; --bad:#FF5A4E;
+    --txt:'Barlow',Roboto,Helvetica,Arial,sans-serif;
+    --num:'Barlow Condensed','Roboto Condensed','Arial Narrow',sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;overflow:hidden;background:#03060F;}
-  body{font-family:'Public Sans',Helvetica,Arial,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums;
+  body{font-family:var(--txt);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;
     -webkit-font-smoothing:antialiased;cursor:default;user-select:none;-webkit-user-select:none;}
   #stage{position:absolute;left:0;top:0;width:1280px;height:695px;transform-origin:0 0;overflow:hidden;visibility:hidden;
     background:radial-gradient(ellipse 420px 260px at 540px 0,rgba(255,240,205,0.14),rgba(255,240,205,0) 70%),
                radial-gradient(ellipse 420px 260px at 740px 0,rgba(255,240,205,0.14),rgba(255,240,205,0) 70%),
                linear-gradient(180deg,#03060F 0%,#08122A 50%,#0A1630 100%);}
   #stage.ready{visibility:visible;}
-  #overlay{position:absolute;left:0;top:0;pointer-events:none;}
   .abs{position:absolute;}
   .np{pointer-events:none;}
+  img.lg{display:block;object-fit:contain;}
 
-  /* ---- the ball and things that sit on the turf ---- */
+  /* ---- stats either side ---- */
+  .panel{top:10px;width:420px;height:458px;padding:10px 20px;background:var(--panel);
+    border:1px solid rgba(255,255,255,0.1);border-radius:18px;}
+  .ph{display:flex;align-items:center;height:40px;font-size:18px;color:var(--dim);}
+  .ph .c{width:108px;}
+  .ph .c img{width:34px;height:34px;margin-left:auto;}
+  .dots i{display:inline-block;width:8px;height:8px;border-radius:4px;margin-left:7px;background:rgba(255,255,255,0.2);vertical-align:2px;}
+  .dots i.on{background:var(--gold);}
+  .row{display:flex;align-items:center;height:66px;border-top:1px solid var(--rule);}
+  .row .k{flex:1;min-width:0;font-size:25px;color:rgba(255,255,255,0.82);white-space:nowrap;}
+  .row .c{width:108px;text-align:right;white-space:nowrap;font-family:var(--num);font-weight:600;font-size:42px;}
+  .row .c.o{color:var(--dim);}
+  .row.fB .c.b,.row.fA .c.o{color:var(--gold);}
+  .ld{height:66px;border-top:1px solid var(--rule);padding-top:5px;}
+  .ld .l1{display:flex;align-items:baseline;}
+  .ld .n{flex:1;min-width:0;font-size:26px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ld .n img{display:inline-block;width:24px;height:24px;margin-right:8px;vertical-align:-3px;}
+  .ld .big{font-family:var(--num);font-weight:600;font-size:34px;line-height:1;}
+  .ld .u{font-size:17px;color:var(--dim);margin-left:5px;}
+  .ld .l2{font-size:18px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+  .ld.o .n,.ld.o .big{color:rgba(255,255,255,0.75);}
+  .ld.new .n{color:var(--gold);}
+
+  /* ---- the score ---- */
+  #score{left:436px;top:6px;width:408px;}
+  .sc{display:flex;align-items:center;}
+  .tm{width:82px;display:flex;flex-direction:column;align-items:center;}
+  .lgw{position:relative;width:76px;height:76px;}
+  .lgw img{width:76px;height:76px;}
+  .rkb{position:absolute;left:-8px;top:-4px;font-family:var(--num);font-weight:600;font-size:19px;line-height:22px;padding:0 6px;
+    border-radius:11px;background:var(--gold);color:#0B1220;}
+  .poss{position:absolute;right:-6px;bottom:0;width:20px;height:13px;border-radius:50%;background:#A8622F;border:2px solid #FFFFFF;display:none;}
+  .poss.on{display:block;}
+  .tos{height:8px;margin-top:8px;white-space:nowrap;}
+  .tos i{display:inline-block;width:16px;height:4px;border-radius:2px;margin:0 2px;background:var(--gold);vertical-align:top;}
+  .tos i.used{background:rgba(255,255,255,0.18);}
+  .pts{width:104px;text-align:center;font-family:var(--num);font-weight:600;font-size:96px;line-height:1;}
+  .pts.o{color:var(--dim);}
+  .mid{width:36px;}
+  .clkrow{text-align:center;margin-top:4px;white-space:nowrap;}
+  .clk{font-family:var(--num);font-weight:600;font-size:36px;color:var(--gold);}
+  .net{font-size:18px;font-weight:600;letter-spacing:1px;color:rgba(255,255,255,0.8);margin-left:14px;vertical-align:4px;}
+  .dd{text-align:center;font-size:30px;font-weight:600;margin-top:2px;}
+  .lines{margin:10px auto 0;width:300px;background:rgba(6,13,30,0.8);border-radius:12px;padding:6px 14px;}
+  .lines table{border-collapse:collapse;width:100%;}
+  .lines td{padding:1px 0;text-align:center;font-family:var(--num);font-weight:500;font-size:25px;color:rgba(255,255,255,0.88);}
+  .lines td.h{font-family:var(--txt);font-size:15px;color:var(--faint);}
+  .lines td.t{width:40px;}
+  .lines td.t img{width:28px;height:28px;}
+  .lines td.tot{font-weight:700;color:#FFFFFF;}
+
+  /* ---- the drive tracker: a flat strip of field under the score ---- */
+  #mini{left:440px;top:366px;width:400px;height:60px;border-radius:9px;overflow:hidden;background:#2F6B35;cursor:pointer;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.18);}
+  #mini .ez{position:absolute;top:0;width:28px;height:60px;}
+  #mini .ez img{width:24px;height:24px;margin:18px 2px;}
+  #mini .yl{position:absolute;top:0;width:1px;height:60px;background:rgba(255,255,255,0.35);}
+  #mini .los,#mini .fd{position:absolute;top:0;width:4px;margin-left:-2px;height:60px;}
+  #mini .los{background:#3D8BFF;}
+  #mini .fd{background:#FFD633;}
+  #mini .run{position:absolute;top:27px;height:6px;border-radius:3px;}
+  #mini .mb{position:absolute;top:20px;width:28px;height:20px;margin-left:-14px;border-radius:50%;background:#8A4A1F;border:2px solid #FFFFFF;}
+  #demo{left:440px;top:436px;width:400px;text-align:center;font-size:14px;color:var(--faint);}
+
+  /* ---- last play, this drive, and the way into every drive ---- */
+  #strip{left:12px;top:478px;width:1256px;height:46px;border-radius:12px;background:var(--panel);border:1px solid rgba(255,255,255,0.1);
+    display:flex;align-items:center;padding:0 6px 0 18px;}
+  #strip .tag{font-size:17px;color:var(--gold);margin-right:14px;white-space:nowrap;}
+  #strip .txt{flex:1;min-width:0;font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #strip .drv{font-size:18px;color:var(--dim);margin:0 16px;white-space:nowrap;}
+  #btnDrives{font-size:18px;font-weight:600;color:#0B1220;background:#FFFFFF;border-radius:20px;padding:6px 18px;cursor:pointer;white-space:nowrap;}
+
+  /* ---- the four best other games ---- */
+  .gc{position:absolute;top:534px;width:305px;height:152px;padding:8px 14px 0;border-radius:14px;background:rgba(8,16,36,0.88);
+    border:1px solid rgba(255,255,255,0.1);}
+  .gc.close{border:2px solid rgba(245,217,139,0.7);}
+  .gc.post{background:rgba(8,16,36,0.55);}
+  .gt{display:flex;align-items:center;height:46px;}
+  .gt img{width:38px;height:38px;margin-right:10px;}
+  .gt .n{flex:1;min-width:0;font-size:24px;font-weight:600;white-space:nowrap;}
+  .gt .n .rk{font-family:var(--num);font-size:19px;color:var(--gold);margin-right:6px;}
+  .gt .s{font-family:var(--num);font-weight:600;font-size:42px;}
+  .gt.lo .n,.gt.lo .s{color:var(--dim);}
+  .gt .bl{display:inline-block;width:16px;height:10px;border-radius:50%;background:#A8622F;border:1.5px solid #FFFFFF;margin-left:8px;vertical-align:2px;}
+  .gf{display:flex;align-items:center;height:42px;border-top:1px solid var(--rule);margin-top:8px;font-size:19px;}
+  .gf .ck{font-family:var(--num);font-weight:600;font-size:23px;color:var(--gold);white-space:nowrap;}
+  .gf .st{flex:1;min-width:0;margin-left:10px;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gf .st.rz{color:#FF8A80;}
+  .gf .tv{font-size:16px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
+  .gc.post .gf .ck{color:var(--dim);}
+
+  /* ---- banners: timeouts on the board ---- */
+  .pill{left:640px;top:358px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:14px;
+    padding:8px 22px 9px;background:rgba(3,6,15,0.94);border:1px solid rgba(245,217,139,0.5);display:none;}
+  .pill.on{display:block;}
+  .pill .a{font-family:var(--num);font-weight:600;font-size:36px;color:var(--gold);}
+  .pill .b{font-size:18px;color:var(--dim);}
+  #td{left:0;right:0;top:500px;text-align:center;font-family:var(--num);font-weight:700;
+    font-size:150px;line-height:1;letter-spacing:4px;color:#FFFFFF;text-shadow:0 6px 30px rgba(0,46,93,0.9);
+    opacity:0;transform:scale(0.7);transition:opacity .35s, transform .5s cubic-bezier(.2,1.4,.4,1);}
+  #td.on{opacity:1;transform:none;}
+
+  /* ---- replays: the big field comes up over everything ---- */
+  #fieldLayer{left:0;top:0;width:1280px;height:695px;background:#03060F url(lights.jpg) 0 0 / 1280px 695px no-repeat;display:none;}
+  #fieldLayer.on{display:block;}
+  #overlay{position:absolute;left:0;top:0;pointer-events:none;}
   #ball{left:0;top:0;width:40px;height:25px;margin:-12px 0 0 -20px;border-radius:50%;
     background:radial-gradient(ellipse at 40% 35%,#A8622F 0%,#7A3F18 70%);border:3px solid #FFFFFF;
     box-shadow:0 4px 10px rgba(0,0,0,0.7);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);will-change:transform;}
-  .chip{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:24px;line-height:27px;padding:0 8px;
+  .chip{font-family:var(--num);font-weight:600;font-size:26px;line-height:28px;padding:0 8px;
     border-radius:6px;background:rgba(0,0,0,0.62);white-space:nowrap;transform:translate(-50%,-100%);}
   .chip.last{background:#FFFFFF;color:#0B1220;}
   .chip.neg{background:var(--bad);color:#FFFFFF;}
   .chip.flag{background:#FFD633;color:#2A1405;}
   .chip.kick{color:var(--gold);}
   #downbox{width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:4px;background:#FF7A1A;text-align:center;
-    font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:25px;line-height:30px;
+    font-family:var(--num);font-weight:700;font-size:25px;line-height:30px;
     box-shadow:0 2px 6px rgba(0,0,0,0.6);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);z-index:2;}
-
-  /* ---- top: score in the middle, panels either side ---- */
-  .panel{top:8px;width:424px;height:334px;padding:10px 18px;background:var(--panel);
-    border:1px solid rgba(255,255,255,0.12);border-radius:16px;}
-  .ph{display:flex;align-items:center;height:30px;font-size:15px;font-weight:800;letter-spacing:2px;color:var(--dim);}
-  .ph .c{width:104px;text-align:right;}
-  .ph .c.byu{color:var(--byu);}
-  .dots i{display:inline-block;width:9px;height:9px;border-radius:5px;margin-left:6px;background:rgba(255,255,255,0.2);}
-  .dots i.on{background:var(--gold);}
-  .row{display:flex;align-items:center;height:49px;border-top:1px solid var(--rule);font-size:28px;font-weight:700;}
-  .row .k{flex:1;min-width:0;font-size:22px;font-weight:500;color:rgba(255,255,255,0.78);white-space:nowrap;}
-  .row .c{width:104px;text-align:right;white-space:nowrap;}
-  .row .c.o{color:var(--dim);}
-  .row.fB .c.b,.row.fA .c.o{color:var(--gold);}
-  .ld{display:flex;align-items:center;height:49px;border-top:1px solid var(--rule);}
-  .ld .t{width:52px;font-size:14px;font-weight:800;letter-spacing:1px;color:var(--gold);}
-  .ld .t.o{color:var(--faint);}
-  .ld .n{flex:1;min-width:0;font-size:23px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .ld .n.o{color:var(--dim);font-weight:600;}
-  .ld .v{font-size:21px;color:rgba(255,255,255,0.82);white-space:nowrap;margin-left:8px;}
-  .ld .v.o{color:var(--faint);}
-  .ld.new .n{color:var(--gold);}
-
-  #score{left:438px;top:4px;width:404px;display:flex;flex-direction:column;align-items:center;}
-  .sc{display:flex;align-items:flex-end;}
-  .tm{display:flex;flex-direction:column;align-items:center;width:124px;}
-  .tm .nm{font-size:21px;font-weight:700;white-space:nowrap;}
-  .tm .pts{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:92px;line-height:0.9;}
-  .tm.o .nm,.tm.o .pts{color:var(--dim);}
-  .tos{height:8px;margin-top:3px;}
-  .tos i{display:inline-block;width:16px;height:4px;border-radius:2px;margin:0 2px;background:var(--gold);vertical-align:top;}
-  .tos i.used{background:rgba(255,255,255,0.18);}
-  .poss{display:inline-block;width:14px;height:9px;border-radius:50%;background:#A8622F;border:1.5px solid #FFFFFF;
-    margin-right:5px;vertical-align:1px;visibility:hidden;}
-  .poss.on{visibility:visible;}
-  .rk{color:var(--gold);font-size:19px;font-weight:800;margin-right:5px;}
-  .mid{display:flex;flex-direction:column;align-items:center;width:156px;padding-bottom:14px;}
-  .clk{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:36px;white-space:nowrap;color:var(--gold);}
-  .net{font-size:17px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.85);}
-  .dd{font-size:27px;font-weight:800;margin-top:2px;}
-  .lines{margin-top:6px;background:rgba(4,10,26,0.75);border-radius:10px;padding:4px 12px;font-size:21px;}
-  .lines table{border-collapse:collapse;}
-  .lines td{padding:1px 8px;text-align:center;color:rgba(255,255,255,0.9);font-weight:600;}
-  .lines td.h{color:var(--dim);font-size:15px;font-weight:800;letter-spacing:1px;}
-  .lines td.t{text-align:left;font-weight:700;color:#FFFFFF;}
-  .lines td.tot{font-weight:800;color:#FFFFFF;}
-
-  /* timeouts and replays get a pill just under the score */
-  .pill{left:640px;top:268px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:12px;
-    padding:6px 16px 7px;background:rgba(3,6,15,0.9);border:1px solid rgba(255,231,163,0.5);display:none;}
-  .pill.on{display:block;}
-  .pill .a{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:32px;letter-spacing:2px;color:var(--gold);}
-  .pill .b{font-size:17px;font-weight:600;color:var(--dim);}
+  #bug{left:14px;top:12px;background:var(--panel);border-radius:12px;padding:6px 16px;display:flex;align-items:center;white-space:nowrap;}
+  #bug img{width:40px;height:40px;}
+  #bug b{font-family:var(--num);font-weight:600;font-size:40px;margin:0 18px 0 8px;}
+  #bug .o{color:var(--dim);}
+  #bug .q{font-family:var(--num);font-weight:600;font-size:30px;color:var(--gold);}
+  #replay{top:14px;}
   #replay .a{color:#FFFFFF;}
-  #replay .dot{display:inline-block;width:12px;height:12px;border-radius:6px;background:var(--bad);margin-right:8px;vertical-align:1px;}
-
-  #drive{right:14px;bottom:10px;max-width:640px;background:rgba(3,6,15,0.8);border-radius:10px;padding:8px 14px;}
-  #drive .a{font-size:15px;font-weight:700;letter-spacing:1px;color:var(--dim);}
-  #drive .b{font-size:23px;font-weight:600;margin-top:1px;}
-  #key{left:14px;bottom:62px;font-size:15px;font-weight:600;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
+  #replay .dot{display:inline-block;width:13px;height:13px;border-radius:7px;background:var(--bad);margin-right:10px;vertical-align:3px;}
+  #key{left:14px;bottom:62px;font-size:16px;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
   #key svg{vertical-align:middle;margin:0 4px 0 10px;}
   #key svg:first-child{margin-left:0;}
-  #btnDrives{left:14px;bottom:10px;font-size:17px;font-weight:800;letter-spacing:1px;color:#0B1220;background:#FFFFFF;
-    border-radius:22px;padding:10px 18px;cursor:pointer;}
-  #demo{left:180px;bottom:22px;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--faint);}
-
-  /* ---- touchdown ---- */
-  #td{left:0;right:0;top:390px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;
-    font-size:150px;line-height:1;letter-spacing:4px;color:#FFFFFF;text-shadow:0 6px 30px rgba(0,46,93,0.9);
-    opacity:0;transform:scale(0.7);transition:opacity .35s, transform .5s cubic-bezier(.2,1.4,.4,1);}
-  #td.on{opacity:1;transform:none;}
+  #drive{right:14px;bottom:10px;max-width:640px;background:rgba(3,6,15,0.8);border-radius:12px;padding:8px 16px;}
+  #drive .a{font-size:16px;color:var(--dim);}
+  #drive .b{font-size:24px;margin-top:1px;}
 
   /* ---- every drive: flat field, one bar per drive ---- */
   #drives{left:0;top:0;width:1280px;height:695px;background:#0B1220;display:none;cursor:pointer;}
   #drives.on{display:block;}
   #drives .hd{position:absolute;left:24px;right:24px;top:4px;height:52px;display:flex;align-items:center;}
-  #drives .ttl{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:32px;letter-spacing:1px;margin-right:18px;}
+  #drives .ttl{font-family:var(--num);font-weight:800;font-size:32px;letter-spacing:1px;margin-right:18px;}
   #drives .sub{font-size:17px;color:var(--dim);}
   #drives .sco{margin-left:auto;font-size:20px;font-weight:700;}
-  #drives .sco b{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:34px;margin:0 16px 0 6px;}
+  #drives .sco b{font-family:var(--num);font-weight:800;font-size:34px;margin:0 16px 0 6px;}
   #drives .sco .o{color:var(--dim);}
-  #drives .sco .q{font-family:'Big Shoulders Display',sans-serif;font-size:26px;color:var(--gold);}
+  #drives .sco .q{font-family:var(--num);font-size:26px;color:var(--gold);}
   #flat{left:20px;top:60px;width:1240px;height:573px;border-radius:6px;}
   #flatDim{left:20px;top:60px;width:1240px;height:573px;border-radius:6px;background:rgba(4,14,9,0.5);}
-  .bar{position:absolute;border-radius:15px;font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:18px;
+  .bar{position:absolute;border-radius:15px;font-family:var(--num);font-weight:800;font-size:18px;
     white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.5);display:flex;align-items:center;cursor:pointer;}
   .bar.BYU{background:#FFFFFF;color:#002E5D;justify-content:flex-end;padding-right:14px;}
   .bar.ISU{background:var(--isu);color:#2A1405;padding-left:14px;}
@@ -142,87 +196,44 @@
   .bar.now{border:3px solid #FFD23F;box-shadow:0 0 16px rgba(255,210,63,0.6);}
   .bar .out{position:absolute;color:#FFFFFF;}
   .half{position:absolute;left:40px;width:1200px;height:2px;background:rgba(255,255,255,0.8);}
-  .halfT{position:absolute;left:46px;font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:14px;letter-spacing:3px;color:rgba(255,255,255,0.85);}
+  .halfT{position:absolute;left:46px;font-family:var(--num);font-weight:800;font-size:14px;letter-spacing:3px;color:rgba(255,255,255,0.85);}
   #drives .ft{position:absolute;left:24px;right:24px;top:638px;height:54px;display:flex;align-items:center;font-size:19px;color:rgba(255,255,255,0.85);}
   #drives .ft .k{display:inline-block;width:26px;height:12px;border-radius:6px;margin:0 8px 0 0;vertical-align:-1px;}
   #drives .ft span.it{margin-right:26px;}
   #drives .ft .back{margin-left:auto;font-size:16px;font-weight:700;color:#0B1220;background:#FFFFFF;border-radius:22px;padding:10px 18px;}
 
-  /* ---- the drive tracker: a flat strip of field under the score ---- */
-  #mini{left:440px;top:272px;width:400px;height:54px;border-radius:8px;overflow:hidden;background:#2F6B35;cursor:pointer;
-    box-shadow:0 0 0 1px rgba(255,255,255,0.18);}
-  #mini .ez{position:absolute;top:0;width:28px;height:54px;font-size:12px;font-weight:800;letter-spacing:3px;color:#FFFFFF;
-    writing-mode:vertical-rl;text-align:center;line-height:28px;}
-  #mini .yl{position:absolute;top:0;width:1px;height:54px;background:rgba(255,255,255,0.35);}
-  #mini .los,#mini .fd{position:absolute;top:0;width:4px;margin-left:-2px;height:54px;}
-  #mini .los{background:#3D8BFF;}
-  #mini .fd{background:#FFD633;}
-  #mini .run{position:absolute;top:24px;height:6px;border-radius:3px;}
-  #mini .mb{position:absolute;top:17px;width:26px;height:18px;margin-left:-13px;border-radius:50%;background:#8A4A1F;border:2px solid #FFFFFF;}
-  #demo{left:440px;top:330px;width:400px;text-align:center;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--faint);}
-
-  /* ---- last play, this drive, and the way into every drive ---- */
-  #strip{left:12px;top:350px;width:1256px;height:46px;border-radius:12px;background:var(--panel);border:1px solid rgba(255,255,255,0.12);
-    display:flex;align-items:center;padding:0 6px 0 16px;}
-  #strip .tag{font-size:14px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-right:12px;white-space:nowrap;}
-  #strip .txt{flex:1;min-width:0;font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  #strip .drv{font-size:15px;font-weight:700;letter-spacing:1px;color:var(--dim);margin:0 14px;white-space:nowrap;}
-  #strip #btnDrives{padding:7px 16px;}
-
-  /* ---- the other games: best first, two rows of four ---- */
-  .gc{position:absolute;width:305px;height:134px;padding:6px 14px 0;border-radius:12px;background:rgba(8,16,36,0.88);
-    border:1px solid rgba(255,255,255,0.1);}
-  .gc.close{border:2px solid rgba(255,231,163,0.7);}
-  .gc.post{background:rgba(8,16,36,0.55);}
-  .gt{display:flex;align-items:center;height:38px;}
-  .gt .n{flex:1;min-width:0;font-size:24px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .gt .s{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:36px;margin-left:8px;}
-  .gt.lo .n,.gt.lo .s{color:var(--dim);}
-  .gt .bl{display:inline-block;width:16px;height:10px;border-radius:50%;background:#A8622F;border:1.5px solid #FFFFFF;margin-left:8px;vertical-align:2px;}
-  .gf{display:flex;align-items:center;height:40px;border-top:1px solid var(--rule);margin-top:6px;font-size:17px;}
-  .gf .ck{font-weight:800;color:var(--gold);white-space:nowrap;}
-  .gf .st{flex:1;min-width:0;margin-left:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .gf .st.rz{color:#FF8A80;}
-  .gf .tv{font-size:16px;font-weight:800;letter-spacing:1px;color:rgba(255,255,255,0.75);margin-left:8px;white-space:nowrap;}
-  .gc.post .gf .ck{color:var(--dim);}
-
-  /* ---- replays: the big field comes up over everything ---- */
-  #fieldLayer{left:0;top:0;width:1280px;height:695px;background:#03060F url(lights.jpg) 0 0 / 1280px 695px no-repeat;display:none;}
-  #fieldLayer.on{display:block;}
-  #bug{left:14px;top:12px;background:var(--panel);border-radius:12px;padding:6px 16px;font-size:20px;font-weight:700;white-space:nowrap;}
-  #bug b{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:38px;margin:0 16px 0 6px;vertical-align:-3px;}
-  #bug .o{color:var(--dim);}
-  #bug .q{font-family:'Big Shoulders Display',sans-serif;font-size:30px;color:var(--gold);}
-  #replay{top:14px;}
 </style>
 </head>
 <body>
 <div id="stage">
   <div class="abs panel" style="left:12px">
-    <div class="ph"><span style="flex:1"><span id="tT">TEAM STATS</span><span class="dots" id="tD"></span></span><span class="c">ISU</span><span class="c byu">BYU</span></div>
+    <div class="ph"><span style="flex:1"><span id="tT">Team stats</span><span class="dots" id="tD"></span></span><span class="c"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/66.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/66.png" onerror="logoFailed(this)"></span><span class="c"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/252.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" onerror="logoFailed(this)"></span></div>
     <div id="team"></div>
   </div>
 
   <div class="abs" id="score">
     <div class="sc">
-      <div class="tm o"><div class="nm"><span class="poss" id="pA"></span>Iowa State</div><div class="pts" id="sA">10</div><div class="tos" id="toA"></div></div>
-      <div class="mid"><div class="clk" id="clk">Q4 9:52</div><div class="net">ESPN</div></div>
-      <div class="tm"><div class="nm"><span class="poss" id="pH"></span><span class="rk">14</span>BYU</div><div class="pts" id="sH">24</div><div class="tos" id="toH"></div></div>
+      <div class="tm"><div class="lgw"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/66.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/66.png" onerror="logoFailed(this)"><span class="poss" id="pA"></span></div><div class="tos" id="toA"></div></div>
+      <div class="pts o" id="sA"></div>
+      <div class="mid"></div>
+      <div class="pts" id="sH"></div>
+      <div class="tm"><div class="lgw"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/252.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" onerror="logoFailed(this)"><span class="rkb">14</span><span class="poss" id="pH"></span></div><div class="tos" id="toH"></div></div>
     </div>
+    <div class="clkrow"><span class="clk" id="clk"></span><span class="net">ESPN</span></div>
     <div class="dd" id="dd"></div>
     <div class="lines"><table id="lineScore"></table></div>
   </div>
 
   <div class="abs panel" style="right:12px">
-    <div class="ph"><span style="flex:1" id="lT">BYU OFFENSE</span><span class="dots" id="lD"></span></div>
+    <div class="ph"><span style="flex:1" id="lT">BYU offense</span><span class="dots" id="lD"></span></div>
     <div id="leaders"></div>
   </div>
 
   <div class="abs" id="mini" title="Every drive"></div>
-  <div class="abs np" id="demo">DEMO · MADE-UP GAMES</div>
+  <div class="abs np" id="demo">Demo with made-up games</div>
   <div class="abs pill np" id="banner"><div class="a" id="bA"></div><div class="b" id="bB"></div></div>
 
-  <div class="abs" id="strip"><span class="tag">LAST PLAY</span><span class="txt" id="lp"></span><span class="drv" id="drv"></span><span id="btnDrives">ALL DRIVES</span></div>
+  <div class="abs" id="strip"><span class="tag">Last play</span><span class="txt" id="lp"></span><span class="drv" id="drv"></span><span id="btnDrives">All drives</span></div>
   <div id="games"></div>
 
   <div class="abs" id="fieldLayer">
@@ -233,8 +244,8 @@
     <div id="chips" class="np"></div>
     <div class="abs np" id="downbox" style="transition:none">1</div>
     <div class="abs np" id="ball" style="transition:none"></div>
-    <div class="abs np" id="bug"><span class="o">ISU</span><b class="o" id="bgA"></b>BYU<b id="bgH"></b><span class="q" id="bgC"></span></div>
-    <div class="abs pill np on" id="replay"><div class="a"><span class="dot"></span>REPLAY</div><div class="b" id="rB"></div></div>
+    <div class="abs np" id="bug"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/66.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/66.png" onerror="logoFailed(this)"><b class="o" id="bgA"></b><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/252.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" onerror="logoFailed(this)"><b id="bgH"></b><span class="q" id="bgC"></span></div>
+    <div class="abs pill np on" id="replay"><div class="a"><span class="dot"></span>Replay</div><div class="b" id="rB"></div></div>
     <div class="abs np" id="key">
       <svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#FFF" stroke-width="4" stroke-linecap="round"/></svg>run
       <svg width="34" height="14"><path d="M2 12 Q17 -4 32 12" fill="none" stroke="#FFF" stroke-width="3" stroke-dasharray="6 4"/></svg>pass
@@ -288,7 +299,6 @@ function spot(yd, lat){ return project(20 + (10 + yd) * 10, 20 + lat * 10); }
 var $ = function(id){ return document.getElementById(id); };
 var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
 var MINUS = '−';
-function plural(n, w){ return n + ' ' + w + (n === 1 ? '' : 'S'); }
 function signed(n){ return n > 0 ? '+' + n : n < 0 ? MINUS + (-n) : '0'; }
 
 /* ---------------------------- fit the window ---------------------------- */
@@ -304,9 +314,20 @@ fit();
 
 /* ------------------------------ teams ------------------------------ */
 var TEAMS = {
-  BYU: { full: 'BYU', color: '#FFFFFF', dir: 1 },
-  ISU: { full: 'Iowa State', color: '#F1BE48', dir: -1 },
+  BYU: { full: 'BYU', color: '#FFFFFF', dir: 1, id: 252 },
+  ISU: { full: 'Iowa State', color: '#F1BE48', dir: -1, id: 66 },
 };
+// ESPN's logos: the version drawn for dark backgrounds first, the plain one if
+// there is no dark one, and nothing at all if neither loads.
+function logo(id){
+  return '<img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/' + id + '.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/' +
+         id + '.png" onerror="logoFailed(this)">';
+}
+function logoFailed(img){
+  var plain = img.getAttribute('data-plain');
+  if(plain && img.src !== plain){ img.src = plain; return; }
+  img.onerror = null; img.style.visibility = 'hidden';
+}
 function other(t){ return t === 'BYU' ? 'ISU' : 'BYU'; }
 function toGoal(team, yd){ return team === 'BYU' ? 100 - yd : yd; }
 function fieldPos(yd){ return yd === 50 ? '50' : yd < 50 ? 'BYU ' + yd : 'ISU ' + (100 - yd); }
@@ -454,8 +475,8 @@ function drawField(){
   // drive card
   var net = 0, last = v.plays[v.plays.length - 1];
   if(last) net = dir * (scrimEnd(last) - v.start);
-  $('dA').textContent = (state.replay ? 'REPLAY · ' : 'THIS DRIVE · ') + TEAMS[v.team].full.toUpperCase() + ' · ' +
-                        plural(v.plays.filter(function(p){ return p.t !== 'pen'; }).length, 'PLAY') + ' · ' + net + ' YDS';
+  var n = v.plays.filter(function(p){ return p.t !== 'pen'; }).length;
+  $('dA').textContent = TEAMS[v.team].full + ' drive: ' + n + (n === 1 ? ' play, ' : ' plays, ') + net + ' yds';
   $('dB').textContent = last ? last.text : TEAMS[v.team].full + ' ball at ' + fieldPos(v.start);
 }
 
@@ -488,7 +509,7 @@ function teamRows(){
   ];
   // Big enough to read across the kitchen means six rows at a time: two pages that take turns.
   rows = statPage ? [rows[7], rows[8], rows[5], rows[9], rows[10], rows[11]] : [rows[0], rows[1], rows[2], rows[3], rows[4], rows[6]];
-  $('tT').textContent = statPage ? 'DOWNS & MORE' : 'TEAM STATS';
+  $('tT').textContent = statPage ? 'Downs & more' : 'Team stats';
   $('tD').innerHTML = dots();
   var f = state.flash, fc = f.team === 'BYU' ? ' fB' : ' fA';
   $('team').innerHTML = rows.map(function(r){
@@ -515,34 +536,36 @@ function best(list, key, n, tie){
 }
 function leaderRows(){
   var B = state.players.BYU, A = state.players.ISU, lines = [];
-  var add = function(tag, own, p, val){ lines.push({ tag: tag, own: own, name: p.n, val: val }); };
-  var td = function(n){ return n ? ' · ' + (n > 1 ? n + ' TD' : 'TD') : ''; };
+  // big: the number that matters, u: its unit, sub: the rest in plain words
+  var add = function(team, p, big, u, sub){ lines.push({ team: team, name: p.n, big: big, u: u, sub: sub }); };
+  var tds = function(n){ return n ? ', ' + (n > 1 ? n + ' TD' : 'TD') : ''; };
   var p = best(B.pass, 'y', 1)[0];
-  add('PASS', true, p, p.c + '/' + p.a + ' · ' + p.y + ' · ' + p.td + ' TD' + (p.int ? ' · ' + p.int + ' INT' : ''));
-  best(B.rush, 'y', 2).forEach(function(r){ add('RUSH', true, r, r.car + ' · ' + r.y + td(r.td)); });
-  best(B.rec, 'y', 3).forEach(function(r){ add('REC', true, r, r.r + ' · ' + r.y + td(r.td)); });
+  add('BYU', p, p.y, 'yds', 'Passing, ' + p.c + ' of ' + p.a + tds(p.td) + (p.int ? ', ' + p.int + ' INT' : ''));
+  best(B.rush, 'y', 2).forEach(function(r){ add('BYU', r, r.y, 'yds', 'Rushing, ' + r.car + ' carries' + tds(r.td)); });
+  best(B.rec, 'y', 3).forEach(function(r){ add('BYU', r, r.y, 'yds', 'Receiving, ' + r.r + ' catches' + tds(r.td)); });
   p = best(B.def, 'tkl', 1, 'tfl')[0];
-  add('DEF', true, p, p.tkl + ' tkl · ' + p.tfl + ' TFL' + (p.int ? ' · INT' : ''));
+  add('BYU', p, p.tkl, 'tackles', 'Defense, ' + p.tfl + ' for loss' + (p.int ? ', an interception' : ''));
   p = best(B.def, 'sk', 1, 'tfl')[0];
-  if(p.sk) add('SACK', true, p, p.sk + (p.sk === 1 ? ' sack' : ' sacks'));
-  else { p = best(B.def, 'tfl', 1)[0]; add('TFL', true, p, p.tfl + ' TFL'); }
+  if(p.sk) add('BYU', p, p.sk, p.sk === 1 ? 'sack' : 'sacks', 'Pass rush, ' + p.tfl + ' for loss');
+  else { p = best(B.def, 'tfl', 1)[0]; add('BYU', p, p.tfl, 'for loss', 'Defense'); }
   p = B.kick[0];
-  add('KICK', true, p, 'FG ' + p.fgm + '/' + p.fga + (p.lng ? ' · ' + p.lng : '') + ' · XP ' + p.xpm + '/' + p.xpa);
+  add('BYU', p, p.fgm + '/' + p.fga, 'FG', 'Kicking' + (p.lng ? ', long of ' + p.lng : '') + ', extra points ' + p.xpm + '/' + p.xpa);
   p = best(A.pass, 'y', 1)[0];
-  add('ISU', false, p, p.c + '/' + p.a + ' · ' + p.y);
+  add('ISU', p, p.y, 'yds', 'Passing, ' + p.c + ' of ' + p.a);
   p = best(A.rush, 'y', 1)[0];
-  add('ISU', false, p, p.car + ' · ' + p.y);
+  add('ISU', p, p.y, 'yds', 'Rushing, ' + p.car + ' carries');
   p = best(A.rec, 'y', 1)[0];
-  add('ISU', false, p, p.r + ' · ' + p.y);
+  add('ISU', p, p.y, 'yds', 'Receiving, ' + p.r + ' catches');
 
-  var before = state.leaderNames, now = lines.map(function(l){ return l.tag + l.name; });
-  $('lT').textContent = statPage ? 'DEFENSE · IOWA STATE' : 'BYU OFFENSE';
+  var before = state.leaderNames, now = lines.map(function(l){ return l.sub.split(',')[0] + l.name; });
+  $('lT').textContent = statPage ? 'Defense & Iowa State' : 'BYU offense';
   $('lD').innerHTML = dots();
   var first = statPage ? 6 : 0;
   $('leaders').innerHTML = lines.slice(first, first + 6).map(function(l, i){
-    var o = l.own ? '' : ' o', isNew = before && before.indexOf(now[first + i]) < 0;
-    return '<div class="ld' + (isNew ? ' new' : '') + '"><span class="t' + o + '">' + l.tag + '</span><span class="n' + o + '">' +
-           esc(l.name) + '</span><span class="v' + o + '">' + esc(l.val) + '</span></div>';
+    var isNew = before && before.indexOf(now[first + i]) < 0;
+    return '<div class="ld' + (l.team === 'ISU' ? ' o' : '') + (isNew ? ' new' : '') + '"><div class="l1"><span class="n">' +
+           (l.team === 'ISU' ? logo(TEAMS.ISU.id) : '') + esc(l.name) + '</span><span class="big">' + esc(l.big) + '</span><span class="u">' + l.u +
+           '</span></div><div class="l2">' + esc(l.sub) + '</div></div>';
   }).join('');
   state.leaderNames = now;
 }
@@ -560,10 +583,17 @@ function drawScore(){
     ord(g.down) + ' & ' + (goal ? 'Goal' : g.toGo) + ' at ' + fieldPos(g.spot);
   var row = function(t){
     var q = g.line[t], sum = q[0] + q[1] + q[2] + q[3];
-    return '<tr><td class="t">' + t + '</td><td>' + q.join('</td><td>') + '</td><td class="tot">' + sum + '</td></tr>';
+    return '<tr><td class="t">' + logo(TEAMS[t].id) + '</td><td>' + q.join('</td><td>') + '</td><td class="tot">' + sum + '</td></tr>';
   };
-  $('lineScore').innerHTML = '<tr><td class="h"></td><td class="h">1</td><td class="h">2</td><td class="h">3</td><td class="h">4</td><td class="h">T</td></tr>' +
-                             row('ISU') + row('BYU');
+  // The logos in here only need drawing once; after that just the numbers change.
+  if(!$('lineScore').rows.length)
+    $('lineScore').innerHTML = '<tr><td class="h"></td><td class="h">1st</td><td class="h">2nd</td><td class="h">3rd</td><td class="h">4th</td><td class="h">Final</td></tr>' +
+                               row('ISU') + row('BYU');
+  ['ISU', 'BYU'].forEach(function(t, r){
+    var q = g.line[t], cells = $('lineScore').rows[r + 1].cells;
+    for(var i = 0; i < 4; i++) cells[i + 1].textContent = q[i];
+    cells[5].textContent = q[0] + q[1] + q[2] + q[3];
+  });
 
   var b = state.banner;
   $('banner').className = 'abs pill np' + (b ? ' on' : '');
@@ -572,8 +602,8 @@ function drawScore(){
   var c = state.cur, last = c.plays[c.plays.length - 1];
   var net = last ? TEAMS[c.team].dir * (scrimEnd(last) - c.start) : 0;
   $('lp').textContent = state.lastPlay;
-  $('drv').textContent = TEAMS[c.team].full.toUpperCase() + ' DRIVE · ' +
-    plural(c.plays.filter(function(p){ return p.t !== 'pen'; }).length, 'PLAY') + ' · ' + net + ' YDS';
+  var n = c.plays.filter(function(p){ return p.t !== 'pen'; }).length;
+  $('drv').textContent = TEAMS[c.team].full + ' drive: ' + n + (n === 1 ? ' play, ' : ' plays, ') + net + ' yds';
   drawMini();
 }
 
@@ -585,7 +615,7 @@ function drawScore(){
 function MX(yd){ return 28 + yd * 3.44; }
 function drawMini(){
   var g = state.game, c = state.cur, dir = TEAMS[c.team].dir, h = '';
-  h += '<div class="ez" style="left:0;background:#0047BA">BYU</div><div class="ez" style="left:372px;background:#C8102E">ISU</div>';
+  h += '<div class="ez" style="left:0;background:#0047BA">' + logo(TEAMS.BYU.id) + '</div><div class="ez" style="left:372px;background:#C8102E">' + logo(TEAMS.ISU.id) + '</div>';
   for(var y = 10; y < 100; y += 10) h += '<div class="yl" style="left:' + MX(y).toFixed(0) + 'px"></div>';
   var a = Math.min(c.start, g.spot), w = Math.abs(g.spot - c.start) * 3.44;
   h += '<div class="run" style="left:' + MX(a).toFixed(0) + 'px;width:' + w.toFixed(0) + 'px;background:' + TEAMS[c.team].color + '"></div>';
@@ -602,18 +632,17 @@ function drawMini(){
    The other games, ranked the way the wall board ranks them: live games by
    how worth watching they are right now (how much doubt is left, how late it
    is, who is ranked, a one-score game in the last five minutes), then what
-   kicks off next, then finals. Two rows of four; the best one top left.
+   kicks off next, then finals. Only the best four make the screen.
    --------------------------------------------------------------------------- */
 var GAMES = [
-  { away: { n: 'Texas Tech', rank: 8, score: 27 }, home: { n: 'Utah', rank: 19, score: 24 }, state: 'in', period: 4, clock: '3:12', ball: 'home', sit: '2nd & 6 · TTU 41', tv: 'ESPN', b12: true },
-  { away: { n: 'Ohio State', rank: 3, score: 20 }, home: { n: 'Penn State', rank: 6, score: 23 }, state: 'in', period: 4, clock: '6:40', ball: 'away', sit: '3rd & 2 · PSU 18', rz: true, tv: 'NBC' },
-  { away: { n: 'Ole Miss', rank: 11, score: 14 }, home: { n: 'LSU', score: 17 }, state: 'in', period: 3, clock: '8:01', ball: 'away', sit: '1st & 10 · MISS 30', tv: 'SECN' },
-  { away: { n: 'Arizona', score: 17 }, home: { n: 'Arizona St', rank: 22, score: 31 }, state: 'in', period: 3, clock: '2:15', ball: 'home', sit: '1st & 10 · ASU 44', tv: 'FS1', b12: true },
-  { away: { n: 'Kansas St', score: 10 }, home: { n: 'Baylor', score: 13 }, state: 'in', period: 2, clock: '0:00', half: true, tv: 'ESPN2', b12: true },
-  { away: { n: 'Washington' }, home: { n: 'USC' }, state: 'pre', when: '9:30pm', soon: 'in 30m', tv: 'BTN' },
-  { away: { n: 'Florida', score: 13 }, home: { n: 'Georgia', rank: 1, score: 34 }, state: 'post', tv: 'CBS' },
-  { away: { n: 'Oklahoma St', score: 24 }, home: { n: 'TCU', score: 31 }, state: 'post', tv: 'ESPN2', b12: true },
-  { away: { n: 'Colorado', score: 21 }, home: { n: 'Kansas', score: 28 }, state: 'post', tv: 'FOX', b12: true },
+  { away: { n: 'TTU', id: 2641, rank: 8, score: 27 }, home: { n: 'UTAH', id: 254, rank: 19, score: 24 }, state: 'in', period: 4, clock: '3:12', ball: 'home', sit: '2nd & 6', tv: 'ESPN', b12: true },
+  { away: { n: 'OSU', id: 194, rank: 3, score: 20 }, home: { n: 'PSU', id: 213, rank: 6, score: 23 }, state: 'in', period: 4, clock: '6:40', ball: 'away', sit: '3rd & 2, red zone', rz: true, tv: 'NBC' },
+  { away: { n: 'MISS', id: 145, rank: 11, score: 14 }, home: { n: 'LSU', id: 99, score: 17 }, state: 'in', period: 3, clock: '8:01', ball: 'away', sit: '1st & 10', tv: 'SECN' },
+  { away: { n: 'ARIZ', id: 12, score: 17 }, home: { n: 'ASU', id: 9, rank: 22, score: 31 }, state: 'in', period: 3, clock: '2:15', ball: 'home', sit: '1st & 10', tv: 'FS1', b12: true },
+  { away: { n: 'KSU', id: 2306, score: 10 }, home: { n: 'BAY', id: 239, score: 13 }, state: 'in', period: 2, clock: '0:00', half: true, tv: 'ESPN2', b12: true },
+  { away: { n: 'WASH', id: 264 }, home: { n: 'USC', id: 30 }, state: 'pre', when: '9:30', soon: 'in 30 min', tv: 'BTN' },
+  { away: { n: 'FLA', id: 57, score: 13 }, home: { n: 'UGA', id: 61, rank: 1, score: 34 }, state: 'post', tv: 'CBS' },
+  { away: { n: 'OKST', id: 197, score: 24 }, home: { n: 'TCU', id: 2628, score: 31 }, state: 'post', tv: 'ESPN2', b12: true },
 ];
 function secs(c){ var m = /^(\d+):(\d{2})$/.exec(c || ''); return m ? +m[1] * 60 + +m[2] : null; }
 function progress(g){
@@ -641,18 +670,17 @@ function watchability(g){
 function isClose(g){ return g.state === 'in' && g.period >= 3 && Math.abs(g.home.score - g.away.score) <= 8; }
 function drawGames(){
   var live = GAMES.filter(function(g){ return g.state === 'in'; }).sort(function(x, y){ return watchability(y) - watchability(x); });
-  var list = live.concat(GAMES.filter(function(g){ return g.state === 'pre'; }), GAMES.filter(function(g){ return g.state === 'post'; })).slice(0, 8);
+  var list = live.concat(GAMES.filter(function(g){ return g.state === 'pre'; }), GAMES.filter(function(g){ return g.state === 'post'; })).slice(0, 4);
   $('games').innerHTML = list.map(function(g, i){
-    var x = 12 + (i % 4) * 317, y = 404 + Math.floor(i / 4) * 144;
     var lead = (g.home.score || 0) - (g.away.score || 0), decided = g.state !== 'pre';
     var row = function(t, side, lo){
-      return '<div class="gt' + (lo ? ' lo' : '') + '"><span class="n">' + (t.rank ? '<span class="rk">' + t.rank + '</span>' : '') + esc(t.n) +
+      return '<div class="gt' + (lo ? ' lo' : '') + '">' + logo(t.id) + '<span class="n">' + (t.rank ? '<span class="rk">' + t.rank + '</span>' : '') + esc(t.n) +
              (g.state === 'in' && !g.half && g.ball === side ? '<span class="bl"></span>' : '') + '</span>' +
              (decided ? '<span class="s">' + t.score + '</span>' : '') + '</div>';
     };
     var ck = g.state === 'post' ? 'Final' : g.state === 'pre' ? g.when : g.half ? 'Half' : 'Q' + g.period + ' ' + g.clock;
     var st = g.state === 'pre' ? g.soon : g.state === 'in' && !g.half ? g.sit : '';
-    return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + x + 'px;top:' + y + 'px">' +
+    return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + (12 + i * 317) + 'px">' +
            row(g.away, 'away', decided && lead > 0) + row(g.home, 'home', decided && lead < 0) +
            '<div class="gf"><span class="ck">' + esc(ck) + '</span><span class="st' + (g.rz ? ' rz' : '') + '">' + esc(st || '') + '</span>' +
            '<span class="tv">' + esc(g.tv) + '</span></div></div>';
@@ -662,7 +690,7 @@ function drawGames(){
 
 
 function render(){
-  drawScore(); teamRows(); leaderRows(); drawGames();
+  drawScore(); teamRows(); leaderRows();
   if(state.replay){
     var g = state.game;
     drawField();
@@ -940,7 +968,7 @@ function step(){
 
   if(e.ev === 'timeout'){
     state.game.tos[e.team] -= 1; state.game.clock = e.clock;
-    state.banner = { a: 'TIMEOUT · ' + TEAMS[e.team].full.toUpperCase(), b: state.game.tos[e.team] + ' left this half' };
+    state.banner = { a: 'Timeout, ' + TEAMS[e.team].full, b: state.game.tos[e.team] + ' left this half' };
     state.lastPlay = 'Timeout, ' + TEAMS[e.team].full;
     render(); later(4200); return;
   }
@@ -976,6 +1004,7 @@ function restart(){
 state = fresh();
 firstPage();
 render();
+drawGames();
 $('stage').className = 'ready';
 later(2500);
 // Fetch the field picture now, so the first replay never shows it half-loaded.
