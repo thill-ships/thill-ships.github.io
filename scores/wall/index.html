@@ -4,7 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Gameday Wall</title>
-<meta name="theme-color" content="#0B0B0C" />
+<meta name="theme-color" content="#07101F" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%20%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23111'/%3E%20%3Crect%20x='5.5'%20y='7'%20width='9.5'%20height='7'%20rx='1.8'%20fill='%23F5F2ED'/%3E%20%3Crect%20x='17'%20y='7'%20width='9.5'%20height='7'%20rx='1.8'%20fill='%23FF9B2F'/%3E%20%3Crect%20x='5.5'%20y='18'%20width='9.5'%20height='7'%20rx='1.8'%20fill='%235C5F69'/%3E%20%3Crect%20x='17'%20y='18'%20width='9.5'%20height='7'%20rx='1.8'%20fill='%23F5F2ED'/%3E%3C/svg%3E" />
 <style>
   /* ---------------------------------------------------------------------------
@@ -14,14 +16,16 @@
      aspect-ratio or :is() — none of them exist in Chromium 74.
      --------------------------------------------------------------------------- */
   :root{
-    --bg:#0B0B0C; --tile:#15161A; --tile2:#1C1E24; --line:#25272E;
-    --ink:#F3F1EC; --dim:#8A8C96; --faint:#5C5F69;
-    --hot:#FF9B2F; --byu:#4D9BE6; --b12:#2F6E4F; --ball:#C9884E; --red:#FF5A4F;
+    --bg:#07101F; --tile:#0E1A33; --tile2:#14223F; --line:#22304D;
+    --ink:#FFFFFF; --dim:rgba(255,255,255,0.62); --faint:rgba(255,255,255,0.42);
+    --hot:#5FA8FF; --byu:#5FA8FF; --royal:#0062B8; --b12:#2F6E4F; --ball:#C9884E; --red:#FF5A4F;
+    --num:'Barlow Condensed','Roboto Condensed','Arial Narrow',sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);}
+  body{background:linear-gradient(180deg,#05080F 0%,#08122A 55%,#0A1630 100%);}
   body{
-    font-family:Roboto,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+    font-family:Barlow,Roboto,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-weight:500;
     font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;
     display:flex;flex-direction:column;padding:2.2vh 1.6vw 2vh;
     cursor:none;user-select:none;-webkit-user-select:none;
@@ -73,6 +77,37 @@
   .ball{display:inline-block;width:1.05em;height:.62em;margin-left:.35em;vertical-align:.06em;color:var(--ball);flex:none;}
   .ball.rz{color:var(--red);}
   .rk{font-size:.62em;font-weight:800;color:var(--hot);margin-right:.25em;vertical-align:.45em;letter-spacing:0;}
+
+  /* ---- the default: sixteen cards, four by four (?layout=list for the old cards + list) ---- */
+  .grid{display:none;}
+  body.grid16 .hero,body.grid16 .main{display:none !important;}
+  body.grid16 .grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);
+    grid-gap:1.5vh 1vw;}
+  .gc{background:var(--tile);border-radius:1.6vh;padding:1vh 1vw 0;display:flex;flex-direction:column;min-width:0;min-height:0;}
+  .gc.post{background:#0B152B;}
+  .gc.empty{background:transparent;}
+  .gnote{grid-column:span 4;display:flex;align-items:center;justify-content:center;background:rgba(14,26,51,0.35);
+    border-radius:1.6vh;font-size:3vh;color:var(--faint);}
+  .gc.byu{box-shadow:inset 0 0 0 .35vh var(--royal);}
+  .gc .gl{flex:1;min-height:0;display:flex;align-items:center;}
+  .gc .lw{position:relative;flex:none;width:9vh;height:9vh;}
+  .gc .lw img{width:9vh;height:9vh;object-fit:contain;display:block;}
+  .gc .lw .ab{display:flex;align-items:center;justify-content:center;width:9vh;height:9vh;border-radius:50%;
+    background:var(--tile2);font-weight:700;font-size:2.6vh;letter-spacing:.02em;}
+  .gc .rkb{position:absolute;left:-.9vh;top:-.6vh;font-family:var(--num);font-weight:700;font-size:2.7vh;line-height:3.2vh;
+    padding:0 .9vh;border-radius:1.8vh;background:#05080F;color:#FFFFFF;border:.28vh solid rgba(255,255,255,0.85);}
+  .gc .bl{position:absolute;right:-.5vh;bottom:.2vh;width:2.7vh;height:1.8vh;border-radius:50%;background:#A8622F;border:.28vh solid #FFFFFF;}
+  .gc .s{flex:1;text-align:center;font-family:var(--num);font-weight:600;font-size:7.6vh;line-height:1;}
+  .gc .s.lo{color:var(--dim);}
+  .gc .s.when{font-size:4.6vh;color:var(--ink);}
+  .gc .vs{flex:none;width:1.4vw;text-align:center;font-size:3vh;color:var(--faint);}
+  .gc .gf{flex:none;display:flex;align-items:center;height:5.6vh;border-top:1px solid var(--line);font-size:3.1vh;}
+  .gc .ck{font-family:var(--num);font-weight:600;font-size:3.9vh;color:var(--hot);white-space:nowrap;}
+  .gc.post .ck{color:var(--dim);}
+  .gc .st{flex:1;min-width:0;margin-left:.8vw;color:rgba(255,255,255,0.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gc .st.rz{color:#FF8A80;}
+  .gc .tv{flex:none;max-width:6.5vw;margin-left:.6vw;font-size:2.8vh;font-weight:600;color:var(--dim);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;}
 
   /* ---- everything else, one line each, filled column by column ---- */
   .main{flex:1;min-height:0;display:flex;}
@@ -203,6 +238,7 @@
     </span>
   </div>
   <div class="hero" id="hero" style="display:none"></div>
+  <div class="grid" id="grid"></div>
   <div class="main">
     <div class="box" id="box" style="display:none"></div>
     <div class="list" id="list" style="display:none"></div>
@@ -228,10 +264,14 @@ const URL = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
             'college-football/scoreboard?groups=80&limit=300';
 
 /* ------------------------- which games count -------------------------
-   Every game with a Power Four team (Notre Dame counts), whoever they
-   play. Anyone else only when ranked, and then only against an FBS
-   opponent. The Pac-12 is not Power Four. ESPN tags every FBS team with
-   its conference; FCS teams get some other number or none at all.        */
+   Two tiers. The games that matter: any with a ranked team, any with a
+   Big 12 team (BYU's league), and Michigan's and Notre Dame's. Results and
+   what's coming up show only those. Live, the rest of Power Four (Notre
+   Dame counts) and ranked teams against FBS opponents also count, but only
+   fill the screen after every game that matters.
+   ESPN tags every FBS team with its conference (the Big 12 is 4); the
+   abbreviation lists are the fallback when it doesn't. The Pac-12 is not
+   Power Four; FCS teams get some other conference number or none.        */
 const P4_CONF  = new Set(['1', '4', '5', '8']);          // ACC, Big 12, Big Ten, SEC
 const FBS_CONF = new Set(['1', '4', '5', '8', '9', '12', '15', '17', '18', '37', '151']);
 // Fallback for a team ESPN sends without a conference (2026 membership).
@@ -243,11 +283,17 @@ const P4_ABBR = new Set([
   'ND']);
 const BIG12 = new Set(['ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU',
                        'KSU','OKST','TCU','TTU','UCF','UTAH','WVU']);
+const FAVORITES = new Set(['MICH', 'ND']);
 
 const isP4  = t => t.conf ? (P4_CONF.has(t.conf) || t.abbr === 'ND') : P4_ABBR.has(t.abbr);
 const isFBS = t => t.conf ? FBS_CONF.has(t.conf) : P4_ABBR.has(t.abbr);
+const isB12 = t => t.conf ? t.conf === '4' : BIG12.has(t.abbr);
+// Fetched and kept: everything that could be worth showing live.
 const counts = g => isP4(g.home) || isP4(g.away) ||
                     (isFBS(g.home) && isFBS(g.away) && (!!g.home.rank || !!g.away.rank));
+// The games that matter.
+const matters = g => !!g.home.rank || !!g.away.rank || isB12(g.home) || isB12(g.away) ||
+                     FAVORITES.has(g.home.abbr) || FAVORITES.has(g.away.abbr);
 
 const HERO = 4;
 const BOOT = Date.now();
@@ -530,6 +576,46 @@ function logoTag(t){
 }
 
 // Dark logo missing: try the plain one. That missing too: leave the space empty.
+// The grid's logo: ESPN's dark-background logo, then the plain one, then the
+// team's letters in a circle, so a card never loses who is playing.
+function gridLogo(t){
+  if(!t.logo) return `<span class="ab">${esc(t.abbr)}</span>`;
+  const dark = t.logo.replace('/500/', '/500-dark/');
+  return `<img alt="" src="${esc(dark)}" data-plain="${esc(t.logo)}" data-abbr="${esc(t.abbr)}" onerror="gridLogoFailed(this)">`;
+}
+function gridLogoFailed(img){
+  const plain = img.getAttribute('data-plain');
+  if(plain && img.src !== plain){ img.src = plain; return; }
+  img.onerror = null;
+  img.outerHTML = `<span class="ab">${esc(img.getAttribute('data-abbr'))}</span>`;
+}
+
+// One game in the grid: logo, score, score, logo, and a line for the clock,
+// the down (or how soon it kicks off) and the network.
+function gridCard(g){
+  const lead = num(g.home.score) - num(g.away.score), decided = g.state !== 'pre';
+  const side = t => `<div class="lw">${gridLogo(t)}` + (t.rank ? `<span class="rkb">${t.rank}</span>` : '') +
+                    (hasBall(g, t) ? '<span class="bl"></span>' : '') + '</div>';
+  const pts = (t, lo) => `<span class="s${lo ? ' lo' : ''}">${esc(scoreText(t.score))}</span>`;
+  let mid;
+  if(decided && !g.off) mid = pts(g.away, lead > 0) + '<span class="vs">&ndash;</span>' + pts(g.home, lead < 0);
+  else mid = `<span class="s when">${esc(g.off ? (g.detail || 'Off') : g.kickoff && g.timeKnown ? timeText(g.kickoff) : 'TBD')}</span>`;
+  const live = g.state === 'in';
+  const sit = live && g.down && (hasBall(g, g.home) || hasBall(g, g.away)) ? g.down : g.state === 'pre' ? soonText(g) : '';
+  const ck = g.state === 'pre' ? (g.kickoff ? dayText(g.kickoff) : '') : clockText(g);
+  return `<div class="gc${g.state === 'post' ? ' post' : ''}${g.byu ? ' byu' : ''}">` +
+    `<div class="gl">${side(g.away)}${mid}${side(g.home)}</div>` +
+    `<div class="gf"><span class="ck">${esc(ck)}</span><span class="st${live && g.redZone ? ' rz' : ''}">${esc(sit)}</span>` +
+    `<span class="tv">${esc(g.tv1)}</span></div></div>`;
+}
+// "Today", "Sat" or "Oct 25" for an upcoming game's footer.
+function dayText(d){
+  const now = new Date(), days = Math.round((new Date(d.toDateString()) - new Date(now.toDateString())) / 864e5);
+  if(days === 0) return 'Today';
+  if(days > 0 && days < 7) return d.toLocaleDateString([], { weekday:'short' });
+  return d.toLocaleDateString([], { month:'short', day:'numeric' });
+}
+
 function logoFailed(img){
   const plain = img.getAttribute('data-plain');
   if(plain && img.src !== plain){ img.src = plain; return; }
@@ -628,10 +714,12 @@ function render(){
     showMessage('<b>No games this week</b>No Power Four or ranked games on ESPN\'s scoreboard right now.');
     return;
   }
-  const live = games.filter(g => g.state === 'in').sort(byWatch);
-  const soon = games.filter(g => g.state === 'pre')
+  // Live: the games that matter first, best first; the others after them.
+  const live = games.filter(g => g.state === 'in')
+                    .sort((x, y) => (matters(y) - matters(x)) || byWatch(x, y));
+  const soon = games.filter(g => g.state === 'pre' && matters(g))
                     .sort((x, y) => (x.kickoff || 0) - (y.kickoff || 0));
-  const done = games.filter(g => g.state === 'post')
+  const done = games.filter(g => g.state === 'post' && matters(g))
                     .sort((x, y) => (x.off - y.off) || (y.byu - x.byu) || (stakes(y) - stakes(x)) ||
                                     (y.b12 - x.b12) || ((y.kickoff || 0) - (x.kickoff || 0)));
 
@@ -650,6 +738,26 @@ function render(){
   const left = arr => arr.filter(g => !used[g.id]);
 
   $('msg').style.display = 'none';
+  // The grid, by row: the top two are live games only (the eight most worth
+  // watching; an empty spot stays empty), then results, then what kicks off
+  // next. Those two rows show four at a time and take turns every 8 s.
+  if(GRID && !byuMode){
+    const next = soon.filter(g => g.byu).concat(soon.filter(g => !g.byu));
+    const empty = '<div class="gc empty"></div>';
+    const fill = (list, n) => { const out = list.map(gridCard); while(out.length < n) out.push(empty); return out.join(''); };
+    const page = (list, turn) => {
+      const pages = Math.max(1, Math.ceil(list.length / 4)), at = turn % pages;
+      return list.slice(at * 4, at * 4 + 4);
+    };
+    const note = (text, rows) => `<div class="gnote" style="grid-row:span ${rows}">${esc(text)}</div>`;
+    const shownDone = page(done, gridTurn), shownNext = page(next, gridTurn);
+    put('grid',
+      (live.length ? fill(live.slice(0, 8), 8) : note('Nothing live right now', 2)) +
+      (done.length ? fill(shownDone, 4) : note('No finals yet', 1)) +
+      (next.length ? fill(shownNext, 4) : note('Nothing else on the schedule', 1)));
+    finishHeader(live, hv);
+    return;
+  }
   $('hero').style.display = byuMode ? 'none' : '';
   $('box').style.display = byuMode ? '' : 'none';
   $('list').style.display = '';
@@ -704,11 +812,15 @@ function finishHeader(live, hv){
 function onBoard(){ return games; }
 
 let byuMode = false, soloMode = false;
+let gridTurn = 0;               // which four results / upcoming games are showing
+// Sixteen cards unless ?layout=list asks for the old four cards and a list.
+const GRID = !/[?&]layout=list\b/.test(location.search);
+if(GRID) document.body.className = 'grid16';
 function setMode(on, solo){
   solo = !!(on && solo);
   if(on === byuMode && solo === soloMode) return;
   byuMode = on; soloMode = solo;
-  document.body.className = (on ? 'byumode' : '') + (solo ? ' solo' : '');
+  document.body.className = (on ? 'byumode' : '') + (solo ? ' solo' : '') + (GRID && !on ? ' grid16' : '');
   fitRows = 0;                   // the list's height changes with the layout
   lastHtml.list = lastHtml.hero = lastHtml.box = '';
 }
@@ -1120,6 +1232,8 @@ function schedule(){
 // The clock, the "in 25m" countdowns and the staleness note move on their
 // own; redraw them between fetches. No network involved.
 setInterval(() => { if(games.length) render(); else stamp(); }, 30000);
+// The results row and the upcoming row each show four at a time; turn the page.
+setInterval(() => { gridTurn++; if(GRID && !byuMode && games.length) render(); }, 8000);
 window.addEventListener('resize', () => { fitRows = 0; if(games.length) render(); });
 
 // A tap asks for full screen, to get rid of the browser's URL bar. The
