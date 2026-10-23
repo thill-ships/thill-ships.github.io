@@ -65,6 +65,12 @@
   .ld .l2{font-size:24px;line-height:28px;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ld.o .n,.ld.o .big{color:rgba(255,255,255,0.75);}
   .ld.new .n{color:var(--hi);}
+  .ld.one{display:flex;align-items:center;padding-top:0;}
+  .ld.one .n{font-size:28px;}
+  .ld.one .n img{width:28px;height:28px;}
+  .ld.one .big{font-size:42px;}
+  .ld.one .tds{width:76px;text-align:right;white-space:nowrap;}  /* a fixed slot, so the yards line up with or without TDs */
+  .ld.one .u{font-size:20px;}
 
   /* ---- the score ---- */
   #score{left:436px;top:6px;width:408px;}
@@ -86,12 +92,12 @@
   .clk{font-family:var(--num);font-weight:600;font-size:36px;color:var(--hi);}
   .net{font-size:18px;font-weight:600;letter-spacing:1px;color:rgba(255,255,255,0.8);margin-left:14px;vertical-align:4px;}
   .dd{text-align:center;font-size:30px;font-weight:600;margin-top:2px;}
-  .lines{margin:10px auto 0;width:300px;background:rgba(6,13,30,0.8);border-radius:12px;padding:6px 14px;}
+  .lines{margin:12px auto 0;width:396px;background:rgba(6,13,30,0.8);border-radius:14px;padding:6px 18px 8px;}
   .lines table{border-collapse:collapse;width:100%;}
-  .lines td{padding:1px 0;text-align:center;font-family:var(--num);font-weight:500;font-size:25px;color:rgba(255,255,255,0.88);}
-  .lines td.h{font-family:var(--txt);font-size:15px;color:var(--faint);}
-  .lines td.t{width:40px;}
-  .lines td.t img{width:28px;height:28px;}
+  .lines td{padding:0;text-align:center;font-family:var(--num);font-weight:500;font-size:36px;line-height:42px;color:rgba(255,255,255,0.88);}
+  .lines td.h{font-family:var(--txt);font-size:18px;line-height:24px;color:var(--dim);}
+  .lines td.t{width:52px;}
+  .lines td.t img{width:36px;height:36px;vertical-align:middle;}
   .lines td.tot{font-weight:700;color:#FFFFFF;}
 
   /* ---- the drive tracker: a flat strip of field under the score ---- */
@@ -570,12 +576,13 @@ function teamRows(){
 function best(list, key, n, tie){
   return list.slice().sort(function(x, y){ return (y[key] - x[key]) || (tie ? y[tie] - x[tie] : 0); }).slice(0, n);
 }
+var SIMPLE_LEADERS = /[?&]leaders=simple\b/.test(location.search);
 function leaderRows(){
   var B = state.players.BYU, A = state.players.ISU, lines = [];
   // big: the number that matters, u: its unit, sub: the rest in plain words
   // big: the number that matters, u: its unit, sub: the rest. cat only tells
   // a passer from a runner when spotting a new name; it isn't shown.
-  var add = function(team, cat, p, big, u, sub){ lines.push({ team: team, cat: cat, name: p.n, big: big, u: u, sub: sub }); };
+  var add = function(team, cat, p, big, u, sub){ lines.push({ team: team, cat: cat, name: p.n, big: big, u: u, sub: sub, td: p.td || 0 }); };
   var tds = function(n){ return n ? ', ' + (n > 1 ? n + ' TD' : 'TD') : ''; };
   var p = best(B.pass, 'y', 1)[0];
   add('BYU', 'pass', p, p.y, 'yds', p.c + ' of ' + p.a + tds(p.td) + (p.int ? ', ' + p.int + ' INT' : ''));
@@ -601,7 +608,13 @@ function leaderRows(){
   var first = statPage ? 6 : 0;
   $('leaders').innerHTML = lines.slice(first, first + 6).map(function(l, i){
     var isNew = before && before.indexOf(now[first + i]) < 0;
-    return '<div class="ld' + (l.team === 'ISU' ? ' o' : '') + (isNew ? ' new' : '') + '"><div class="l1"><span class="n">' +
+    var cls = 'ld' + (l.team === 'ISU' ? ' o' : '') + (isNew ? ' new' : '');
+    // ?leaders=simple: one line each, the name and then yards and touchdowns, big
+    if(SIMPLE_LEADERS)
+      return '<div class="' + cls + ' one"><span class="n">' + (l.team === 'ISU' ? logo(TEAMS.ISU.id) : '') + esc(l.name) + '</span>' +
+             '<span class="big">' + esc(l.big) + '</span><span class="u">' + l.u + '</span>' +
+             '<span class="tds">' + (l.td ? '<span class="big">' + l.td + '</span><span class="u">TD</span>' : '') + '</span></div>';
+    return '<div class="' + cls + '"><div class="l1"><span class="n">' +
            (l.team === 'ISU' ? logo(TEAMS.ISU.id) : '') + esc(l.name) + '</span><span class="big">' + esc(l.big) + '</span><span class="u">' + l.u +
            '</span></div><div class="l2">' + esc(l.sub) + '</div></div>';
   }).join('');
@@ -706,10 +719,10 @@ function watchability(g){
   return s;
 }
 function isClose(g){ return g.state === 'in' && g.period >= 3 && Math.abs(g.home.score - g.away.score) <= 8; }
-// The other games' cards: logos by default; ?cards=names for logo + name rows,
-// ?cards=five for five narrower logo cards, ?cards=tall for four shorter
-// ones with the room handed to the stats above.
-var CARDS = (/[?&]cards=(\w+)/.exec(location.search) || [])[1] || 'logos';
+// The other games' cards: four short logo cards, with the room they leave
+// handed to the stats above (tall, the default); ?cards=logos for the taller
+// logo cards, ?cards=five for five narrower ones, ?cards=names for logo + name rows.
+var CARDS = (/[?&]cards=(\w+)/.exec(location.search) || [])[1] || 'tall';
 var LOGOS_ONLY = CARDS !== 'names', FIVE = CARDS === 'five';
 function drawGames(){
   var live = GAMES.filter(function(g){ return g.state === 'in'; }).sort(function(x, y){ return watchability(y) - watchability(x); });
