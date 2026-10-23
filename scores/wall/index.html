@@ -231,7 +231,7 @@
     <span class="wk" id="wk"></span>
     <span class="live off" id="live"><span class="dot"></span><span id="liveN"></span></span>
     <span class="rt">
-      <button class="watch" id="watch" style="display:none" onclick="toggleWatching()"></button>
+      <button class="watch" id="watch" style="display:none" onclick="goLive('')"></button>
       <span class="stamp" id="stamp"></span>
       <span class="date" id="date"></span>
       <span class="clock" id="clock"></span>
@@ -312,19 +312,9 @@ const WATCH_KEY = 'gamedayWall.watchingByu';
 const WATCH_FOR = 6 * 3600000;
 let watchingSince = 0;
 try{ watchingSince = Number(localStorage.getItem(WATCH_KEY)) || 0; }catch(e){}
-const watching = () => !!watchingSince && Date.now() - watchingSince < WATCH_FOR;
+// The in-page BYU box score is retired (field/live.html took over); it only shows for ?boxdemo.
+const watching = () => !!watchingSince && Date.now() - watchingSince < WATCH_FOR && /boxdemo/.test(location.search);
 
-function toggleWatching(){
-  watchingSince = watching() ? 0 : Date.now();
-  try{
-    if(watchingSince) localStorage.setItem(WATCH_KEY, String(watchingSince));
-    else localStorage.removeItem(WATCH_KEY);
-  }catch(e){}
-  render();
-  // Turned on mid-game: fetch the box score now rather than at the next tick.
-  const f = byuFeature(games);
-  if(f && !DEMO_BOX && !(box && box.id === f.id)) fetchBox(f).then(render);
-}
 
 // Around a BYU game: from ten minutes before kickoff until an hour after
 // the final. ESPN doesn't say when a game ended, so it is the first time
@@ -345,16 +335,37 @@ function byuNear(g){
 // BYU view switches itself off.
 function watchButton(){
   const g = games.filter(x => x.byu)[0];
-  const near = byuNear(g);
-  if(watching() && lastOk && !near){
-    watchingSince = 0;
-    try{ localStorage.removeItem(WATCH_KEY); }catch(e){}
-  }
-  const on = watching();
+  const on = byuLive(g);
   const b = $('watch');
-  b.style.display = near ? '' : 'none';
-  b.className = 'watch' + (on ? ' on' : '');
-  b.textContent = on ? 'Back to all games' : 'Watching BYU?';
+  b.style.display = on ? '' : 'none';
+  b.className = 'watch';
+  b.textContent = 'BYU game';
+  if(on && !stayingHere(g) && !/[?&]stay\b/.test(QS)) goLive('');
+}
+
+/* ------------------------- BYU's game takes over -------------------------
+   From kickoff until 30 minutes after the final, the screen is BYU's game:
+   field/live.html, the live box score, drive tracker and replays. Its "All
+   games" button comes back here and sets wall.stayAll, so the board stays
+   put for the rest of that game; the "BYU game" button here goes back.
+   The time the final was first seen is shared with that page.            */
+const LIVE_PAGE = 'field/live.html';
+function byuLive(g){
+  if(!g || g.off) return false;
+  if(g.state === 'in') return true;
+  if(g.state !== 'post') return false;
+  let seen = 0;
+  try{ seen = Number(localStorage.getItem('wall.finalSeen.' + g.id)) || 0; }catch(e){ seen = 0; }
+  const ended = seen || finalSeen[g.id] || (g.kickoff ? g.kickoff.getTime() + 3.5 * 3600000 : 0);
+  return Date.now() - ended < 30 * 60000;
+}
+function stayingHere(g){
+  try{ return localStorage.getItem('wall.stayAll') === g.id; }catch(e){ return false; }
+}
+// Any game's live screen; '' for BYU's.
+function goLive(id){
+  try{ localStorage.removeItem('wall.stayAll'); }catch(e){ /* private mode */ }
+  location.href = LIVE_PAGE + (id ? '?event=' + encodeURIComponent(id) : '');
 }
 
 const $ = id => document.getElementById(id);
@@ -603,7 +614,8 @@ function gridCard(g){
   const live = g.state === 'in';
   const sit = live && g.down && (hasBall(g, g.home) || hasBall(g, g.away)) ? g.down : g.state === 'pre' ? soonText(g) : '';
   const ck = g.state === 'pre' ? (g.kickoff ? dayText(g.kickoff) : '') : clockText(g);
-  return `<div class="gc${g.state === 'post' ? ' post' : ''}${g.byu ? ' byu' : ''}">` +
+  const tap = g.state === 'pre' ? '' : ` onclick="goLive('${g.byu ? '' : esc(g.id)}')"`;
+  return `<div class="gc${g.state === 'post' ? ' post' : ''}${g.byu ? ' byu' : ''}"${tap}>` +
     `<div class="gl">${side(g.away)}${mid}${side(g.home)}</div>` +
     `<div class="gf"><span class="ck">${esc(ck)}</span><span class="st${live && g.redZone ? ' rz' : ''}">${esc(sit)}</span>` +
     `<span class="tv">${esc(g.tv1)}</span></div></div>`;
