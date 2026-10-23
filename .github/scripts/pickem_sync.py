@@ -76,6 +76,39 @@ def existing_spreads(season):
         return set()
 
 
+def known_ids(ids):
+    """Which of these games the table already has.
+
+    The live path writes a partial row -- scores and status, nothing else --
+    and a PostgREST upsert is an INSERT ... ON CONFLICT DO UPDATE. For a game
+    already in the table that is an update and all is well; for one that is
+    not, Postgres tries to INSERT those few columns and the NOT NULL on
+    `season` rejects the whole batch. So the two cases have to be told apart
+    before anything is sent.
+
+    Returns None if the question could not be answered. Guessing is not safe in
+    either direction -- assume known and a new game crashes the batch, assume
+    new and an existing game gets its frozen line overwritten -- so the caller
+    sits this cycle out instead. It runs again in a few minutes.
+    """
+    if not ids:
+        return set()
+    out = set()
+    ids = list(ids)
+    for i in range(0, len(ids), 100):          # keep the URL a sane length
+        chunk = ",".join(str(x) for x in ids[i:i + 100])
+        url = (f"{SUPABASE_URL}/rest/v1/pickem_games?select=id&id=in.({chunk})")
+        req = urllib.request.Request(url, headers={
+            "apikey": SERVICE_KEY, "Authorization": f"Bearer {SERVICE_KEY}"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                out |= {str(r["id"]) for r in json.loads(resp.read().decode("utf-8"))}
+        except Exception as exc:                               # noqa: BLE001
+            print(f"!! could not check which games already exist ({exc})")
+            return None
+    return out
+
+
 def football_season(now=None):
     """Aug-Dec belongs to that year; Jan-Jul is the tail of the prior season."""
     now = now or datetime.now(timezone.utc)
@@ -272,33 +305,53 @@ def sync_scores_only(season):
     data = get_json(url)
     events = data.get("events") or []
 
-    rows, live_now, finals = [], 0, 0
-    for event in events:
-        full = parse_event(event, 0, season)
-        if not full:
-            continue
-        rows.append({
-            "id": full["id"],
-            "status": full["status"],
-            "home_score": full["home_score"],
-            "away_score": full["away_score"],
-            "winner_id": full["winner_id"],
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        })
+    parsed = [p for p in (parse_event(e, 0, season) for e in events) if p]
+    if not parsed:
+        print("No games on the board right now. Nothing to update.")
+        return
+
+    # The scoreboard with no week parameter returns whatever is on today, which
+    # is not always a subset of what the weekly sync has loaded -- a rescheduled
+    # game, a new event id, a week the full sync has not reached. Those have to
+    # be inserted whole rather than score-patched.
+    here = known_ids([p["id"] for p in parsed])
+    if here is None:
+        print("Skipping this cycle rather than guessing. Nothing was written.")
+        return
+    updates, inserts, skipped, live_now, finals = [], [], [], 0, 0
+    for full in parsed:
+        if full["id"] in here:
+            updates.append({
+                "id": full["id"],
+                "status": full["status"],
+                "home_score": full["home_score"],
+                "away_score": full["away_score"],
+                "winner_id": full["winner_id"],
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            })
+        elif full["week"]:
+            # New to us. Write it in full, exactly as the weekly sync would --
+            # there is no stored line to disturb, because there is no row yet.
+            inserts.append(full)
+        else:
+            # No week number to file it under; leave it for the full sync
+            # rather than inventing week 0.
+            skipped.append(full["id"])
         if full["status"] == "in":
             live_now += 1
         elif full["status"] == "final":
             finals += 1
 
-    if not rows:
-        print("No games on the board right now. Nothing to update.")
-        return
+    for batch in (updates, inserts):
+        for i in range(0, len(batch), 100):
+            upsert(batch[i:i + 100])
 
-    for i in range(0, len(rows), 100):
-        upsert(rows[i:i + 100])
-
-    print(f"Score sync: {len(rows)} games touched "
+    print(f"Score sync: {len(updates)} games updated, {len(inserts)} added "
           f"({live_now} in progress, {finals} final).")
+    for row in inserts:
+        print(f"  new to us: {row['away_abbr']} at {row['home_abbr']}, week {row['week']}")
+    for gid in skipped:
+        print(f"  !! event {gid} has no week number; left for the weekly sync")
     for event in events:
         comp = (event.get("competitions") or [{}])[0]
         st = ((comp.get("status") or {}).get("type") or {})
