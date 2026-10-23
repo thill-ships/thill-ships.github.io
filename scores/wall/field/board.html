@@ -78,8 +78,9 @@
   .tm{width:82px;display:flex;flex-direction:column;align-items:center;}
   .lgw{position:relative;width:76px;height:76px;}
   .lgw img{width:76px;height:76px;}
-  .rkb{position:absolute;left:-8px;top:-4px;font-family:var(--num);font-weight:600;font-size:19px;line-height:22px;padding:0 6px;
-    border-radius:11px;background:var(--royal);color:#FFFFFF;box-shadow:0 0 0 2px #0A1630;}
+  /* rankings: white on near-black with a white ring, readable over any logo */
+  .rkb{position:absolute;left:-10px;top:-6px;font-family:var(--num);font-weight:700;font-size:21px;line-height:24px;padding:0 7px;
+    border-radius:13px;background:#05080F;color:#FFFFFF;border:2px solid rgba(255,255,255,0.85);}
   .poss{position:absolute;right:-6px;bottom:0;width:20px;height:13px;border-radius:50%;background:#A8622F;border:2px solid #FFFFFF;display:none;}
   .poss.on{display:block;}
   .tos{height:8px;margin-top:8px;white-space:nowrap;}
@@ -124,7 +125,6 @@
   /* ---- the four best other games ---- */
   .gc{position:absolute;top:534px;width:305px;height:152px;padding:8px 14px 0;border-radius:14px;background:rgba(8,16,36,0.88);
     border:1px solid rgba(255,255,255,0.1);}
-  .gc.close{border:2px solid var(--royal);box-shadow:0 0 18px rgba(0,98,184,0.45);}
   .gc.post{background:rgba(8,16,36,0.55);}
   .gt{display:flex;align-items:center;height:46px;}
   .gt img{width:38px;height:38px;margin-right:10px;}
@@ -143,7 +143,7 @@
   .gl{display:flex;align-items:center;height:88px;}
   .gl .lw{position:relative;width:70px;height:70px;}
   .gl .lw img{width:70px;height:70px;}
-  .gl .rkb{font-size:17px;line-height:20px;}
+  .gl .rkb{font-size:20px;line-height:23px;}
   .gl .s{width:76px;text-align:center;font-family:var(--num);font-weight:600;font-size:58px;line-height:1;}
   .gl .s.lo{color:var(--dim);}
   .gl .vs{flex:1;text-align:center;font-size:22px;color:var(--faint);}
@@ -194,7 +194,7 @@
   #ball{left:0;top:0;width:40px;height:25px;margin:-12px 0 0 -20px;border-radius:50%;
     background:radial-gradient(ellipse at 40% 35%,#A8622F 0%,#7A3F18 70%);border:3px solid #FFFFFF;
     box-shadow:0 4px 10px rgba(0,0,0,0.7);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);will-change:transform;}
-  .chip{font-family:var(--num);font-weight:600;font-size:26px;line-height:28px;padding:0 8px;
+  .chip{font-family:var(--num);font-weight:600;font-size:34px;line-height:36px;padding:0 10px;
     border-radius:6px;background:rgba(0,0,0,0.62);white-space:nowrap;transform:translate(-50%,-100%);}
   .chip.last{background:#FFFFFF;color:#0B1220;}
   .chip.neg{background:var(--bad);color:#FFFFFF;}
@@ -427,8 +427,10 @@ function cross(p, color){
          '<path d="' + d + '" stroke="' + color + '" stroke-width="4" stroke-linecap="round"/>';
 }
 function dot(p, color){ return '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="6" fill="' + color + '" stroke="#000" stroke-opacity="0.4" stroke-width="2"/>'; }
+// Neighbouring labels take turns sitting higher, so short gains don't print on top of each other.
+var chipLift = 0;
 function chip(at, text, cls){
-  return '<div class="abs chip ' + (cls || '') + '" style="left:' + at.x.toFixed(0) + 'px;top:' + (at.y - 9).toFixed(0) + 'px">' + esc(text) + '</div>';
+  return '<div class="abs chip ' + (cls || '') + '" style="left:' + at.x.toFixed(0) + 'px;top:' + (at.y - 9 - chipLift).toFixed(0) + 'px">' + esc(text) + '</div>';
 }
 function mid(a, b){ return { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) }; }
 
@@ -502,6 +504,7 @@ function drawField(){
 
   var svg = '', chips = '';
   v.plays.forEach(function(p, i){
+    chipLift = (i % 2) * 38;
     var m = drawPlay(p, v.team, i === v.plays.length - 1);
     svg += m.svg; chips += m.chip;
   });
@@ -776,7 +779,7 @@ function drawDrives(){
   $('dvA').textContent = g.score.ISU; $('dvH').textContent = g.score.BYU; $('dvC').textContent = 'Q4 ' + g.clock;
   var list = state.drives.slice();
   if(!state.over && state.cur.plays.length) list.push({ team: state.cur.team, start: state.cur.start, end: g.spot, result: 'NOW', q: 4, now: true });
-  var sep = 22, n = list.length, h = Math.min(42, (537 - sep) / Math.max(n, 1)), bh = Math.max(16, Math.round(h - 8)), y = 78, html = '';
+  var sep = 22, n = list.length, h = Math.min(42, (537 - sep) / Math.max(n, 1)), bh = Math.max(16, Math.round(h - 4)), y = 78, html = '';
   list.forEach(function(d, i){
     if(i && list[i - 1].q <= 2 && d.q >= 3){
       html += '<div class="half" style="top:' + (y + sep / 2 - 6).toFixed(0) + 'px"></div><div class="halfT" style="top:' + (y + sep / 2 - 2).toFixed(0) + 'px">HALFTIME</div>';
@@ -788,7 +791,7 @@ function drawDrives(){
     var inside = w >= 18 + label.length * 9;
     var outPos = d.team === 'BYU' ? 'left:' + (w + 8) + 'px' : 'right:' + (w + 8) + 'px';
     html += '<div class="bar ' + d.team + (fade ? ' fade' : '') + (d.now ? ' now' : '') + '" data-i="' + (d.now ? 'now' : i) + '" style="left:' + x0 +
-            'px;top:' + y.toFixed(0) + 'px;width:' + w + 'px;height:' + bh + 'px;font-size:' + Math.min(18, bh - 6) + 'px">' +
+            'px;top:' + y.toFixed(0) + 'px;width:' + w + 'px;height:' + bh + 'px;font-size:' + Math.min(19, bh - 2) + 'px">' +
             (inside ? esc(label) : '<span class="out" style="' + outPos + '">' + esc(label) + '</span>') + '</div>';
     y += h;
   });
@@ -818,7 +821,7 @@ function describe(d){
 
 /* ===========================================================================
    Replays: the big field comes up and the drive's plays run again, one
-   every 1.5 s, then it goes back to the board.
+   every 2.6 s, then it goes back to the board.
    After a touchdown the live version waits ~90 s (the extra point and the
    kickoff break) before replaying the scoring drive; the demo waits 7 s.
    =========================================================================== */
@@ -833,13 +836,13 @@ function startReplay(drive, why, done){
     if(!r) return;
     if(r.i < r.drive.plays.length){
       r.i += 1; render();
-      state.replayTimer = setTimeout(tick, r.i === r.drive.plays.length ? 3500 : 1500);
+      state.replayTimer = setTimeout(tick, r.i === r.drive.plays.length ? 5000 : 2600);
       return;
     }
     state.replay = null; $('fieldLayer').className = 'abs'; render();
     if(r.done) r.done();
   };
-  state.replayTimer = setTimeout(tick, 1400);
+  state.replayTimer = setTimeout(tick, 2200);
 }
 
 /* ===========================================================================
