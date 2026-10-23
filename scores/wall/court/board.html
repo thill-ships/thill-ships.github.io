@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BYU Gameday · Basketball demo</title>
+<meta name="theme-color" content="#03060F" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ---------------------------------------------------------------------------
+     A demo of the BYU basketball board, built to match the football one
+     (field/board.html): team stats on the left, the score in the middle,
+     BYU's players on the right, the last play under them and four other
+     games along the bottom. Football's drive strip becomes a game-flow strip
+     (who led, minute by minute), and "All drives" becomes a shot chart.
+
+     It replays the real BYU vs #6 Iowa State game (Feb 21, 2026) from ESPN's
+     play-by-play: everything on screen is worked out from the plays so far.
+     ?from=start plays it from the tip, ?at=final jumps to the end.
+
+     Laid out at 1280x695 and scaled to fit, like the football board.
+     No ?. or ??, no flex gap: Chromium 74.
+     --------------------------------------------------------------------------- */
+  :root{
+    --ink:#FFFFFF; --dim:rgba(255,255,255,0.64); --faint:rgba(255,255,255,0.42);
+    --royal:#0062B8; --hi:#5FA8FF; --panel:rgba(6,13,30,0.84); --rule:rgba(255,255,255,0.09);
+    --opp:#F1BE48; --bad:#FF5A4E;
+    --txt:'Barlow',Roboto,Helvetica,Arial,sans-serif;
+    --num:'Barlow Condensed','Roboto Condensed','Arial Narrow',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overflow:hidden;background:#03060F;}
+  body{font-family:var(--txt);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;cursor:default;user-select:none;-webkit-user-select:none;}
+  #stage{position:absolute;left:0;top:0;width:1280px;height:695px;transform-origin:0 0;overflow:hidden;visibility:hidden;
+    background:radial-gradient(ellipse 420px 260px at 540px 0,rgba(255,240,205,0.14),rgba(255,240,205,0) 70%),
+               radial-gradient(ellipse 420px 260px at 740px 0,rgba(255,240,205,0.14),rgba(255,240,205,0) 70%),
+               linear-gradient(180deg,#03060F 0%,#08122A 50%,#0A1630 100%);}
+  #stage.ready{visibility:visible;}
+  .abs{position:absolute;}
+  .np{pointer-events:none;}
+  img.lg{display:block;object-fit:contain;}
+
+  /* ---- stats either side (the football board's tall-card sizes) ---- */
+  .panel{top:10px;width:420px;height:490px;padding:10px 20px;background:var(--panel);
+    border:1px solid rgba(255,255,255,0.1);border-radius:18px;}
+  .ph{display:flex;align-items:center;height:40px;font-size:18px;color:var(--dim);}
+  .ph .c{width:110px;}
+  .ph .c img{width:34px;height:34px;margin-left:auto;}
+  .dots i{display:inline-block;width:8px;height:8px;border-radius:4px;margin-left:7px;background:rgba(255,255,255,0.2);vertical-align:2px;}
+  .dots i.on{background:var(--hi);}
+  .row{display:flex;align-items:center;height:71px;border-top:1px solid var(--rule);}
+  .row .k{flex:1;min-width:0;font-size:27px;color:rgba(255,255,255,0.82);white-space:nowrap;}
+  .row .c{width:110px;text-align:right;white-space:nowrap;font-family:var(--num);font-weight:600;font-size:44px;}
+  .row .c.o{color:var(--dim);}
+  .row .c.f{color:var(--hi);}
+  .ld{height:71px;border-top:1px solid var(--rule);padding-top:3px;}
+  .ld .l1{display:flex;align-items:baseline;height:37px;}
+  .ld .n{flex:1;min-width:0;font-size:27px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ld .n img{display:inline-block;width:24px;height:24px;margin-right:8px;vertical-align:-3px;}
+  .ld .big{font-family:var(--num);font-weight:600;font-size:36px;line-height:1;}
+  .ld .u{font-size:19px;color:var(--dim);margin-left:5px;}
+  .ld .l2{font-size:26px;line-height:30px;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ld.o .n,.ld.o .big{color:rgba(255,255,255,0.75);}
+  .ld.new .n{color:var(--hi);}
+
+  /* ---- the score ---- */
+  #score{left:436px;top:6px;width:408px;}
+  .sc{display:flex;align-items:center;}
+  .tm{width:82px;display:flex;flex-direction:column;align-items:center;}
+  .lgw{position:relative;width:76px;height:76px;}
+  .lgw img{width:76px;height:76px;}
+  .rkb{position:absolute;left:-10px;top:-6px;font-family:var(--num);font-weight:700;font-size:21px;line-height:24px;padding:0 7px;
+    border-radius:13px;background:#05080F;color:#FFFFFF;border:2px solid rgba(255,255,255,0.85);}
+  .rkb:empty{display:none;}
+  /* timeouts left, as in football */
+  .tos{height:8px;margin-top:8px;white-space:nowrap;}
+  .tos i{display:inline-block;width:16px;height:4px;border-radius:2px;margin:0 2px;background:var(--hi);vertical-align:top;}
+  .tos i.used{background:rgba(255,255,255,0.18);}
+  .pts{width:104px;text-align:center;font-family:var(--num);font-weight:600;font-size:96px;line-height:1;transition:color .4s;}
+  .pts.o{color:var(--dim);}
+  .pts.pop{color:var(--hi);}
+  .mid{width:36px;}
+  .clkrow{text-align:center;margin-top:4px;white-space:nowrap;}
+  .clk{font-family:var(--num);font-weight:600;font-size:36px;color:var(--hi);}
+  .net{font-size:18px;font-weight:600;letter-spacing:1px;color:rgba(255,255,255,0.8);margin-left:14px;vertical-align:4px;}
+  .dd{text-align:center;font-size:30px;font-weight:600;margin-top:2px;white-space:nowrap;}
+  .dd.run{color:var(--hi);}
+  .lines{margin:12px auto 0;width:396px;background:rgba(6,13,30,0.8);border-radius:14px;padding:6px 18px 8px;}
+  .lines table{border-collapse:collapse;width:100%;}
+  .lines td{padding:0;text-align:center;font-family:var(--num);font-weight:500;font-size:36px;line-height:42px;color:rgba(255,255,255,0.88);}
+  .lines td.h{font-family:var(--txt);font-size:18px;line-height:24px;color:var(--dim);}
+  .lines td.t{width:52px;}
+  .lines td.t img{width:36px;height:36px;vertical-align:middle;}
+  .lines td.tot{font-weight:700;color:#FFFFFF;}
+
+  /* ---- game flow: who led, minute by minute (football's drive strip) ---- */
+  #flow{left:440px;top:394px;width:400px;height:60px;border-radius:9px;overflow:hidden;background:#0B1A3A;cursor:pointer;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.18);}
+  #flow svg{display:block;}
+  #demo{left:440px;top:466px;width:400px;text-align:center;font-size:14px;color:var(--faint);}
+
+  /* ---- last play, fouls, and the buttons ---- */
+  #strip{left:12px;top:508px;width:1256px;height:52px;border-radius:12px;background:var(--panel);border:1px solid rgba(255,255,255,0.1);
+    display:flex;align-items:center;padding:0 6px 0 18px;}
+  #strip .tag{font-size:21px;color:var(--hi);margin-right:14px;white-space:nowrap;}
+  #strip .txt{flex:1;min-width:0;font-size:27px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #strip .fl{font-size:23px;color:var(--dim);margin:0 12px 0 16px;white-space:nowrap;}
+  #strip .fl img{display:inline-block;width:26px;height:26px;vertical-align:-6px;margin:0 6px 0 10px;}
+  #strip .fl b{font-family:var(--num);font-weight:600;font-size:28px;color:rgba(255,255,255,0.88);}
+  #strip .fl .bonus{font-size:15px;font-weight:600;letter-spacing:1px;color:#05080F;background:var(--hi);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:3px;}
+  .btn{font-size:21px;color:rgba(255,255,255,0.75);border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:5px 16px;cursor:pointer;white-space:nowrap;margin-left:8px;}
+  .btn.sport{color:#FFFFFF;border-color:var(--royal);background:rgba(0,98,184,0.35);}
+
+  /* ---- the four other games (football's short logo cards) ---- */
+  .gc{position:absolute;top:568px;width:305px;height:118px;padding:4px 14px 0;border-radius:14px;background:rgba(8,16,36,0.88);
+    border:1px solid rgba(255,255,255,0.1);}
+  .gc.post{background:rgba(8,16,36,0.55);}
+  .gl{display:flex;align-items:center;height:72px;}
+  .gl .lw{position:relative;width:62px;height:62px;}
+  .gl .lw img{width:62px;height:62px;}
+  .gl .rkb{font-size:20px;line-height:23px;}
+  .gl .s{width:76px;text-align:center;font-family:var(--num);font-weight:600;font-size:54px;line-height:1;}
+  .gl .s.lo{color:var(--dim);}
+  .gl .vs{flex:1;text-align:center;font-size:22px;color:var(--faint);}
+  .gf{display:flex;align-items:center;height:42px;border-top:1px solid var(--rule);margin-top:2px;font-size:25px;}
+  .gf .ck{font-family:var(--num);font-weight:600;font-size:31px;color:var(--hi);white-space:nowrap;}
+  .gf .st{flex:1;min-width:0;margin-left:10px;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gf .tv{font-size:23px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
+  .gc.post .gf .ck{color:var(--dim);}
+
+  /* ---- banners: timeouts, as in football ---- */
+  .pill{left:640px;top:386px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:14px;
+    padding:8px 22px 9px;background:rgba(3,6,15,0.94);border:2px solid var(--royal);display:none;}
+  .pill.on{display:block;}
+  .pill .a{font-family:var(--num);font-weight:600;font-size:36px;color:var(--hi);}
+  .pill .b{font-size:18px;color:var(--dim);}
+  #toast{left:640px;top:300px;transform:translateX(-50%);max-width:700px;text-align:center;font-size:24px;line-height:32px;
+    padding:14px 26px;border-radius:14px;background:rgba(3,6,15,0.96);border:2px solid var(--royal);display:none;}
+  #toast.on{display:block;}
+
+  /* ---- every shot: the court, full screen (football's "All drives") ---- */
+  #shots{left:0;top:0;width:1280px;height:695px;background:#0B1220;display:none;cursor:pointer;}
+  #shots.on{display:block;}
+  #shots .hd{position:absolute;left:24px;right:24px;top:4px;height:52px;display:flex;align-items:center;}
+  #shots .ttl{font-family:var(--num);font-weight:800;font-size:32px;letter-spacing:1px;margin-right:18px;}
+  #shots .sub{font-size:17px;color:var(--dim);}
+  #shots .sco{margin-left:auto;font-size:20px;font-weight:700;white-space:nowrap;}
+  #shots .sco b{font-family:var(--num);font-weight:800;font-size:34px;margin:0 16px 0 6px;}
+  #shots .sco .o{color:var(--dim);}
+  #shots .sco .q{font-family:var(--num);font-size:26px;color:var(--hi);}
+  #court{left:20px;top:60px;width:1240px;height:573px;}
+  #shots .ft{position:absolute;left:24px;right:24px;top:638px;height:54px;display:flex;align-items:center;font-size:19px;color:rgba(255,255,255,0.85);}
+  #shots .ft span.it{margin-right:26px;white-space:nowrap;}
+  #shots .ft svg{vertical-align:middle;margin-right:6px;}
+  #shots .ft .back{margin-left:auto;font-size:16px;font-weight:700;color:#0B1220;background:#FFFFFF;border-radius:22px;padding:10px 18px;}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="abs panel" style="left:12px">
+    <div class="ph"><span style="flex:1"><span id="tT">Team stats</span><span class="dots" id="tD"></span></span><span class="c" id="tLA"></span><span class="c" id="tLH"></span></div>
+    <div id="team"></div>
+  </div>
+
+  <div class="abs" id="score">
+    <div class="sc">
+      <div class="tm"><div class="lgw" id="lgA"></div><div class="tos" id="toA"></div></div>
+      <div class="pts o" id="sA"></div>
+      <div class="mid"></div>
+      <div class="pts" id="sH"></div>
+      <div class="tm"><div class="lgw" id="lgH"></div><div class="tos" id="toH"></div></div>
+    </div>
+    <div class="clkrow"><span class="clk" id="clk"></span><span class="net" id="net"></span></div>
+    <div class="dd" id="dd"></div>
+    <div class="lines"><table id="lineScore"></table></div>
+  </div>
+
+  <div class="abs panel" style="right:12px">
+    <div class="ph"><span style="flex:1" id="lT">BYU players</span><span class="dots" id="lD"></span></div>
+    <div id="leaders"></div>
+  </div>
+
+  <div class="abs" id="flow" title="Every shot"></div>
+  <div class="abs np" id="demo"></div>
+  <div class="abs pill np" id="banner"><div class="a" id="bA"></div><div class="b" id="bB"></div></div>
+
+  <div class="abs" id="strip"><span class="tag">Last play</span><span class="txt" id="lp"></span><span class="fl" id="fouls"></span><span class="btn" id="btnShots">Shot chart</span><span class="btn sport" id="btnFootball">Football</span><span class="btn" id="btnHome">All games</span></div>
+  <div id="games"></div>
+  <div class="abs np" id="toast"></div>
+
+  <div class="abs" id="shots">
+    <div class="hd">
+      <div class="ttl">Every shot</div>
+      <div class="sub" id="shSub"></div>
+      <div class="sco" id="shSco"></div>
+    </div>
+    <svg class="abs" id="court" width="1240" height="573" viewBox="0 0 1240 573"></svg>
+    <div class="ft" id="shFt"></div>
+  </div>
+</div>
+
+<script>
+var GAME = {"home":{"id":252,"abbr":"BYU","name":"BYU","rank":23,"color":"0047ba","alt":"002e5d"},"away":{"id":66,"abbr":"ISU","name":"Iowa State","rank":6,"color":"ae192d","alt":"ffc72a"},"tv":"ESPN","venue":"Marriott Center","date":"2026-02-22T03:38Z","ath":{"5079838":["B. Buchanan","A",1],"4870564":["J. Jefferson","A",1],"4848637":["M. Momcilovic","A",1],"5248302":["K. Toure","A",1],"5106254":["T. Lipsey","A",1],"5281369":["D. Pleta","A",0],"5217196":["J. Batemon","A",0],"4703912":["N. Heise","A",0],"5243211":["M. Bošković","H",1],"5142718":["AJ Dybantsa","H",1],"5105647":["K. Keita","H",1],"4685654":["K. Davis Jr.","H",1],"5060709":["R. Wright III","H",1],"5262601":["K. Mboup","H",0],"5183975":["A. Ahmed","H",0],"5311908":["A. Kostić","H",0]},"plays":[[1,1200.0,0,0,"","other","Start game",0,0,null,null,null,null],[1,1198.0,0,0,"A","other","Jump Ball won by Iowa State",0,0,null,null,"5079838",null],[1,1198.0,0,0,"H","other","Jump Ball lost by BYU",0,0,null,null,"5105647",null],[1,1181.0,0,0,"A","fg","Milan Momcilovic misses 13-foot jumper",0,0,13,6,"4848637",null],[1,1181.0,0,0,"H","blk","AJ Dybantsa Block.",0,0,null,null,"5142718",null],[1,1177.0,0,0,"H","dreb","Mihailo Bošković Defensive Rebound.",0,0,null,null,"5243211",null],[1,1162.0,0,2,"H","fg","Keba Keita makes 2-foot alley oop dunk (AJ Dybantsa assists)",1,0,24,1,"5105647","5142718"],[1,1162.0,0,2,"A","foul","Foul on Joshua Jefferson.",0,0,null,null,"4870564",null],[1,1160.0,0,2,"H","ft","Keba Keita misses free throw 1 of 1",0,0,null,null,"5105647",null],[1,1158.0,0,2,"A","dreb","Tamin Lipsey Defensive Rebound.",0,0,null,null,"5106254",null],[1,1141.0,0,2,"H","foul","Foul on Mihailo Bošković.",0,0,null,null,"5243211",null],[1,1141.0,1,2,"A","ft","Joshua Jefferson makes free throw 1 of 2",1,0,null,null,"4870564",null],[1,1141.0,2,2,"A","ft","Joshua Jefferson makes free throw 2 of 2",1,0,null,null,"4870564",null],[1,1129.0,2,5,"H","fg","Mihailo Bošković makes 24-foot three point jumper (Robert Wright III assists)",1,1,37,21,"5243211","5060709"],[1,1111.0,2,5,"A","to","Joshua Jefferson bad pass turnover",0,0,null,null,"4870564",null],[1,1085.0,2,5,"A","foul","Foul on Killyan Toure.",0,0,null,null,"5248302",null],[1,1073.0,2,5,"H","fg","AJ Dybantsa misses 11-foot jumper",0,0,14,3,"5142718",null],[1,1068.0,2,5,"H","oreb","Kennard Davis Jr. Offensive Rebound.",0,0,null,null,"4685654",null],[1,1068.0,2,7,"H","fg","Kennard Davis Jr. makes 0-foot tip in layup",1,0,25,1,"4685654",null],[1,1052.0,5,7,"A","fg","Tamin Lipsey makes 24-foot three point jumper",1,1,10,20,"5106254",null],[1,1019.0,5,7,"H","fg","Mihailo Bošković misses 24-foot three point jumper",0,1,22,25,"5243211",null],[1,1017.0,5,7,"A","dreb","Milan Momcilovic Defensive Rebound.",0,0,null,null,"4848637",null],[1,1007.0,7,7,"A","fg","Tamin Lipsey makes 10-foot jumper",1,0,17,5,"5106254",null],[1,994.0,7,7,"H","fg","Robert Wright III misses 12-foot jumper",0,0,25,12,"5060709",null],[1,994.0,7,7,"A","blk","Joshua Jefferson Block.",0,0,null,null,"4870564",null],[1,990.0,7,7,"A","dreb","Joshua Jefferson Defensive Rebound.",0,0,null,null,"4870564",null],[1,988.0,9,7,"A","fg","Killyan Toure makes layup (Joshua Jefferson assists)",1,0,26,3,"5248302","4870564"],[1,970.0,9,7,"H","to","Keba Keita bad pass turnover",0,0,null,null,"5105647",null],[1,953.0,9,7,"A","fg","Joshua Jefferson misses 26-foot three point jumper",0,1,39,22,"4870564",null],[1,950.0,9,7,"H","dreb","AJ Dybantsa Defensive Rebound.",0,0,null,null,"5142718",null],[1,944.0,9,9,"H","fg","AJ Dybantsa makes 0-foot dunk",1,0,25,1,"5142718",null],[1,934.0,9,9,"H","foul","Foul on Robert Wright III.",0,0,null,null,"5060709",null],[1,934.0,9,9,"","tv","Official TV Timeout",0,0,null,null,null,null],[1,934.0,10,9,"A","ft","Killyan Toure makes free throw 1 of 2",1,0,null,null,"5248302",null],[1,932.0,10,9,"A","ft","Killyan Toure misses free throw 2 of 2",0,0,null,null,"5248302",null],[1,931.0,10,9,"H","dreb","Keba Keita Defensive Rebound.",0,0,null,null,"5105647",null],[1,908.0,10,9,"H","to","AJ Dybantsa bad pass turnover",0,0,null,null,"5142718",null],[1,908.0,10,9,"A","stl","Tamin Lipsey Steal.",0,0,null,null,"5106254",null],[1,898.0,10,9,"A","fg","Tamin Lipsey misses driving layup",0,0,26,2,"5106254",null],[1,895.0,10,9,"H","dreb","Keba Keita Defensive Rebound.",0,0,null,null,"5105647",null],[1,884.0,10,9,"H","fg","Aleksej Kostić misses 23-foot three point jumper",0,1,38,19,"5311908",null],[1,880.0,10,9,"H","oreb","Kennard Davis Jr. Offensive Rebound.",0,0,null,null,"4685654",null],[1,878.0,10,9,"A","foul","Foul on Dominykas Pleta.",0,0,null,null,"5281369",null],[1,877.0,10,9,"H","to","Keba Keita bad pass turnover",0,0,null,null,"5105647",null],[1,850.0,12,9,"A","fg","Blake Buchanan makes 1-foot dunk (Joshua Jefferson assists)",1,0,26,1,"5079838","4870564"],[1,831.0,12,9,"H","fg","AJ Dybantsa misses 3-foot jumper",0,0,26,3,"5142718",null],[1,827.0,12,9,"H","oreb","AJ Dybantsa Offensive Rebound.",0,0,null,null,"5142718",null],[1,827.0,12,11,"H","fg","AJ Dybantsa makes 0-foot tip in layup",1,0,25,1,"5142718",null],[1,803.0,12,11,"A","to","Blake Buchanan bad pass turnover",0,0,null,null,"5079838",null],[1,803.0,12,11,"H","stl","Keba Keita Steal.",0,0,null,null,"5105647",null],[1,791.0,12,11,"A","foul","Foul on Nate Heise.",0,0,null,null,"4703912",null],[1,786.0,12,13,"H","fg","AJ Dybantsa makes driving layup",1,0,27,2,"5142718",null],[1,768.0,12,13,"A","fg","Tamin Lipsey misses 3-foot jumper",0,0,27,1,"5106254",null],[1,764.0,12,13,"H","dreb","Khadim Mboup Defensive Rebound.",0,0,null,null,"5262601",null],[1,761.0,12,15,"H","fg","Mihailo Bošković makes 0-foot dunk (AJ Dybantsa assists)",1,0,25,1,"5243211","5142718"],[1,740.0,12,15,"A","fg","Joshua Jefferson misses 26-foot three point jumper",0,1,42,20,"4870564",null],[1,733.0,12,15,"H","dreb","Khadim Mboup Defensive Rebound.",0,0,null,null,"5262601",null],[1,732.0,12,15,"H","fg","AJ Dybantsa misses 25-foot three point jumper",0,1,42,19,"5142718",null],[1,726.0,12,15,"A","dreb","Joshua Jefferson Defensive Rebound.",0,0,null,null,"4870564",null],[1,720.0,12,15,"A","fg","Tamin Lipsey misses 24-foot three point jumper",0,1,16,23,"5106254",null],[1,717.0,12,15,"H","dreb","Khadim Mboup Defensive Rebound.",0,0,null,null,"5262601",null],[1,712.0,12,15,"A","foul","Foul on Tamin Lipsey.",0,0,null,null,"5106254",null],[1,712.0,12,15,"","tv","Official TV Timeout",0,0,null,null,null,null],[1,692.0,12,18,"H","fg","Kennard Davis Jr. makes 23-foot three point jumper (AJ Dybantsa assists)",1,1,2,2,"4685654","5142718"],[1,675.0,12,18,"H","foul","Foul on AJ Dybantsa.",0,0,null,null,"5142718",null],[1,675.0,12,18,"A","ft","Milan Momcilovic misses free throw 1 of 3",0,0,null,null,"4848637",null],[1,675.0,12,18,"A","xreb","Iowa State Deadball Team Rebound.",0,0,null,null,null,null],[1,675.0,13,18,"A","ft","Milan Momcilovic makes free throw 2 of 3",1,0,null,null,"4848637",null],[1,675.0,14,18,"A","ft","Milan Momcilovic makes free throw 3 of 3",1,0,null,null,"4848637",null],[1,654.0,14,18,"H","fg","Kennard Davis Jr. misses 3-foot jumper",0,0,27,2,"4685654",null],[1,651.0,14,18,"H","oreb","Kennard Davis Jr. Offensive Rebound.",0,0,null,null,"4685654",null],[1,643.0,14,18,"H","fg","Robert Wright III misses 24-foot three point jumper",0,1,35,22,"5060709",null],[1,641.0,14,18,"H","oreb","Khadim Mboup Offensive Rebound.",0,0,null,null,"5262601",null],[1,638.0,14,18,"H","fg","Robert Wright III misses 5-foot jumper",0,0,27,5,"5060709",null],[1,635.0,14,18,"A","dreb","Joshua Jefferson Defensive Rebound.",0,0,null,null,"4870564",null],[1,616.0,14,18,"H","foul","Foul on Mihailo Bošković.",0,0,null,null,"5243211",null],[1,614.0,17,18,"A","fg","Milan Momcilovic makes 24-foot three point jumper (Tamin Lipsey assists)",1,1,1,0,"4848637","5106254"],[1,591.0,17,20,"H","fg","AJ Dybantsa makes 14-foot jumper",1,0,15,10,"5142718",null],[1,573.0,17,20,"A","fg","Joshua Jefferson misses 11-foot jumper",0,0,30,10,"4870564",null],[1,573.0,17,20,"H","dreb","BYU Defensive Rebound.",0,0,null,null,null,null],[1,573.0,17,20,"H","tmo","BYU Timeout",0,0,null,null,null,null],[1,558.0,17,22,"H","fg","Khadim Mboup makes layup",1,0,27,1,"5262601",null],[1,537.0,19,22,"A","fg","Joshua Jefferson makes 8-foot jumper",1,0,33,4,"4870564",null],[1,508.0,19,22,"H","fg","Khadim Mboup misses 24-foot three point jumper",0,1,2,3,"5262601",null],[1,505.0,19,22,"A","dreb","Nate Heise Defensive Rebound.",0,0,null,null,"4703912",null],[1,498.0,19,22,"A","fg","Milan Momcilovic misses 23-foot three point jumper",0,1,48,5,"4848637",null],[1,498.0,19,22,"A","oreb","Iowa State Offensive Rebound.",0,0,null,null,null,null],[1,494.0,19,22,"A","fg","Joshua Jefferson misses 6-foot jumper",0,0,26,6,"4870564",null],[1,491.0,19,22,"A","oreb","Tamin Lipsey Offensive Rebound.",0,0,null,null,"5106254",null],[1,489.0,22,22,"A","fg","Nate Heise makes 26-foot three point jumper (Tamin Lipsey assists)",1,1,39,22,"4703912","5106254"],[1,471.0,22,24,"H","fg","Keba Keita makes 1-foot alley oop dunk (AJ Dybantsa assists)",1,0,26,1,"5105647","5142718"],[1,444.0,22,24,"A","fg","Nate Heise misses 25-foot three point jumper",0,1,49,5,"4703912",null],[1,441.0,22,24,"H","dreb","AJ Dybantsa Defensive Rebound.",0,0,null,null,"5142718",null],[1,411.0,22,24,"H","fg","Kennard Davis Jr. misses 26-foot three point jumper",0,1,5,16,"4685654",null],[1,408.0,22,24,"A","dreb","Joshua Jefferson Defensive Rebound.",0,0,null,null,"4870564",null],[1,394.0,25,24,"A","fg","Joshua Jefferson makes 25-foot three point jumper (Milan Momcilovic assists)",1,1,18,25,"4870564","4848637"],[1,368.0,25,24,"","tv","Official TV Timeout",0,0,null,null,null,null],[1,358.0,25,24,"H","fg","Aleksej Kostić misses driving layup",0,0,28,1,"5311908",null],[1,356.0,25,24,"A","dreb","Nate Heise Defensive Rebound.",0,0,null,null,"4703912",null],[1,329.0,25,24,"A","to","Killyan Toure bad pass turnover",0,0,null,null,"5248302",null],[1,329.0,25,24,"H","stl","Robert Wright III Steal.",0,0,null,null,"5060709",null],[1,323.0,25,26,"H","fg","Robert Wright III makes driving layup",1,0,26,0,"5060709",null],[1,303.0,25,26,"A","fg","Blake Buchanan misses 6-foot jumper",0,0,27,6,"5079838",null],[1,300.0,25,26,"H","dreb","Mihailo Bošković Defensive Rebound.",0,0,null,null,"5243211",null],[1,291.0,25,28,"H","fg","AJ Dybantsa makes 15-foot jumper",1,0,37,10,"5142718",null],[1,289.0,25,28,"A","foul","Foul on Milan Momcilovic.",0,0,null,null,"4848637",null],[1,289.0,25,28,"H","ft","AJ Dybantsa misses free throw 1 of 1",0,0,null,null,"5142718",null],[1,287.0,25,28,"A","dreb","Nate Heise Defensive Rebound.",0,0,null,null,"4703912",null],[1,275.0,25,28,"A","to","Nate Heise bad pass turnover",0,0,null,null,"4703912",null],[1,260.0,25,30,"H","fg","Mihailo Bošković makes 7-foot jumper",1,0,22,6,"5243211",null],[1,238.0,25,30,"A","fg","Jamarion Batemon misses 6-foot jumper",0,0,29,5,"5217196",null],[1,232.0,25,30,"H","dreb","AJ Dybantsa Defensive Rebound.",0,0,null,null,"5142718",null],[1,230.0,25,30,"H","to","Kennard Davis Jr. bad pass turnover",0,0,null,null,"4685654",null],[1,230.0,25,30,"H","foul","Foul on Kennard Davis Jr..",0,0,null,null,"4685654",null],[1,230.0,25,30,"","tv","Official TV Timeout",0,0,null,null,null,null],[1,230.0,25,30,"A","stl","Dominykas Pleta Steal.",0,0,null,null,"5281369",null],[1,212.0,25,30,"A","fg","Killyan Toure misses 24-foot three point jumper",0,1,13,21,"5248302",null],[1,208.0,25,30,"H","dreb","Mihailo Bošković Defensive Rebound.",0,0,null,null,"5243211",null],[1,182.0,25,33,"H","fg","AJ Dybantsa makes 24-foot three pointer",1,1,9,17,"5142718",null],[1,165.0,25,33,"H","foul","Foul on Aleksej Kostić.",0,0,null,null,"5311908",null],[1,159.0,25,33,"A","fg","Tamin Lipsey misses 6-foot floating jump shot",0,0,27,6,"5106254",null],[1,159.0,25,33,"H","dreb","Khadim Mboup Defensive Rebound.",0,0,null,null,"5262601",null],[1,159.0,25,33,"A","foul","Foul on Joshua Jefferson.",0,0,null,null,"4870564",null],[1,158.0,25,33,"H","ft","Khadim Mboup misses free throw 1 of 1",0,0,null,null,"5262601",null],[1,156.0,25,33,"A","dreb","Joshua Jefferson Defensive Rebound.",0,0,null,null,"4870564",null],[1,139.0,25,33,"H","foul","Foul on Aleksej Kostić.",0,0,null,null,"5311908",null],[1,139.0,25,33,"A","ft","Joshua Jefferson misses free throw 1 of 1",0,0,null,null,"4870564",null],[1,138.0,25,33,"H","dreb","Khadim Mboup Defensive Rebound.",0,0,null,null,"5262601",null],[1,121.0,25,33,"H","fg","AJ Dybantsa misses 5-foot jumper",0,0,26,5,"5142718",null],[1,121.0,25,33,"A","dreb","Iowa State Defensive Rebound.",0,0,null,null,null,null],[1,105.0,25,33,"A","fg","Tamin Lipsey misses 18-foot jumper",0,0,26,19,"5106254",null],[1,101.0,25,33,"H","dreb","Khadim Mboup Defensive Rebound.",0,0,null,null,"5262601",null],[1,91.0,25,33,"A","foul","Foul on Tamin Lipsey.",0,0,null,null,"5106254",null],[1,91.0,25,33,"H","ft","AJ Dybantsa misses free throw 1 of 2",0,0,null,null,"5142718",null],[1,91.0,25,33,"H","xreb","BYU Deadball Team Rebound.",0,0,null,null,null,null],[1,91.0,25,34,"H","ft","AJ Dybantsa makes free throw 2 of 2",1,0,null,null,"5142718",null],[1,80.0,25,34,"A","to","Blake Buchanan bad pass turnover",0,0,null,null,"5079838",null],[1,80.0,25,34,"H","stl","Robert Wright III Steal.",0,0,null,null,"5060709",null],[1,75.0,25,34,"A","foul","Foul on Blake Buchanan.",0,0,null,null,"5079838",null],[1,74.0,25,35,"H","ft","Khadim Mboup makes free throw 1 of 2",1,0,null,null,"5262601",null],[1,72.0,25,35,"H","ft","Khadim Mboup misses free throw 2 of 2",0,0,null,null,"5262601",null],[1,71.0,25,35,"H","oreb","Khadim Mboup Offensive Rebound.",0,0,null,null,"5262601",null],[1,54.0,25,37,"H","fg","Robert Wright III makes driving layup",1,0,27,2,"5060709",null],[1,40.0,25,37,"A","fg","Tamin Lipsey misses driving layup",0,0,27,2,"5106254",null],[1,36.0,25,37,"A","oreb","Blake Buchanan Offensive Rebound.",0,0,null,null,"5079838",null],[1,36.0,27,37,"A","fg","Blake Buchanan makes 0-foot tip in layup",1,0,25,1,"5079838",null],[1,20.0,27,37,"A","foul","Foul on Nate Heise.",0,0,null,null,"4703912",null],[1,20.0,27,38,"H","ft","Robert Wright III makes free throw 1 of 2",1,0,null,null,"5060709",null],[1,20.0,27,38,"A","tmo","Iowa State Timeout",0,0,null,null,null,null],[1,20.0,27,39,"H","ft","Robert Wright III makes free throw 2 of 2",1,0,null,null,"5060709",null],[1,14.0,30,39,"A","fg","Jamarion Batemon makes 24-foot three point jumper (Killyan Toure assists)",1,1,7,16,"5217196","5248302"],[1,0.0,30,39,"H","fg","AJ Dybantsa misses 20-foot jumper",0,0,15,17,"5142718",null],[1,0.0,30,39,"H","oreb","Khadim Mboup Offensive Rebound.",0,0,null,null,"5262601",null],[1,0.0,30,39,"","end","End of 1st half",0,0,null,null,null,null],[2,1179.0,30,42,"H","fg","AJ Dybantsa makes 24-foot three point jumper",1,1,14,21,"5142718",null],[2,1155.0,32,42,"A","fg","Joshua Jefferson makes 12-foot turnaround jump shot",1,0,14,5,"4870564",null],[2,1135.0,32,42,"H","fg","AJ Dybantsa misses 24-foot three point jumper",0,1,9,19,"5142718",null],[2,1132.0,32,42,"H","oreb","Kennard Davis Jr. Offensive Rebound.",0,0,null,null,"4685654",null],[2,1113.0,32,42,"H","fg","Kennard Davis Jr. misses 9-foot jumper",0,0,30,7,"4685654",null],[2,1109.0,32,42,"H","oreb","Keba Keita Offensive Rebound.",0,0,null,null,"5105647",null],[2,1094.0,32,42,"H","fg","Mihailo Bošković misses 25-foot three point jumper",0,1,25,25,"5243211",null],[2,1086.0,32,42,"A","dreb","Milan Momcilovic Defensive Rebound.",0,0,null,null,"4848637",null],[2,1073.0,34,42,"A","fg","Tamin Lipsey makes driving layup",1,0,24,0,"5106254",null],[2,1054.0,34,45,"H","fg","Kennard Davis Jr. makes 24-foot three point jumper (Robert Wright III assists)",1,1,42,18,"4685654","5060709"],[2,1028.0,34,45,"A","fg","Joshua Jefferson misses 24-foot three point jumper",0,1,17,23,"4870564",null],[2,1026.0,34,45,"H","dreb","BYU Defensive Rebound.",0,0,null,null,null,null],[2,1007.0,34,45,"H","fg","Kennard Davis Jr. misses 23-foot three point jumper",0,1,47,9,"4685654",null],[2,1001.0,34,45,"H","oreb","AJ Dybantsa Offensive Rebound.",0,0,null,null,"5142718",null],[2,1001.0,34,47,"H","fg","AJ Dybantsa makes 0-foot tip in dunk",1,0,25,1,"5142718",null],[2,989.0,34,47,"A","foul","Foul on Dominykas Pleta.",0,0,null,null,"5281369",null],[2,989.0,34,47,"A","to","Dominykas Pleta turnover",0,0,null,null,"5281369",null],[2,958.0,34,47,"H","to","Mihailo Bošković bad pass turnover",0,0,null,null,"5243211",null],[2,958.0,34,47,"A","stl","Joshua Jefferson Steal.",0,0,null,null,"4870564",null],[2,947.0,36,47,"A","fg","Dominykas Pleta makes layup (Tamin Lipsey assists)",1,0,25,1,"5281369","5106254"],[2,926.0,36,47,"H","fg","Kennard Davis Jr. misses 23-foot three point jumper",0,1,48,2,"4685654",null],[2,923.0,36,47,"A","dreb","Joshua Jefferson Defensive Rebound.",0,0,null,null,"4870564",null],[2,919.0,38,47,"A","fg","Jamarion Batemon makes layup (Joshua Jefferson assists)",1,0,25,-1,"5217196","4870564"],[2,891.0,38,47,"H","fg","Robert Wright III misses 25-foot three point jumper",0,1,23,25,"5060709",null],[2,889.0,38,47,"A","dreb","Iowa State Defensive Rebound.",0,0,null,null,null,null],[2,889.0,38,47,"H","foul","Foul on Kennard Davis Jr..",0,0,null,null,"4685654",null],[2,889.0,38,47,"","tv","Official TV Timeout",0,0,null,null,null,null],[2,874.0,38,47,"A","to","Tamin Lipsey bad pass turnover",0,0,null,null,"5106254",null],[2,874.0,38,47,"H","stl","Keba Keita Steal.",0,0,null,null,"5105647",null],[2,867.0,38,47,"H","to","Mihailo Bošković traveling turnover",0,0,null,null,"5243211",null],[2,854.0,38,47,"A","fg","Jamarion Batemon misses 25-foot three point jumper",0,1,6,18,"5217196",null],[2,851.0,38,47,"H","dreb","Keba Keita Defensive Rebound.",0,0,null,null,"5105647",null],[2,828.0,38,47,"H","fg","Mihailo Bošković misses 25-foot three point jumper",0,1,29,25,"5243211",null],[2,824.0,38,47,"H","oreb","Mihailo Bošković Offensive Rebound.",0,0,null,null,"5243211",null],[2,808.0,38,47,"H","fg","Mihailo Bošković misses 25-foot three point jumper",0,1,48,12,"5243211",null],[2,803.0,38,47,"H","oreb","Keba Keita Offensive Rebound.",0,0,null,null,"5105647",null],[2,803.0,38,49,"H","fg","Keba Keita makes 0-foot tip in layup",1,0,25,1,"5105647",null],[2,786.0,40,49,"A","fg","Jamarion Batemon makes driving layup",1,0,23,1,"5217196",null],[2,786.0,40,49,"H","foul","Foul on Mihailo Bošković.",0,0,null,null,"5243211",null],[2,786.0,41,49,"A","ft","Jamarion Batemon makes free throw 1 of 1",1,0,null,null,"5217196",null],[2,773.0,41,49,"H","fg","Kennard Davis Jr. misses 24-foot three point jumper",0,1,49,1,"4685654",null],[2,770.0,41,49,"A","dreb","Blake Buchanan Defensive Rebound.",0,0,null,null,"5079838",null],[2,749.0,41,49,"A","fg","Killyan Toure misses 25-foot three point jumper",0,1,45,16,"5248302",null],[2,745.0,41,49,"H","dreb","Khadim Mboup Defensive Rebound.",0,0,null,null,"5262601",null],[2,742.0,41,49,"A","foul","Foul on Milan Momcilovic.",0,0,null,null,"4848637",null],[2,730.0,41,49,"H","fg","Kennard Davis Jr. misses 25-foot three point jumper",0,1,25,26,"4685654",null],[2,727.0,41,49,"A","dreb","Tamin Lipsey Defensive Rebound.",0,0,null,null,"5106254",null],[2,722.0,41,49,"A","to","Milan Momcilovic bad pass turnover",0,0,null,null,"4848637",null],[2,722.0,41,49,"H","stl","AJ Dybantsa Steal.",0,0,null,null,"5142718",null],[2,714.0,41,51,"H","fg","AJ Dybantsa makes 2-foot dunk",1,0,25,2,"5142718",null],[2,703.0,41,51,"H","foul","Foul on Khadim Mboup.",0,0,null,null,"5262601",null],[2,703.0,41,51,"","tv","Official TV Timeout",0,0,null,null,null,null],[2,703.0,42,51,"A","ft","Tamin Lipsey makes free throw 1 of 2",1,0,null,null,"5106254",null],[2,703.0,43,51,"A","ft","Tamin Lipsey makes free throw 2 of 2",1,0,null,null,"5106254",null],[2,684.0,43,51,"H","to","Khadim Mboup bad pass turnover",0,0,null,null,"5262601",null],[2,668.0,43,51,"A","fg","Joshua Jefferson misses 2-foot jumper",0,0,23,1,"4870564",null],[2,665.0,43,51,"A","oreb","Blake Buchanan Offensive Rebound.",0,0,null,null,"5079838",null],[2,661.0,43,51,"A","fg","Nate Heise misses 27-foot three point jumper",0,1,30,27,"4703912",null],[2,659.0,43,51,"H","dreb","Mihailo Bošković Defensive Rebound.",0,0,null,null,"5243211",null],[2,654.0,43,51,"H","fg","Mihailo Bošković misses 25-foot three point jumper",0,1,13,22,"5243211",null],[2,651.0,43,51,"A","dreb","Nate Heise Defensive Rebound.",0,0,null,null,"4703912",null],[2,645.0,45,51,"A","fg","Blake Buchanan makes 1-foot dunk",1,0,26,1,"5079838",null],[2,636.0,45,51,"H","tmo","BYU Timeout",0,0,null,null,null,null],[2,623.0,45,51,"A","foul","Foul on Milan Momcilovic.",0,0,null,null,"4848637",null],[2,623.0,45,52,"H","ft","Keba Keita makes free throw 1 of 2",1,0,null,null,"5105647",null],[2,622.0,45,52,"H","ft","Keba Keita misses free throw 2 of 2",0,0,null,null,"5105647",null],[2,620.0,45,52,"A","dreb","Milan Momcilovic Defensive Rebound.",0,0,null,null,"4848637",null],[2,595.0,48,52,"A","fg","Tamin Lipsey makes 25-foot three point jumper (Joshua Jefferson assists)",1,1,27,25,"5106254","4870564"],[2,575.0,48,52,"H","fg","Robert Wright III misses 7-foot jumper",0,0,28,6,"5060709",null],[2,573.0,48,52,"A","dreb","Tamin Lipsey Defensive Rebound.",0,0,null,null,"5106254",null],[2,568.0,48,52,"A","fg","Milan Momcilovic misses 25-foot three point jumper",0,1,30,25,"4848637",null],[2,564.0,48,52,"H","dreb","Keba Keita Defensive Rebound.",0,0,null,null,"5105647",null],[2,561.0,48,54,"H","fg","Mihailo Bošković makes driving layup (Robert Wright III assists)",1,0,26,1,"5243211","5060709"],[2,561.0,48,54,"A","foul","Foul on Milan Momcilovic.",0,0,null,null,"4848637",null],[2,561.0,48,55,"H","ft","Mihailo Bošković makes free throw 1 of 1",1,0,null,null,"5243211",null],[2,549.0,51,55,"A","fg","Jamarion Batemon makes 26-foot three point jumper (Nate Heise assists)",1,1,24,26,"5217196","4703912"],[2,530.0,51,55,"H","fg","Mihailo Bošković misses 27-foot three point jumper",0,1,35,25,"5243211",null],[2,530.0,51,55,"A","dreb","Joshua Jefferson Defensive Rebound.",0,0,null,null,"4870564",null],[2,530.0,51,55,"A","fg","Joshua Jefferson misses 1-foot jumper",0,0,24,0,"4870564",null],[2,530.0,51,55,"H","blk","Keba Keita Block.",0,0,null,null,"5105647",null],[2,530.0,51,55,"H","dreb","AJ Dybantsa Defensive Rebound.",0,0,null,null,"5142718",null],[2,530.0,51,55,"H","fg","AJ Dybantsa misses 9-foot jumper",0,0,27,9,"5142718",null],[2,530.0,51,55,"A","dreb","Jamarion Batemon Defensive Rebound.",0,0,null,null,"5217196",null],[2,530.0,51,55,"A","fg","Joshua Jefferson misses 24-foot three point jumper",0,1,7,17,"4870564",null],[2,530.0,51,55,"H","dreb","AJ Dybantsa Defensive Rebound.",0,0,null,null,"5142718",null],[2,470.0,51,55,"A","foul","Foul on Jamarion Batemon.",0,0,null,null,"5217196",null],[2,470.0,51,55,"","tv","Official TV Timeout",0,0,null,null,null,null],[2,469.0,51,57,"H","fg","Kennard Davis Jr. makes layup (AJ Dybantsa assists)",1,0,26,2,"4685654","5142718"],[2,451.0,51,57,"A","fg","Jamarion Batemon misses 26-foot three point jumper",0,1,14,24,"5217196",null],[2,448.0,51,57,"A","oreb","Blake Buchanan Offensive Rebound.",0,0,null,null,"5079838",null],[2,446.0,51,57,"A","fg","Nate Heise misses 25-foot three point jumper",0,1,8,18,"4703912",null],[2,443.0,51,57,"A","oreb","Joshua Jefferson Offensive Rebound.",0,0,null,null,"4870564",null],[2,441.0,54,57,"A","fg","Tamin Lipsey makes 24-foot three point jumper (Joshua Jefferson assists)",1,1,37,21,"5106254","4870564"],[2,414.0,54,57,"H","to","Mihailo Bošković bad pass turnover",0,0,null,null,"5243211",null],[2,414.0,54,57,"A","stl","Joshua Jefferson Steal.",0,0,null,null,"4870564",null],[2,406.0,54,57,"A","to","Tamin Lipsey bad pass turnover",0,0,null,null,"5106254",null],[2,406.0,54,57,"H","stl","Robert Wright III Steal.",0,0,null,null,"5060709",null],[2,402.0,54,57,"H","to","Robert Wright III bad pass turnover",0,0,null,null,"5060709",null],[2,402.0,54,57,"A","stl","Jamarion Batemon Steal.",0,0,null,null,"5217196",null],[2,386.0,54,57,"A","to","Killyan Toure bad pass turnover",0,0,null,null,"5248302",null],[2,386.0,54,57,"H","stl","Keba Keita Steal.",0,0,null,null,"5105647",null],[2,367.0,54,57,"A","foul","Foul on Killyan Toure.",0,0,null,null,"5248302",null],[2,359.0,54,59,"H","fg","AJ Dybantsa makes driving layup",1,0,28,3,"5142718",null],[2,328.0,54,59,"A","fg","Joshua Jefferson misses 8-foot jumper",0,0,28,8,"4870564",null],[2,325.0,54,59,"H","dreb","AJ Dybantsa Defensive Rebound.",0,0,null,null,"5142718",null],[2,323.0,54,61,"H","fg","Kennard Davis Jr. makes 2-foot dunk (AJ Dybantsa assists)",1,0,25,2,"4685654","5142718"],[2,319.0,54,61,"A","tmo","Iowa State Timeout",0,0,null,null,null,null],[2,307.0,54,61,"A","fg","Tamin Lipsey misses 10-foot jumper",0,0,20,9,"5106254",null],[2,307.0,54,61,"H","dreb","BYU Defensive Rebound.",0,0,null,null,null,null],[2,293.0,54,61,"A","foul","Foul on Nate Heise.",0,0,null,null,"4703912",null],[2,293.0,54,62,"H","ft","AJ Dybantsa makes free throw 1 of 2",1,0,null,null,"5142718",null],[2,293.0,54,63,"H","ft","AJ Dybantsa makes free throw 2 of 2",1,0,null,null,"5142718",null],[2,281.0,54,63,"H","foul","Foul on Khadim Mboup.",0,0,null,null,"5262601",null],[2,281.0,54,63,"A","ft","Jamarion Batemon misses free throw 1 of 2",0,0,null,null,"5217196",null],[2,281.0,54,63,"A","xreb","Iowa State Deadball Team Rebound.",0,0,null,null,null,null],[2,281.0,55,63,"A","ft","Jamarion Batemon makes free throw 2 of 2",1,0,null,null,"5217196",null],[2,268.0,55,65,"H","fg","Khadim Mboup makes 3-foot dunk (Robert Wright III assists)",1,0,27,2,"5262601","5060709"],[2,255.0,55,65,"A","fg","Tamin Lipsey misses 3-foot jumper",0,0,26,4,"5106254",null],[2,252.0,55,65,"H","dreb","AJ Dybantsa Defensive Rebound.",0,0,null,null,"5142718",null],[2,248.0,55,65,"A","foul","Foul on Jamarion Batemon.",0,0,null,null,"5217196",null],[2,248.0,55,65,"A","tmo","Iowa State Timeout",0,0,null,null,null,null],[2,248.0,55,65,"","tv","Official TV Timeout",0,0,null,null,null,null],[2,248.0,55,66,"H","ft","AJ Dybantsa makes free throw 1 of 2",1,0,null,null,"5142718",null],[2,248.0,55,67,"H","ft","AJ Dybantsa makes free throw 2 of 2",1,0,null,null,"5142718",null],[2,237.0,55,67,"H","foul","Foul on AJ Dybantsa.",0,0,null,null,"5142718",null],[2,229.0,55,67,"H","foul","Foul on Khadim Mboup.",0,0,null,null,"5262601",null],[2,229.0,56,67,"A","ft","Joshua Jefferson makes free throw 1 of 2",1,0,null,null,"4870564",null],[2,229.0,57,67,"A","ft","Joshua Jefferson makes free throw 2 of 2",1,0,null,null,"4870564",null],[2,213.0,57,70,"H","fg","Kennard Davis Jr. makes 24-foot three point jumper (AJ Dybantsa assists)",1,1,38,20,"4685654","5142718"],[2,193.0,57,70,"A","fg","Milan Momcilovic misses 25-foot three point jumper",0,1,37,22,"4848637",null],[2,191.0,57,70,"H","dreb","BYU Defensive Rebound.",0,0,null,null,null,null],[2,179.0,57,70,"H","to","Khadim Mboup 3 second turnover",0,0,null,null,"5262601",null],[2,170.0,59,70,"A","fg","Joshua Jefferson makes 10-foot jumper",1,0,33,5,"4870564",null],[2,153.0,59,70,"H","fg","Robert Wright III misses 26-foot three point jumper",0,1,34,25,"5060709",null],[2,150.0,59,70,"A","dreb","Tamin Lipsey Defensive Rebound.",0,0,null,null,"5106254",null],[2,143.0,61,70,"A","fg","Nate Heise makes layup (Joshua Jefferson assists)",1,0,27,0,"4703912","4870564"],[2,114.0,61,70,"H","to","AJ Dybantsa bad pass turnover",0,0,null,null,"5142718",null],[2,114.0,61,70,"A","stl","Jamarion Batemon Steal.",0,0,null,null,"5217196",null],[2,113.0,61,70,"H","foul","Foul on Mihailo Bošković.",0,0,null,null,"5243211",null],[2,113.0,62,70,"A","ft","Jamarion Batemon makes free throw 1 of 2",1,0,null,null,"5217196",null],[2,113.0,63,70,"A","ft","Jamarion Batemon makes free throw 2 of 2",1,0,null,null,"5217196",null],[2,104.0,63,70,"H","other","BYU Coach's Challenge (Overturned) BYU retains its timeout",0,0,null,null,null,null],[2,90.0,63,73,"H","fg","Mihailo Bošković makes 23-foot three point jumper (AJ Dybantsa assists)",1,1,48,1,"5243211","5142718"],[2,79.0,63,73,"H","foul","Foul on Keba Keita.",0,0,null,null,"5105647",null],[2,79.0,64,73,"A","ft","Nate Heise makes free throw 1 of 2",1,0,null,null,"4703912",null],[2,79.0,65,73,"A","ft","Nate Heise makes free throw 2 of 2",1,0,null,null,"4703912",null],[2,73.0,65,73,"A","foul","Foul on Jamarion Batemon.",0,0,null,null,"5217196",null],[2,73.0,65,74,"H","ft","AJ Dybantsa makes free throw 1 of 2",1,0,null,null,"5142718",null],[2,73.0,65,75,"H","ft","AJ Dybantsa makes free throw 2 of 2",1,0,null,null,"5142718",null],[2,61.0,67,75,"A","fg","Tamin Lipsey makes driving layup",1,0,25,0,"5106254",null],[2,45.0,67,75,"A","foul","Foul on Nate Heise.",0,0,null,null,"4703912",null],[2,45.0,67,76,"H","ft","Kennard Davis Jr. makes free throw 1 of 2",1,0,null,null,"4685654",null],[2,45.0,67,77,"H","ft","Kennard Davis Jr. makes free throw 2 of 2",1,0,null,null,"4685654",null],[2,37.0,67,77,"A","fg","Jamarion Batemon misses 28-foot three point jumper",0,1,7,21,"5217196",null],[2,34.0,67,77,"H","dreb","AJ Dybantsa Defensive Rebound.",0,0,null,null,"5142718",null],[2,32.0,67,79,"H","fg","Keba Keita makes 3-foot dunk (AJ Dybantsa assists)",1,0,25,3,"5105647","5142718"],[2,19.0,69,79,"A","fg","Tamin Lipsey makes layup",1,0,24,1,"5106254",null],[2,0.0,69,79,"","end","End of 2nd half",0,0,null,null,null,null],[2,0.0,69,79,"","end","End of Game",0,0,null,null,null,null]],"others":[{"away":{"id":194,"rank":null,"score":60},"home":{"id":127,"rank":15,"score":66},"tv":"CBS","best":15},{"away":{"id":2294,"rank":null,"score":71},"home":{"id":275,"rank":24,"score":84},"tv":"FS1","best":24},{"away":{"id":44,"rank":null,"score":75},"home":{"id":322,"rank":null,"score":61},"tv":"ESPN+","best":99},{"away":{"id":5,"rank":null,"score":78},"home":{"id":235,"rank":null,"score":67},"tv":"ESPN2","best":99},{"away":{"id":107,"rank":null,"score":72},"home":{"id":2083,"rank":null,"score":63},"tv":"ESPN+","best":99},{"away":{"id":104,"rank":null,"score":67},"home":{"id":2329,"rank":null,"score":70},"tv":"CBSSN","best":99},{"away":{"id":315,"rank":null,"score":62},"home":{"id":2520,"rank":null,"score":67},"tv":"ESPN+","best":99},{"away":{"id":314,"rank":null,"score":86},"home":{"id":2771,"rank":null,"score":88},"tv":"ESPN+","best":99}],"check":{"box":{"B. Buchanan":{"MIN":"27","PTS":"6","FG":"3-4","3PT":"0-0","FT":"0-0","REB":"4","AST":"0","TO":"2","STL":"0","BLK":"0","OREB":"3","DREB":"1","PF":"1"},"J. Jefferson":{"MIN":"35","PTS":"13","FG":"4-13","3PT":"1-5","FT":"4-5","REB":"8","AST":"7","TO":"1","STL":"2","BLK":"1","OREB":"1","DREB":"7","PF":"2"},"M. Momcilovic":{"MIN":"25","PTS":"5","FG":"1-5","3PT":"1-4","FT":"2-3","REB":"3","AST":"1","TO":"1","STL":"0","BLK":"0","OREB":"0","DREB":"3","PF":"4"},"K. Toure":{"MIN":"21","PTS":"3","FG":"1-3","3PT":"0-2","FT":"1-2","REB":"0","AST":"1","TO":"2","STL":"0","BLK":"0","OREB":"0","DREB":"0","PF":"2"},"T. Lipsey":{"MIN":"34","PTS":"19","FG":"7-15","3PT":"3-4","FT":"2-2","REB":"5","AST":"3","TO":"2","STL":"1","BLK":"0","OREB":"1","DREB":"4","PF":"2"},"D. Pleta":{"MIN":"11","PTS":"2","FG":"1-1","3PT":"0-0","FT":"0-0","REB":"0","AST":"0","TO":"1","STL":"1","BLK":"0","OREB":"0","DREB":"0","PF":"2"},"J. Batemon":{"MIN":"19","PTS":"14","FG":"4-8","3PT":"2-5","FT":"4-5","REB":"1","AST":"0","TO":"0","STL":"2","BLK":"0","OREB":"0","DREB":"1","PF":"3"},"N. Heise":{"MIN":"28","PTS":"7","FG":"2-5","3PT":"1-4","FT":"2-2","REB":"4","AST":"1","TO":"1","STL":"0","BLK":"0","OREB":"0","DREB":"4","PF":"4"},"M. Bošković":{"MIN":"28","PTS":"13","FG":"5-11","3PT":"2-8","FT":"1-1","REB":"5","AST":"0","TO":"3","STL":"0","BLK":"0","OREB":"1","DREB":"4","PF":"4"},"AJ Dybantsa":{"MIN":"40","PTS":"29","FG":"10-17","3PT":"2-4","FT":"7-9","REB":"10","AST":"9","TO":"2","STL":"1","BLK":"1","OREB":"2","DREB":"8","PF":"2"},"K. Keita":{"MIN":"27","PTS":"9","FG":"4-4","3PT":"0-0","FT":"1-3","REB":"6","AST":"0","TO":"2","STL":"3","BLK":"1","OREB":"2","DREB":"4","PF":"1"},"K. Davis Jr.":{"MIN":"36","PTS":"17","FG":"6-13","3PT":"3-8","FT":"2-2","REB":"4","AST":"0","TO":"1","STL":"0","BLK":"0","OREB":"4","DREB":"0","PF":"2"},"R. Wright III":{"MIN":"40","PTS":"6","FG":"2-8","3PT":"0-3","FT":"2-2","REB":"0","AST":"4","TO":"1","STL":"3","BLK":"0","OREB":"0","DREB":"0","PF":"1"},"K. Mboup":{"MIN":"17","PTS":"5","FG":"2-3","3PT":"0-1","FT":"1-3","REB":"10","AST":"0","TO":"2","STL":"0","BLK":"0","OREB":"3","DREB":"7","PF":"3"},"A. Ahmed":{"MIN":"7","PTS":"0","FG":"0-0","3PT":"0-0","FT":"0-0","REB":"0","AST":"0","TO":"0","STL":"0","BLK":"0","OREB":"0","DREB":"0","PF":"0"},"A. Kostić":{"MIN":"5","PTS":"0","FG":"0-2","3PT":"0-1","FT":"0-0","REB":"0","AST":"0","TO":"0","STL":"0","BLK":"0","OREB":"0","DREB":"0","PF":"2"}},"teams":{"A":{"fieldGoalsMade-fieldGoalsAttempted":"23-54","fieldGoalPct":"43","threePointFieldGoalsMade-threePointFieldGoalsAttempted":"8-24","threePointFieldGoalPct":"33","freeThrowsMade-freeThrowsAttempted":"15-19","freeThrowPct":"79","totalRebounds":"28","offensiveRebounds":"6","defensiveRebounds":"22","assists":"13","steals":"6","blocks":"1","turnovers":"10","teamTurnovers":"0","totalTurnovers":"10","technicalFouls":"0","totalTechnicalFouls":"0","flagrantFouls":"0","turnoverPoints":"8","fastBreakPoints":"9","pointsInPaint":"22","fouls":"20","largestLead":"3","leadChanges":"4","leadPercentage":"11"},"H":{"fieldGoalsMade-fieldGoalsAttempted":"29-58","fieldGoalPct":"50","threePointFieldGoalsMade-threePointFieldGoalsAttempted":"7-25","threePointFieldGoalPct":"28","freeThrowsMade-freeThrowsAttempted":"14-20","freeThrowPct":"70","totalRebounds":"39","offensiveRebounds":"12","defensiveRebounds":"27","assists":"13","steals":"7","blocks":"2","turnovers":"11","teamTurnovers":"0","totalTurnovers":"11","technicalFouls":"0","totalTechnicalFouls":"0","flagrantFouls":"0","turnoverPoints":"13","fastBreakPoints":"14","pointsInPaint":"40","fouls":"15","largestLead":"13","leadChanges":"4","leadPercentage":"85"}}}};
+
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+var QS = location.search;
+
+/* ---------------------------- fit the window ---------------------------- */
+function fit(){
+  var k = Math.min(window.innerWidth / 1280, window.innerHeight / 695);
+  var st = $('stage');
+  st.style.transform = 'scale(' + k + ')';
+  st.style.left = Math.round((window.innerWidth - 1280 * k) / 2) + 'px';
+  st.style.top = Math.round((window.innerHeight - 695 * k) / 2) + 'px';
+}
+window.addEventListener('resize', fit);
+fit();
+
+/* ------------------------------ teams ------------------------------ */
+// H and A are the home and away slots. BYU is shown in white and its
+// opponent in gold, the way the football board does it.
+var T = { H: GAME.home, A: GAME.away };
+var FEAT = T.H.abbr === 'BYU' ? 'H' : 'A', OPP = FEAT === 'H' ? 'A' : 'H';
+var COLOR = {}; COLOR[FEAT] = '#FFFFFF'; COLOR[OPP] = '#F1BE48';
+function logo(id){
+  return '<img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/' + id + '.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/' +
+         id + '.png" onerror="logoFailed(this)">';
+}
+function logoFailed(img){
+  var plain = img.getAttribute('data-plain');
+  if(plain && img.src !== plain){ img.src = plain; return; }
+  img.onerror = null; img.style.visibility = 'hidden';
+}
+$('lgA').innerHTML = logo(T.A.id) + '<span class="rkb">' + (T.A.rank || '') + '</span>';
+$('lgH').innerHTML = logo(T.H.id) + '<span class="rkb">' + (T.H.rank || '') + '</span>';
+$('tLA').innerHTML = logo(T.A.id); $('tLH').innerHTML = logo(T.H.id);
+$('net').textContent = GAME.tv;
+$('demo').textContent = 'Demo: the real BYU vs Iowa State game, Feb 21, 2026';
+
+/* ===========================================================================
+   The game so far. ESPN's plays, in order, each
+     [period, clock seconds, away score, home score, team slot, kind, text,
+      made, three, shot x, shot y, player, second player]
+   kind: fg ft oreb dreb xreb to stl blk foul tmo tv end other.
+   Shot x is feet across the court (the basket at 25), y feet out from the
+   basket. Everything on screen is added up from the plays up to "upto", so
+   the demo shows the game as it stood at that moment.
+   =========================================================================== */
+var P = GAME.plays;
+var HALF = 1200, OT = 300, TIMEOUTS = 4;
+function elapsed(period, clock){ return period <= 2 ? (period - 1) * HALF + (HALF - clock) : 2 * HALF + (period - 3) * OT + (OT - clock); }
+function blankTeam(){ return { fgm:0, fga:0, tpm:0, tpa:0, ftm:0, fta:0, oreb:0, dreb:0, ast:0, stl:0, blk:0, to:0, pf:0, halfPf:0, tmo:0, lines:[] }; }
+function blankPlayer(name, t){ return { n:name, team:t, pts:0, fgm:0, fga:0, tpm:0, tpa:0, ftm:0, fta:0, reb:0, ast:0, stl:0, blk:0, to:0, pf:0 }; }
+
+function gameAt(upto){
+  var g = { t: { H: blankTeam(), A: blankTeam() }, players: {}, score: { H: 0, A: 0 }, period: 1, clock: HALF,
+            last: null, flow: [[0, 0]], shots: [], lead: { H: 0, A: 0 }, changes: 0, run: null, over: false, halftime: false };
+  var pl = function(id){
+    if(!id || !GAME.ath[id]) return null;
+    if(!g.players[id]) g.players[id] = blankPlayer(GAME.ath[id][0], GAME.ath[id][1]);
+    return g.players[id];
+  };
+  var leader = '', streak = { team: '', pts: 0, against: 0 };
+  for(var i = 0; i <= upto && i < P.length; i++){
+    var p = P[i], per = p[0], clk = p[1], s = p[4], kind = p[5], made = p[7], three = p[8];
+    var a = pl(p[11]), b = pl(p[12]), tm = s ? g.t[s] : null;
+    if(per !== g.period){ g.period = per; g.t.H.halfPf = 0; g.t.A.halfPf = 0; }
+    g.clock = clk; g.halftime = false;
+    if(kind === 'fg' && tm){
+      tm.fga++; if(three) tm.tpa++;
+      if(a){ a.fga++; if(three) a.tpa++; }
+      if(made){ tm.fgm++; if(three) tm.tpm++; if(a){ a.fgm++; if(three) a.tpm++; a.pts += three ? 3 : 2; } if(b){ b.ast++; tm.ast++; } }
+      if(p[9] !== null) g.shots.push({ team: s, x: p[9], y: p[10], made: made, three: three, i: i });
+    } else if(kind === 'ft' && tm){
+      tm.fta++; if(a) a.fta++;
+      if(made){ tm.ftm++; if(a){ a.ftm++; a.pts++; } }
+    } else if((kind === 'oreb' || kind === 'dreb') && tm){
+      if(kind === 'oreb') tm.oreb++; else tm.dreb++;
+      if(a) a.reb++;
+    } else if(kind === 'to' && tm){ tm.to++; if(a) a.to++; }
+    else if(kind === 'stl' && tm){ tm.stl++; if(a) a.stl++; }
+    else if(kind === 'blk' && tm){ tm.blk++; if(a) a.blk++; }
+    else if(kind === 'foul' && tm){ tm.pf++; tm.halfPf++; if(a) a.pf++; }
+    else if(kind === 'tmo' && tm){ tm.tmo++; }
+    else if(kind === 'end'){ if(/Game/.test(p[6])) g.over = true; else if(per === 1) g.halftime = true; }
+
+    // the score, the lead, runs and the flow line
+    var was = { H: g.score.H, A: g.score.A };
+    g.score.A = p[2]; g.score.H = p[3];
+    var dh = g.score.H - was.H, da = g.score.A - was.A;
+    if(dh || da){
+      var who = dh ? 'H' : 'A', pts = dh || da;
+      if(streak.team === who) streak.pts += pts; else { streak = { team: who, pts: pts, against: 0 }; }
+      var margin = g.score.H - g.score.A;
+      if(margin > g.lead.H) g.lead.H = margin;
+      if(-margin > g.lead.A) g.lead.A = -margin;
+      var now = margin > 0 ? 'H' : margin < 0 ? 'A' : '';
+      if(now && leader && now !== leader) g.changes++;
+      if(now) leader = now;
+      g.flow.push([elapsed(per, clk), margin]);
+    }
+    if(kind !== 'tv' && kind !== 'end' && kind !== 'other') g.last = { i: i, text: p[6], kind: kind, team: s };
+  }
+  g.run = streak.pts >= 7 ? streak : null;
+  g.t.H.lines = lineScore('H', upto); g.t.A.lines = lineScore('A', upto);
+  g.state = g.over ? 'post' : 'in';
+  return g;
+}
+// Points by period, from the score at the end of each one.
+function lineScore(s, upto){
+  var out = [], col = s === 'H' ? 3 : 2, before = 0, last = 0;
+  for(var i = 0; i <= upto && i < P.length; i++){
+    var per = P[i][0];
+    if(per > out.length){ before = last; while(out.length < per) out.push(0); }
+    out[per - 1] = P[i][col] - before;
+    last = P[i][col];
+  }
+  return out;
+}
+
+/* ------------------------------ drawing ------------------------------ */
+function clockText(g){
+  if(g.over) return 'Final' + (g.period > 2 ? (g.period === 3 ? '/OT' : '/' + (g.period - 2) + 'OT') : '');
+  if(g.halftime) return 'Half';
+  var m = Math.floor(g.clock / 60), sec = Math.floor(g.clock % 60);
+  var c = g.clock < 60 ? g.clock.toFixed(1) : m + ':' + (sec < 10 ? '0' : '') + sec;
+  var name = g.period === 1 ? '1st' : g.period === 2 ? '2nd' : g.period === 3 ? 'OT' : (g.period - 2) + 'OT';
+  return name + ' ' + c;
+}
+var shownScore = { H: null, A: null };
+function drawScore(g){
+  ['A', 'H'].forEach(function(s){
+    var el = $('s' + s);
+    el.textContent = g.score[s];
+    if(shownScore[s] !== null && g.score[s] !== shownScore[s]){
+      el.className = 'pts pop';
+      setTimeout(function(){ el.className = 'pts' + (g.score[s] < g.score[s === 'H' ? 'A' : 'H'] ? ' o' : ''); }, 1400);
+    } else if(el.className.indexOf('pop') < 0) el.className = 'pts' + (g.score[s] < g.score[s === 'H' ? 'A' : 'H'] ? ' o' : '');
+    shownScore[s] = g.score[s];
+    var left = Math.max(0, TIMEOUTS - g.t[s].tmo), d = '';
+    for(var i = 0; i < TIMEOUTS; i++) d += '<i' + (i >= left ? ' class="used"' : '') + '></i>';
+    $('to' + s).innerHTML = g.over ? '' : d;
+  });
+  $('clk').textContent = clockText(g);
+  var m = g.score[FEAT] - g.score[OPP], dd = $('dd');
+  if(g.over){ dd.className = 'dd'; dd.textContent = m > 0 ? T[FEAT].name + ' wins' : m < 0 ? T[OPP].name + ' wins' : ''; }
+  else if(g.run){ dd.className = 'dd run'; dd.textContent = T[g.run.team].name + ' on a ' + g.run.pts + '–0 run'; }
+  else { dd.className = 'dd'; dd.textContent = m === 0 ? 'Tied' : T[m > 0 ? FEAT : OPP].name + ' by ' + Math.abs(m); }
+
+  var periods = Math.max(2, g.t.H.lines.length);
+  var head = '<tr><td class="h t"></td>' + (function(){ var h = ''; for(var i = 1; i <= periods; i++) h += '<td class="h">' + (i === 1 ? '1st' : i === 2 ? '2nd' : i === 3 ? 'OT' : (i - 2) + 'OT') + '</td>'; return h; })() + '<td class="h">' + (g.over ? 'Final' : 'Total') + '</td></tr>';
+  var row = function(s){
+    var r = '<tr><td class="t">' + logo(T[s].id) + '</td>';
+    for(var i = 0; i < periods; i++) r += '<td>' + (i < g.t[s].lines.length ? g.t[s].lines[i] : '') + '</td>';
+    return r + '<td class="tot">' + g.score[s] + '</td></tr>';
+  };
+  $('lineScore').innerHTML = head + row('A') + row('H');
+}
+
+// Team stats: six rows a page, two pages that take turns, like football.
+// A number that just changed shows in blue for a few seconds.
+var statPage = 0, flash = {};
+function pct(m, a){ return a ? Math.round(100 * m / a) + '%' : '–'; }
+function teamRows(g, prev){
+  var a = g.t.A, h = g.t.H;
+  var rows = statPage ? [
+    ['Assists', a.ast, h.ast],
+    ['Off. rebounds', a.oreb, h.oreb],
+    ['Steals', a.stl, h.stl],
+    ['Blocks', a.blk, h.blk],
+    ['Fouls', a.pf, h.pf],
+    ['Largest lead', g.lead.A, g.lead.H],
+  ] : [
+    ['Field goals', a.fgm + '-' + a.fga, h.fgm + '-' + h.fga],
+    ['Shooting', pct(a.fgm, a.fga), pct(h.fgm, h.fga)],
+    ['3-pointers', a.tpm + '-' + a.tpa, h.tpm + '-' + h.tpa],
+    ['Free throws', a.ftm + '-' + a.fta, h.ftm + '-' + h.fta],
+    ['Rebounds', a.oreb + a.dreb, h.oreb + h.dreb],
+    ['Turnovers', a.to, h.to],
+  ];
+  $('tT').textContent = statPage ? 'Hustle & more' : 'Team stats';
+  $('tD').innerHTML = '<i' + (statPage ? '' : ' class="on"') + '></i><i' + (statPage ? ' class="on"' : '') + '></i>';
+  var now = Date.now();
+  $('team').innerHTML = rows.map(function(r){
+    var key = r[0];
+    if(prev && prev[key]){
+      if(prev[key][0] !== String(r[1])) flash[key + 'A'] = now + 4000;
+      if(prev[key][1] !== String(r[2])) flash[key + 'H'] = now + 4000;
+    }
+    var fa = flash[key + 'A'] > now, fh = flash[key + 'H'] > now;
+    return '<div class="row"><span class="k">' + key + '</span><span class="c' + (fa ? ' f' : (OPP === 'A' ? ' o' : '')) + '">' + esc(r[1]) +
+           '</span><span class="c' + (fh ? ' f' : (OPP === 'H' ? ' o' : '')) + '">' + esc(r[2]) + '</span></div>';
+  }).join('');
+  var out = {}; rows.forEach(function(r){ out[r[0]] = [String(r[1]), String(r[2])]; }); return out;
+}
+
+// BYU's players by points, with the rest of their line in words. Page 2 is
+// the boards, assists and defense leaders, then the other team's scorers.
+var leaderNames = null;
+function many(n, one, more){ return n + ' ' + (n === 1 ? one : more); }
+function line(p){
+  var bits = [p.fgm + '-' + p.fga + ' FG'];
+  if(p.tpa) bits.push(p.tpm + '-' + p.tpa + ' 3PT');
+  if(p.reb) bits.push(p.reb + ' reb');
+  if(p.ast) bits.push(p.ast + ' ast');
+  return bits.join(', ');
+}
+function leaderRows(g){
+  var all = Object.keys(g.players).map(function(k){ return g.players[k]; });
+  var mine = all.filter(function(p){ return p.team === FEAT; }), theirs = all.filter(function(p){ return p.team === OPP; });
+  var by = function(list, key){ return list.slice().sort(function(x, y){ return (y[key] - x[key]) || (y.pts - x.pts); }); };
+  var lines = [];
+  if(!statPage){
+    by(mine, 'pts').slice(0, 6).forEach(function(p){ lines.push({ o: false, n: p.n, big: p.pts, u: 'pts', sub: line(p) }); });
+  } else {
+    var r = by(mine, 'reb')[0], as = by(mine, 'ast')[0], d = mine.slice().sort(function(x, y){ return (y.stl + y.blk) - (x.stl + x.blk); })[0];
+    if(r) lines.push({ o: false, n: r.n, big: r.reb, u: 'reb', sub: r.pts + ' pts' + (r.ast ? ', ' + r.ast + ' ast' : '') });
+    if(as) lines.push({ o: false, n: as.n, big: as.ast, u: 'ast', sub: as.pts + ' pts' + (as.to ? ', ' + many(as.to, 'turnover', 'turnovers') : '') });
+    if(d && d.stl + d.blk) lines.push({ o: false, n: d.n, big: d.stl + d.blk, u: 'stl + blk', sub: many(d.stl, 'steal', 'steals') + ', ' + many(d.blk, 'block', 'blocks') });
+    by(theirs, 'pts').slice(0, 3).forEach(function(p){ lines.push({ o: true, n: p.n, big: p.pts, u: 'pts', sub: line(p) }); });
+  }
+  $('lT').textContent = statPage ? 'Boards, assists & ' + T[OPP].name : 'BYU players';
+  $('lD').innerHTML = $('tD').innerHTML;
+  var names = lines.map(function(l){ return l.n + l.u; });
+  $('leaders').innerHTML = lines.length ? lines.map(function(l, i){
+    var isNew = leaderNames && leaderNames.page === statPage && leaderNames.list.indexOf(names[i]) < 0;
+    return '<div class="ld' + (l.o ? ' o' : '') + (isNew ? ' new' : '') + '"><div class="l1"><span class="n">' + (l.o ? logo(T[OPP].id) : '') + esc(l.n) +
+           '</span><span class="big">' + l.big + '</span><span class="u">' + l.u + '</span></div><div class="l2">' + esc(l.sub) + '</div></div>';
+  }).join('') : '<div class="ld"><div class="l2">Nothing yet</div></div>';
+  leaderNames = { page: statPage, list: names };
+}
+
+// Game flow: the lead over the game, BYU's above the line in white and the
+// other team's below in gold, halftime marked, the clock so far filled in.
+function drawFlow(g){
+  var W = 400, H = 60, mid = H / 2, total = 2 * HALF + Math.max(0, g.period - 2) * OT;
+  var big = 10; g.flow.forEach(function(f){ big = Math.max(big, Math.abs(f[1])); });
+  var X = function(t){ return (t / total * W).toFixed(1); }, Y = function(m){ return (mid - m / big * (mid - 4)).toFixed(1); };
+  var sgn = FEAT === 'H' ? 1 : -1;               // BYU's lead goes up
+  var now = elapsed(g.period, g.clock), d = 'M0 ' + mid, last = 0;
+  g.flow.forEach(function(f){ d += ' L' + X(f[0]) + ' ' + Y(last * sgn) + ' L' + X(f[0]) + ' ' + Y(f[1] * sgn); last = f[1]; });
+  d += ' L' + X(now) + ' ' + Y(last * sgn) + ' L' + X(now) + ' ' + mid + ' Z';
+  var svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' +
+    '<defs><clipPath id="up"><rect x="0" y="0" width="' + W + '" height="' + mid + '"/></clipPath>' +
+    '<clipPath id="dn"><rect x="0" y="' + mid + '" width="' + W + '" height="' + mid + '"/></clipPath></defs>' +
+    '<rect x="' + X(now) + '" y="0" width="' + (W - X(now)) + '" height="' + H + '" fill="rgba(0,0,0,0.25)"/>' +
+    '<path d="' + d + '" fill="' + COLOR[FEAT] + '" fill-opacity="0.9" clip-path="url(#up)"/>' +
+    '<path d="' + d + '" fill="' + COLOR[OPP] + '" fill-opacity="0.9" clip-path="url(#dn)"/>' +
+    '<line x1="0" y1="' + mid + '" x2="' + W + '" y2="' + mid + '" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>' +
+    '<line x1="' + X(HALF) + '" y1="0" x2="' + X(HALF) + '" y2="' + H + '" stroke="rgba(255,255,255,0.5)" stroke-width="1" stroke-dasharray="3 3"/>' +
+    (g.over ? '' : '<circle cx="' + X(now) + '" cy="' + Y(last * sgn) + '" r="4" fill="' + '#5FA8FF' + '"/>') +
+    '</svg>';
+  $('flow').innerHTML = svg;
+}
+
+function drawStrip(g){
+  $('lp').textContent = g.last ? g.last.text : 'Tipoff';
+  // Team fouls this half; seven puts the other team in the bonus.
+  var f = function(s){
+    var o = s === 'H' ? 'A' : 'H';
+    return logo(T[s].id).replace('<img', '<img style="display:inline-block"') + '<b>' + g.t[s].halfPf + '</b>' +
+           (g.t[o].halfPf >= 7 && !g.over ? '<span class="bonus">' + (g.t[o].halfPf >= 10 ? 'DOUBLE BONUS' : 'BONUS') + '</span>' : '');
+  };
+  $('fouls').innerHTML = g.over ? '' : 'Fouls' + f('A') + f('H');
+}
+
+// The other games: the football board's short logo cards.
+function drawGames(){
+  $('games').innerHTML = GAME.others.slice(0, 4).map(function(o, i){
+    var lead = o.home.score - o.away.score;
+    var side = function(t){ return '<div class="lw">' + logo(t.id) + (t.rank ? '<span class="rkb">' + t.rank + '</span>' : '') + '</div>'; };
+    var pts = function(t, lo){ return '<span class="s' + (lo ? ' lo' : '') + '">' + t.score + '</span>'; };
+    return '<div class="gc post" style="left:' + (12 + i * 317) + 'px"><div class="gl">' + side(o.away) + pts(o.away, lead > 0) +
+           '<span class="vs">–</span>' + pts(o.home, lead < 0) + side(o.home) + '</div>' +
+           '<div class="gf"><span class="ck">Final</span><span class="st"></span><span class="tv">' + esc(o.tv) + '</span></div></div>';
+  }).join('');
+}
+
+/* ------------------------------ the shot chart ------------------------------ */
+// The court at 13 px a foot: 94 x 50 ft is 1222 x 650... too tall for the
+// screen, so 11.4 px a foot (1072 x 570) centred in the 1240 x 573 box.
+var FT = 11.4, CW = 94 * FT, CH = 50 * FT, CX = (1240 - CW) / 2, CY = (573 - CH) / 2;
+function courtLines(){
+  var c = function(x){ return (CX + x * FT).toFixed(1); }, r = function(y){ return (CY + y * FT).toFixed(1); };
+  var L = 'stroke="rgba(255,255,255,0.85)" stroke-width="2.5" fill="none"';
+  var h = '<defs><linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C99257"/><stop offset="1" stop-color="#A8743F"/></linearGradient></defs>';
+  h += '<rect x="' + c(0) + '" y="' + r(0) + '" width="' + CW + '" height="' + CH + '" fill="url(#wood)" rx="4"/>';
+  for(var y = 2.5; y < 50; y += 2.5) h += '<line x1="' + c(0) + '" y1="' + r(y) + '" x2="' + c(94) + '" y2="' + r(y) + '" stroke="rgba(80,45,15,0.18)" stroke-width="1"/>';
+  h += '<rect x="' + c(0) + '" y="' + r(0) + '" width="' + CW + '" height="' + CH + '" fill="rgba(4,10,24,0.22)" rx="4"/>';
+  // each end: the lane (BYU blue), free-throw circle, arc, rim
+  [0, 1].forEach(function(end){
+    var bx = end ? 94 - 5.25 : 5.25, dir = end ? -1 : 1, base = end ? 94 : 0;
+    var laneX = end ? 94 - 19 : 0;
+    h += '<rect x="' + c(laneX) + '" y="' + r(19) + '" width="' + (19 * FT) + '" height="' + (12 * FT) + '" fill="#0047BA" fill-opacity="0.55" ' + L + '/>';
+    h += '<circle cx="' + c(base + dir * 19) + '" cy="' + r(25) + '" r="' + (6 * FT) + '" ' + L + '/>';
+    // the three-point line: straight in the corners, then an arc 22 ft 1.75 in out
+    var R = 22.146, cy = 25, yc = Math.sqrt(R * R - 21.65 * 21.65), cornerX = bx + dir * yc;
+    h += '<path d="M' + c(base) + ' ' + r(cy - 21.65) + ' L' + c(cornerX) + ' ' + r(cy - 21.65) +
+         ' A' + (R * FT).toFixed(1) + ' ' + (R * FT).toFixed(1) + ' 0 0 ' + (end ? 0 : 1) + ' ' + c(cornerX) + ' ' + r(cy + 21.65) +
+         ' L' + c(base) + ' ' + r(cy + 21.65) + '" ' + L + '/>';
+    h += '<line x1="' + c(base + dir * 4) + '" y1="' + r(22) + '" x2="' + c(base + dir * 4) + '" y2="' + r(28) + '" stroke="#FFFFFF" stroke-width="4"/>';
+    h += '<circle cx="' + c(bx) + '" cy="' + r(25) + '" r="' + (0.75 * FT) + '" stroke="#FF7A1A" stroke-width="3" fill="none"/>';
+  });
+  h += '<line x1="' + c(47) + '" y1="' + r(0) + '" x2="' + c(47) + '" y2="' + r(50) + '" ' + L + '/>';
+  h += '<circle cx="' + c(47) + '" cy="' + r(25) + '" r="' + (6 * FT) + '" ' + L + '/>';
+  h += '<image href="https://a.espncdn.com/i/teamlogos/ncaa/500/' + T[FEAT].id + '.png" x="' + (CX + 47 * FT - 50) + '" y="' + (CY + 25 * FT - 50) + '" width="100" height="100" opacity="0.85"/>';
+  h += '<rect x="' + c(0) + '" y="' + r(0) + '" width="' + CW + '" height="' + CH + '" ' + L + ' rx="4"/>';
+  return h;
+}
+// BYU shoots at the right-hand basket, the other team at the left.
+function shotXY(s){
+  var right = s.team === FEAT, along = 5.25 + Math.max(-3, s.y), across = s.x;
+  return right ? { x: CX + (94 - along) * FT, y: CY + across * FT } : { x: CX + along * FT, y: CY + (50 - across) * FT };
+}
+function drawShots(g){
+  var h = courtLines();
+  g.shots.forEach(function(s, k){
+    var at = shotXY(s), col = COLOR[s.team], recent = k >= g.shots.length - 2;
+    h += s.made
+      ? '<circle cx="' + at.x.toFixed(1) + '" cy="' + at.y.toFixed(1) + '" r="' + (s.three ? 9 : 8) + '" fill="' + col + '" stroke="#05080F" stroke-width="2"/>'
+      : '<circle cx="' + at.x.toFixed(1) + '" cy="' + at.y.toFixed(1) + '" r="7" fill="none" stroke="' + col + '" stroke-width="3" stroke-opacity="0.85"/>';
+    if(recent) h += '<circle cx="' + at.x.toFixed(1) + '" cy="' + at.y.toFixed(1) + '" r="15" fill="none" stroke="#5FA8FF" stroke-width="3"/>';
+  });
+  $('court').innerHTML = h;
+  $('shSub').textContent = T[FEAT].name + ' shoots right · ' + T[OPP].name + ' shoots left';
+  $('shSco').innerHTML = '<span class="o">' + esc(T.A.abbr) + '</span><b class="o">' + g.score.A + '</b>' + esc(T.H.abbr) + '<b>' + g.score.H + '</b><span class="q">' + esc(clockText(g)) + '</span>';
+  var dot = function(col, made){ return '<svg width="22" height="22">' + (made ? '<circle cx="11" cy="11" r="8" fill="' + col + '"/>' : '<circle cx="11" cy="11" r="7" fill="none" stroke="' + col + '" stroke-width="3"/>') + '</svg>'; };
+  var fg = function(s){ var t = g.t[s]; return t.fgm + '-' + t.fga + ' (' + pct(t.fgm, t.fga) + '), 3PT ' + t.tpm + '-' + t.tpa; };
+  $('shFt').innerHTML = '<span class="it">' + dot(COLOR[FEAT], 1) + dot(COLOR[FEAT], 0) + esc(T[FEAT].name) + ' ' + fg(FEAT) + '</span>' +
+    '<span class="it">' + dot(COLOR[OPP], 1) + dot(COLOR[OPP], 0) + esc(T[OPP].name) + ' ' + fg(OPP) + '</span>' +
+    '<span class="it">Filled: made · Ring: missed · Free throws not shown</span><span class="back">Back to live</span>';
+}
+
+/* ------------------------------ banners ------------------------------ */
+var bannerTimer = null;
+function banner(a, b, ms){
+  $('bA').textContent = a; $('bB').textContent = b || '';
+  $('banner').className = 'abs pill np on';
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(function(){ $('banner').className = 'abs pill np'; }, ms || 5000);
+}
+var toastTimer = null;
+function toast(text){
+  $('toast').textContent = text; $('toast').className = 'abs np on';
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ $('toast').className = 'abs np'; }, 4500);
+}
+
+/* ------------------------------ the replay ------------------------------ */
+// From 8:00 left in the game unless ?from=start; a play every 2.4 s, the
+// way it would arrive live (sped up), then the final holds.
+var STEP = 2400;
+function startIndex(){
+  if(/[?&]at=final\b/.test(QS)) return P.length - 1;
+  if(/[?&]from=start\b/.test(QS)) return 0;
+  for(var i = 0; i < P.length; i++) if(P[i][0] === 2 && P[i][1] <= 480) return i;
+  return 0;
+}
+var upto = startIndex(), game = null, prevRows = null, shotsOpen = false;
+function show(fresh){
+  var before = fresh ? game : null;
+  game = gameAt(upto);
+  drawScore(game);
+  prevRows = teamRows(game, prevRows);
+  leaderRows(game);
+  drawFlow(game);
+  drawStrip(game);
+  if(shotsOpen) drawShots(game);
+  var p = P[upto];
+  if(before && p && p[5] === 'tmo') banner('Timeout', T[p[4]].name + ' · ' + (TIMEOUTS - game.t[p[4]].tmo) + ' left', 6000);
+  if(before && p && p[5] === 'tv') banner('TV timeout', clockText(game), 5000);
+}
+function step(){
+  if(upto >= P.length - 1) return;
+  upto++;
+  // Quiet plays (rebounds after a made free throw, TV breaks) go by faster.
+  var p = P[upto];
+  show(true);
+  var wait = p[5] === 'tmo' || p[5] === 'tv' ? 6500 : STEP;
+  if(upto < P.length - 1) setTimeout(step, wait);
+}
+
+/* ------------------------------ buttons ------------------------------ */
+function openShots(){ shotsOpen = true; drawShots(game); $('shots').className = 'abs on'; }
+function closeShots(){ shotsOpen = false; $('shots').className = 'abs'; }
+$('btnShots').onclick = openShots;
+$('flow').onclick = openShots;
+$('shots').onclick = closeShots;
+$('btnFootball').onclick = function(){ toast('Shows when BYU football is on at the same time. Tap it to go to the football game; the football game is the default.'); };
+$('btnHome').onclick = function(){ toast('Back to all the games. In the demo it stays here.'); };
+
+drawGames();
+show();
+setInterval(function(){ statPage = statPage ? 0 : 1; prevRows = null; show(); }, 10000);
+if(upto < P.length - 1) setTimeout(step, 3000);
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ $('stage').className = 'ready'; });
+setTimeout(function(){ $('stage').className = 'ready'; }, 1500);
+</script>
+</body>
+</html>
