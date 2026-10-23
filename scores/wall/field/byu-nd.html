@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BYU vs Notre Dame · real plays</title>
+<meta name="theme-color" content="#03060F" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---------------------------------------------------------------------------
+     BYU vs Notre Dame, Oct 17 2026: the board demo playing the real last two
+     drives (from ESPN's play-by-play), at about game speed. Built from
+     board.html by a script; the data is in the REAL constant below.
+
+     A demo of the BYU gameday board: the box score up top, a flat drive
+     tracker under the score, and the four best other games along the bottom.
+     The big tilted field ("under the lights") only comes up for replays: it
+     is one pre-baked picture with the drive drawn flat on top, using the
+     same perspective math the picture was baked with.
+
+     Type is Barlow (text) and Barlow Condensed (numbers), the sort of faces
+     TV score graphics use, at medium weights; logos stand in for team names
+     wherever there is room for one.
+
+     The whole screen is laid out at 1280x695, the calendar's page size, so
+     it shows there unscaled; anywhere else it is scaled to fit the window.
+     No ?. or ??, no flex gap: Chromium 74.
+     --------------------------------------------------------------------------- */
+  :root{
+    --ink:#FFFFFF; --dim:rgba(255,255,255,0.64); --faint:rgba(255,255,255,0.42);
+    --royal:#0062B8; --hi:#5FA8FF; --panel:rgba(6,13,30,0.84); --rule:rgba(255,255,255,0.09);
+    --isu:#D9B44A; --bad:#FF5A4E;
+    --txt:'Barlow',Roboto,Helvetica,Arial,sans-serif;
+    --num:'Barlow Condensed','Roboto Condensed','Arial Narrow',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overflow:hidden;background:#03060F;}
+  body{font-family:var(--txt);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;cursor:default;user-select:none;-webkit-user-select:none;}
+  #stage{position:absolute;left:0;top:0;width:1280px;height:695px;transform-origin:0 0;overflow:hidden;visibility:hidden;
+    background:radial-gradient(ellipse 420px 260px at 540px 0,rgba(255,240,205,0.14),rgba(255,240,205,0) 70%),
+               radial-gradient(ellipse 420px 260px at 740px 0,rgba(255,240,205,0.14),rgba(255,240,205,0) 70%),
+               linear-gradient(180deg,#03060F 0%,#08122A 50%,#0A1630 100%);}
+  #stage.ready{visibility:visible;}
+  .abs{position:absolute;}
+  .np{pointer-events:none;}
+  img.lg{display:block;object-fit:contain;}
+
+  /* ---- stats either side ---- */
+  .panel{top:10px;width:420px;height:458px;padding:10px 20px;background:var(--panel);
+    border:1px solid rgba(255,255,255,0.1);border-radius:18px;}
+  .ph{display:flex;align-items:center;height:40px;font-size:18px;color:var(--dim);}
+  .ph .c{width:108px;}
+  .ph .c img{width:34px;height:34px;margin-left:auto;}
+  .dots i{display:inline-block;width:8px;height:8px;border-radius:4px;margin-left:7px;background:rgba(255,255,255,0.2);vertical-align:2px;}
+  .dots i.on{background:var(--hi);}
+  .row{display:flex;align-items:center;height:66px;border-top:1px solid var(--rule);}
+  .row .k{flex:1;min-width:0;font-size:25px;color:rgba(255,255,255,0.82);white-space:nowrap;}
+  .row .c{width:108px;text-align:right;white-space:nowrap;font-family:var(--num);font-weight:600;font-size:42px;}
+  .row .c.o{color:var(--dim);}
+  .row.fB .c.b,.row.fA .c.o{color:var(--hi);}
+  .ld{height:66px;border-top:1px solid var(--rule);padding-top:3px;}
+  .ld .l1{display:flex;align-items:baseline;height:33px;}
+  .ld .n{flex:1;min-width:0;font-size:25px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ld .n img{display:inline-block;width:24px;height:24px;margin-right:8px;vertical-align:-3px;}
+  .ld .big{font-family:var(--num);font-weight:600;font-size:32px;line-height:1;}
+  .ld .u{font-size:19px;color:var(--dim);margin-left:5px;}
+  .ld .l2{font-size:24px;line-height:28px;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ld.o .n,.ld.o .big{color:rgba(255,255,255,0.75);}
+  .ld.new .n{color:var(--hi);}
+  .ld.one{display:flex;align-items:center;padding-top:0;}
+  .ld.one .n{font-size:28px;}
+  .ld.one .n img{width:28px;height:28px;}
+  .ld.one .big{font-size:42px;}
+  .ld.one .tds{width:76px;text-align:right;white-space:nowrap;}  /* a fixed slot, so the yards line up with or without TDs */
+  .ld.one .u{font-size:20px;}
+
+  /* ---- the score ---- */
+  #score{left:436px;top:6px;width:408px;}
+  .sc{display:flex;align-items:center;}
+  .tm{width:82px;display:flex;flex-direction:column;align-items:center;}
+  .lgw{position:relative;width:76px;height:76px;}
+  .lgw img{width:76px;height:76px;}
+  /* rankings: white on near-black with a white ring, readable over any logo */
+  .rkb{position:absolute;left:-10px;top:-6px;font-family:var(--num);font-weight:700;font-size:21px;line-height:24px;padding:0 7px;
+    border-radius:13px;background:#05080F;color:#FFFFFF;border:2px solid rgba(255,255,255,0.85);}
+  .poss{position:absolute;right:-6px;bottom:0;width:20px;height:13px;border-radius:50%;background:#A8622F;border:2px solid #FFFFFF;display:none;}
+  .poss.on{display:block;}
+  .tos{display:none;}  /* ESPN's timeout log over-counts, so no timeouts-left dots here */
+  .tos i{display:inline-block;width:16px;height:4px;border-radius:2px;margin:0 2px;background:var(--hi);vertical-align:top;}
+  .tos i.used{background:rgba(255,255,255,0.18);}
+  .pts{width:104px;text-align:center;font-family:var(--num);font-weight:600;font-size:96px;line-height:1;}
+  .pts.o{color:var(--dim);}
+  .mid{width:36px;}
+  .clkrow{text-align:center;margin-top:4px;white-space:nowrap;}
+  .clk{font-family:var(--num);font-weight:600;font-size:36px;color:var(--hi);}
+  .net{font-size:18px;font-weight:600;letter-spacing:1px;color:rgba(255,255,255,0.8);margin-left:14px;vertical-align:4px;}
+  .dd{text-align:center;font-size:30px;font-weight:600;margin-top:2px;}
+  .lines{margin:12px auto 0;width:396px;background:rgba(6,13,30,0.8);border-radius:14px;padding:6px 18px 8px;}
+  .lines table{border-collapse:collapse;width:100%;}
+  .lines td{padding:0;text-align:center;font-family:var(--num);font-weight:500;font-size:36px;line-height:42px;color:rgba(255,255,255,0.88);}
+  .lines td.h{font-family:var(--txt);font-size:18px;line-height:24px;color:var(--dim);}
+  .lines td.t{width:52px;}
+  .lines td.t img{width:36px;height:36px;vertical-align:middle;}
+  .lines td.tot{font-weight:700;color:#FFFFFF;}
+
+  /* ---- the drive tracker: a flat strip of field under the score ---- */
+  #mini{left:440px;top:366px;width:400px;height:60px;border-radius:9px;overflow:hidden;background:#2F6B35;cursor:pointer;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.18);}
+  #mini .ez{position:absolute;top:0;width:28px;height:60px;}
+  #mini .ez img{width:24px;height:24px;margin:18px 2px;}
+  #mini .yl{position:absolute;top:0;width:1px;height:60px;background:rgba(255,255,255,0.35);}
+  #mini .los,#mini .fd{position:absolute;top:0;width:4px;margin-left:-2px;height:60px;}
+  #mini .los{background:#3D8BFF;}
+  #mini .fd{background:#FFD633;}
+  #mini .run{position:absolute;top:27px;height:6px;border-radius:3px;}
+  #mini .mb{position:absolute;top:20px;width:28px;height:20px;margin-left:-14px;border-radius:50%;background:#8A4A1F;border:2px solid #FFFFFF;}
+  #demo{left:440px;top:436px;width:400px;text-align:center;font-size:14px;color:var(--faint);}
+
+  /* ---- last play, this drive, and the way into every drive ---- */
+  #strip{left:12px;top:476px;width:1256px;height:52px;border-radius:12px;background:var(--panel);border:1px solid rgba(255,255,255,0.1);
+    display:flex;align-items:center;padding:0 6px 0 18px;}
+  #strip .tag{font-size:21px;color:var(--hi);margin-right:14px;white-space:nowrap;}
+  #strip .txt{flex:1;min-width:0;font-size:27px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #strip .drv{font-size:25px;color:var(--dim);margin:0 16px;white-space:nowrap;}
+  #btnDrives{font-size:21px;color:rgba(255,255,255,0.75);border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:5px 16px;cursor:pointer;white-space:nowrap;}
+
+  /* ---- the four best other games ---- */
+  .gc{position:absolute;top:534px;width:305px;height:152px;padding:8px 14px 0;border-radius:14px;background:rgba(8,16,36,0.88);
+    border:1px solid rgba(255,255,255,0.1);}
+  .gc.post{background:rgba(8,16,36,0.55);}
+  .gt{display:flex;align-items:center;height:46px;}
+  .gt img{width:38px;height:38px;margin-right:10px;}
+  .gt .n{flex:1;min-width:0;font-size:24px;font-weight:600;white-space:nowrap;}
+  .gt .n .rk{font-family:var(--num);font-size:19px;color:var(--hi);margin-right:6px;}
+  .gt .s{font-family:var(--num);font-weight:600;font-size:42px;}
+  .gt.lo .n,.gt.lo .s{color:var(--dim);}
+  .gt .bl{display:inline-block;width:16px;height:10px;border-radius:50%;background:#A8622F;border:1.5px solid #FFFFFF;margin-left:8px;vertical-align:2px;}
+  .gf{display:flex;align-items:center;height:42px;border-top:1px solid var(--rule);margin-top:8px;font-size:25px;}
+  .gf .ck{font-family:var(--num);font-weight:600;font-size:31px;color:var(--hi);white-space:nowrap;}
+  .gf .st{flex:1;min-width:0;margin-left:10px;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gf .st.rz{color:#FF8A80;}
+  .gf .tv{font-size:23px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
+  .gc.post .gf .ck{color:var(--dim);}
+  /* ?cards=logos: logos and scores only, side by side, scoreboard style */
+  .gl{display:flex;align-items:center;height:88px;}
+  .gl .lw{position:relative;width:70px;height:70px;}
+  .gl .lw img{width:70px;height:70px;}
+  .gl .rkb{font-size:20px;line-height:23px;}
+  .gl .s{width:76px;text-align:center;font-family:var(--num);font-weight:600;font-size:58px;line-height:1;}
+  .gl .s.lo{color:var(--dim);}
+  .gl .vs{flex:1;text-align:center;font-size:22px;color:var(--faint);}
+  /* ?cards=five: five narrower cards */
+  .cards-five .gc{width:243px;padding:8px 10px 0;}
+  .cards-five .gl .lw,.cards-five .gl .lw img{width:52px;height:52px;}
+  .cards-five .gl .s{width:56px;font-size:48px;}
+  .cards-five .gl .vs{font-size:18px;}
+  .cards-five .gf{font-size:22px;}
+  .cards-five .gf .ck{font-size:27px;}
+  .cards-five .gf .tv{font-size:20px;}
+  /* ?cards=tall: four shorter cards, and the 32px they give up goes to the stats */
+  .cards-tall .panel{height:490px;}
+  .cards-tall .row{height:71px;}
+  .cards-tall .row .k{font-size:27px;}
+  .cards-tall .row .c{font-size:44px;width:110px;}
+  .cards-tall .ph .c{width:110px;}
+  .cards-tall .ld{height:71px;}
+  .cards-tall .ld .l1{height:37px;}
+  .cards-tall .ld .n{font-size:27px;}
+  .cards-tall .ld .big{font-size:36px;}
+  .cards-tall .ld .l2{font-size:26px;line-height:30px;}
+  .cards-tall #mini{top:394px;}
+  .cards-tall #demo{top:466px;}
+  .cards-tall .pill{top:386px;}
+  .cards-tall #strip{top:508px;}
+  .cards-tall .gc{top:568px;height:118px;padding-top:4px;}
+  .cards-tall .gl{height:72px;}
+  .cards-tall .gl .lw,.cards-tall .gl .lw img{width:62px;height:62px;}
+  .cards-tall .gl .s{font-size:54px;}
+  .cards-tall .gf{margin-top:2px;}
+
+  /* ---- banners: timeouts on the board ---- */
+  .pill{left:640px;top:358px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:14px;
+    padding:8px 22px 9px;background:rgba(3,6,15,0.94);border:2px solid var(--royal);display:none;}
+  .pill.on{display:block;}
+  .pill .a{font-family:var(--num);font-weight:600;font-size:36px;color:var(--hi);}
+  .pill .b{font-size:18px;color:var(--dim);}
+  #td{left:0;right:0;top:500px;text-align:center;font-family:var(--num);font-weight:700;
+    font-size:150px;line-height:1;letter-spacing:4px;color:#FFFFFF;text-shadow:0 6px 30px rgba(0,46,93,0.9);
+    opacity:0;transform:scale(0.7);transition:opacity .35s, transform .5s cubic-bezier(.2,1.4,.4,1);}
+  #td.on{opacity:1;transform:none;}
+
+  /* ---- replays: the big field comes up over everything ---- */
+  #fieldLayer{left:0;top:0;width:1280px;height:695px;background:#03060F url(lights.jpg) 0 0 / 1280px 695px no-repeat;display:none;}
+  #fieldLayer.on{display:block;}
+  #overlay{position:absolute;left:0;top:0;pointer-events:none;}
+  #ball{left:0;top:0;width:40px;height:25px;margin:-12px 0 0 -20px;border-radius:50%;
+    background:radial-gradient(ellipse at 40% 35%,#A8622F 0%,#7A3F18 70%);border:3px solid #FFFFFF;
+    box-shadow:0 4px 10px rgba(0,0,0,0.7);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);will-change:transform;}
+  .chip{font-family:var(--num);font-weight:600;font-size:34px;line-height:36px;padding:0 10px;
+    border-radius:6px;background:rgba(0,0,0,0.62);white-space:nowrap;transform:translate(-50%,-100%);}
+  .chip.last{background:#FFFFFF;color:#0B1220;}
+  .chip.neg{background:var(--bad);color:#FFFFFF;}
+  .chip.flag{background:#FFD633;color:#2A1405;}
+  .chip.kick{color:var(--hi);}
+  #downbox{width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:4px;background:#FF7A1A;text-align:center;
+    font-family:var(--num);font-weight:700;font-size:25px;line-height:30px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.6);transition:transform 0.9s cubic-bezier(.3,.8,.3,1);z-index:2;}
+  #bug{left:14px;top:12px;background:var(--panel);border-radius:12px;padding:6px 16px;display:flex;align-items:center;white-space:nowrap;}
+  #bug img{width:40px;height:40px;}
+  #bug b{font-family:var(--num);font-weight:600;font-size:40px;margin:0 18px 0 8px;}
+  #bug .o{color:var(--dim);}
+  #bug .q{font-family:var(--num);font-weight:600;font-size:30px;color:var(--hi);}
+  #replay{top:14px;}
+  #replay .a{color:#FFFFFF;}
+  #replay .dot{display:inline-block;width:13px;height:13px;border-radius:7px;background:var(--bad);margin-right:10px;vertical-align:3px;}
+  #key{left:14px;bottom:72px;font-size:25px;color:var(--dim);background:rgba(3,6,15,0.6);border-radius:8px;padding:5px 10px;}
+  #key svg{vertical-align:middle;margin:0 6px 0 14px;width:44px;height:16px;}
+  #key svg:first-child{margin-left:0;}
+  #drive{right:14px;bottom:10px;max-width:640px;background:rgba(3,6,15,0.8);border-radius:12px;padding:8px 16px;}
+  #drive .a{font-size:22px;color:var(--dim);}
+  #drive .b{font-size:24px;margin-top:1px;}
+
+  /* ---- every drive: flat field, one bar per drive ---- */
+  #drives{left:0;top:0;width:1280px;height:695px;background:#0B1220;display:none;cursor:pointer;}
+  #drives.on{display:block;}
+  #drives .hd{position:absolute;left:24px;right:24px;top:4px;height:52px;display:flex;align-items:center;}
+  #drives .ttl{font-family:var(--num);font-weight:800;font-size:32px;letter-spacing:1px;margin-right:18px;}
+  #drives .sub{font-size:17px;color:var(--dim);}
+  #drives .sco{margin-left:auto;font-size:20px;font-weight:700;}
+  #drives .sco b{font-family:var(--num);font-weight:800;font-size:34px;margin:0 16px 0 6px;}
+  #drives .sco .o{color:var(--dim);}
+  #drives .sco .q{font-family:var(--num);font-size:26px;color:var(--hi);}
+  #flat{left:20px;top:60px;width:1240px;height:573px;border-radius:6px;}
+  #flatDim{left:20px;top:60px;width:1240px;height:573px;border-radius:6px;background:rgba(4,14,9,0.5);}
+  .bar{position:absolute;border-radius:15px;font-family:var(--num);font-weight:800;font-size:18px;
+    white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.5);display:flex;align-items:center;cursor:pointer;}
+  .bar.BYU{background:#FFFFFF;color:#002E5D;justify-content:flex-end;padding-right:14px;}
+  .bar.ISU{background:var(--isu);color:#2A1405;padding-left:14px;}
+  .bar.fade{opacity:0.55;box-shadow:none;}
+  .bar.now{border:3px solid var(--hi);box-shadow:0 0 16px rgba(95,168,255,0.6);}
+  .bar .out{position:absolute;color:#FFFFFF;}
+  .half{position:absolute;left:40px;width:1200px;height:2px;background:rgba(255,255,255,0.8);}
+  .halfT{position:absolute;left:46px;font-family:var(--num);font-weight:800;font-size:14px;letter-spacing:3px;color:rgba(255,255,255,0.85);}
+  #drives .ft{position:absolute;left:24px;right:24px;top:638px;height:54px;display:flex;align-items:center;font-size:19px;color:rgba(255,255,255,0.85);}
+  #drives .ft .k{display:inline-block;width:26px;height:12px;border-radius:6px;margin:0 8px 0 0;vertical-align:-1px;}
+  #drives .ft span.it{margin-right:26px;}
+  #drives .ft .back{margin-left:auto;font-size:16px;font-weight:700;color:#0B1220;background:#FFFFFF;border-radius:22px;padding:10px 18px;}
+
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="abs panel" style="left:12px">
+    <div class="ph"><span style="flex:1"><span id="tT">Team stats</span><span class="dots" id="tD"></span></span><span class="c"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/87.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/87.png" onerror="logoFailed(this)"></span><span class="c"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/252.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" onerror="logoFailed(this)"></span></div>
+    <div id="team"></div>
+  </div>
+
+  <div class="abs" id="score">
+    <div class="sc">
+      <div class="tm"><div class="lgw"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/87.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/87.png" onerror="logoFailed(this)"><span class="rkb">2</span><span class="poss" id="pA"></span></div><div class="tos" id="toA"></div></div>
+      <div class="pts o" id="sA"></div>
+      <div class="mid"></div>
+      <div class="pts" id="sH"></div>
+      <div class="tm"><div class="lgw"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/252.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" onerror="logoFailed(this)"><span class="rkb">8</span><span class="poss" id="pH"></span></div><div class="tos" id="toH"></div></div>
+    </div>
+    <div class="clkrow"><span class="clk" id="clk"></span><span class="net">ABC</span></div>
+    <div class="dd" id="dd"></div>
+    <div class="lines"><table id="lineScore"></table></div>
+  </div>
+
+  <div class="abs panel" style="right:12px">
+    <div class="ph"><span style="flex:1" id="lT">BYU offense</span><span class="dots" id="lD"></span></div>
+    <div id="leaders"></div>
+  </div>
+
+  <div class="abs" id="mini" title="Every drive"></div>
+  <div class="abs np" id="demo">The real last two drives</div>
+  <div class="abs pill np" id="banner"><div class="a" id="bA"></div><div class="b" id="bB"></div></div>
+
+  <div class="abs" id="strip"><span class="tag">Last play</span><span class="txt" id="lp"></span><span class="drv" id="drv"></span><span id="btnDrives">All drives</span></div>
+  <div id="games"></div>
+
+  <div class="abs" id="fieldLayer">
+    <svg id="overlay" width="1280" height="695" viewBox="0 0 1280 695" aria-hidden="true">
+      <g id="lines"></g>
+      <g id="trail"></g>
+    </svg>
+    <div id="chips" class="np"></div>
+    <div class="abs np" id="downbox" style="transition:none">1</div>
+    <div class="abs np" id="ball" style="transition:none"></div>
+    <div class="abs np" id="bug"><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/87.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/87.png" onerror="logoFailed(this)"><b class="o" id="bgA"></b><img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/252.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" onerror="logoFailed(this)"><b id="bgH"></b><span class="q" id="bgC"></span></div>
+    <div class="abs pill np on" id="replay"><div class="a"><span class="dot"></span>Replay</div><div class="b" id="rB"></div></div>
+    <div class="abs np" id="key">
+      <svg width="34" height="10" viewBox="0 0 34 10" preserveAspectRatio="none"><line x1="2" y1="5" x2="32" y2="5" stroke="#FFF" stroke-width="4" stroke-linecap="round"/></svg>run
+      <svg width="34" height="14" viewBox="0 0 34 14" preserveAspectRatio="none"><path d="M2 12 Q17 -4 32 12" fill="none" stroke="#FFF" stroke-width="3" stroke-dasharray="6 4"/></svg>pass
+      <svg width="34" height="10" viewBox="0 0 34 10" preserveAspectRatio="none"><line x1="2" y1="5" x2="32" y2="5" stroke="#FF5A4E" stroke-width="4" stroke-linecap="round"/></svg>loss
+      <svg width="34" height="10" viewBox="0 0 34 10" preserveAspectRatio="none"><line x1="2" y1="5" x2="32" y2="5" stroke="#FFD633" stroke-width="3" stroke-dasharray="2 4"/></svg>flag
+    </div>
+    <div class="abs np" id="drive"><div class="a" id="dA"></div><div class="b" id="dB"></div></div>
+  </div>
+
+  <div class="abs np" id="td">TOUCHDOWN</div>
+  <div class="abs" id="drives">
+    <div class="hd">
+      <div class="ttl">Every drive</div>
+      <div class="sub">BYU attacks right · Notre Dame attacks left</div>
+      <div class="sco"><span class="o">ND</span><b class="o" id="dvA"></b>BYU<b id="dvH"></b><span class="q" id="dvC"></span></div>
+    </div>
+    <img class="abs" id="flat" alt="" src="flat.jpg">
+    <div class="abs" id="flatDim"></div>
+    <div id="bars"></div>
+    <div class="ft">
+      <span class="it"><i class="k" style="background:#FFFFFF"></i>BYU</span>
+      <span class="it"><i class="k" style="background:#D9B44A"></i>Notre Dame</span>
+      <span class="it"><i class="k" style="background:rgba(255,255,255,0.55)"></i>Faded: punt or turnover</span>
+      <span class="it">Tap a drive to replay it</span>
+      <span class="back">Back to live</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===========================================================================
+   Perspective: the picture was baked as a 1240x573 plane (the field image) at
+   (20,85) tilted back 38deg with perspective 1100px, perspective origin at
+   50% -40%. project() maps a point on that plane to the screen, so anything
+   drawn here lands on the right spot of the turf.
+   =========================================================================== */
+var PW = 1240, PH = 573, OX = 20, OY = 85, D = 1100, TH = 38 * Math.PI / 180;
+var POX = PW / 2, POY = -0.4 * PH;
+function project(u, v){
+  var X = u - PW / 2, Y = v - PH;
+  var yp = Y * Math.cos(TH), z = Y * Math.sin(TH);
+  var s = D / (D - z);
+  var px = X + PW / 2, py = yp + PH;
+  return { x: OX + POX + (px - POX) * s, y: OY + POY + (py - POY) * s, s: s };
+}
+// Field coordinates: yards from BYU's goal line (0-100, BYU attacks right),
+// and yards in from the far sideline (0-53.3). The image is 10 CSS px a yard,
+// with a 20 px apron and 10-yard end zones.
+function spot(yd, lat){ return project(20 + (10 + yd) * 10, 20 + lat * 10); }
+
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+var MINUS = '−';
+function signed(n){ return n > 0 ? '+' + n : n < 0 ? MINUS + (-n) : '0'; }
+
+/* ---------------------------- fit the window ---------------------------- */
+function fit(){
+  var k = Math.min(window.innerWidth / 1280, window.innerHeight / 695);
+  var st = $('stage');
+  st.style.transform = 'scale(' + k + ')';
+  st.style.left = Math.round((window.innerWidth - 1280 * k) / 2) + 'px';
+  st.style.top = Math.round((window.innerHeight - 695 * k) / 2) + 'px';
+}
+window.addEventListener('resize', fit);
+fit();
+
+/* ------------------------------ teams ------------------------------ */
+var TEAMS = {
+  BYU: { full: 'BYU', color: '#FFFFFF', dir: 1, id: 252 },
+  ISU: { full: 'Notre Dame', color: '#D9B44A', dir: -1, id: 87 },
+};
+// ESPN's logos: the version drawn for dark backgrounds first, the plain one if
+// there is no dark one, and nothing at all if neither loads.
+function logo(id){
+  return '<img class="lg" alt="" src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/' + id + '.png" data-plain="https://a.espncdn.com/i/teamlogos/ncaa/500/' +
+         id + '.png" onerror="logoFailed(this)">';
+}
+function logoFailed(img){
+  var plain = img.getAttribute('data-plain');
+  if(plain && img.src !== plain){ img.src = plain; return; }
+  img.onerror = null; img.style.visibility = 'hidden';
+}
+function other(t){ return t === 'BYU' ? 'ISU' : 'BYU'; }
+function toGoal(team, yd){ return team === 'BYU' ? 100 - yd : yd; }
+function fieldPos(yd){ return yd === 50 ? '50' : yd < 50 ? 'BYU ' + yd : 'ND ' + (100 - yd); }
+function ord(n){ return ['', '1st', '2nd', '3rd', '4th'][n]; }
+function scoreText(){ return state.game.score.BYU + '–' + state.game.score.ISU; }
+
+/* ===========================================================================
+   Plays. Every play is { t, from, to, yds, text } in field yards, plus:
+     inc:  air  (how far the throw went; the ball stays at from)
+     int:  air, caught  (where it was picked off; to = where the return ended)
+     punt: to = where it landed or was downed
+     fg:   dist, good
+   t is one of rush pass inc sack pen int fum punt fg. A rush for a loss is
+   still a rush; it is drawn in red because yds < 0.
+   =========================================================================== */
+function ballAt(p){ return p.t === 'inc' || p.t === 'fg' ? p.from : p.to; }
+function ends(p){ return p.td || p.t === 'punt' || p.t === 'int' || p.t === 'fum' || p.t === 'fg'; }
+function scrimEnd(p){ return p.t === 'punt' || p.t === 'int' || p.t === 'fum' || p.t === 'fg' ? p.from : p.to; }
+
+/* ------------------------------ drawing ------------------------------ */
+function pts(list){ return list.map(function(p){ return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' '); }
+function quad(yd, half, color, opacity){
+  return '<polygon points="' + pts([spot(yd - half, 0), spot(yd + half, 0), spot(yd + half, 53.3), spot(yd - half, 53.3)]) +
+         '" fill="' + color + '" fill-opacity="' + opacity + '"/>';
+}
+// A soft glow is just a wider, fainter copy underneath: no blur filters.
+function fieldLine(yd, color){
+  return quad(yd, 1.4, color, 0.18) + quad(yd, 0.8, color, 0.3) + quad(yd, 0.38, color, 0.95);
+}
+
+var LANE = 38;      // the drive runs between the near hashes and the numbers
+var LANE2 = 41.5;   // losses, flags and returns run a little nearer, so they don't hide the gains
+var BAD = '#FF5A4E', FLAG = '#FFD633';
+
+function seg(a, b, color, w, dash){
+  var d = 'M' + a.x.toFixed(1) + ' ' + a.y.toFixed(1) + ' L' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+  return '<path d="' + d + '" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="' + (w + 4) + '" stroke-linecap="round"/>' +
+         '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="' + w + '" stroke-linecap="round"' +
+         (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/>';
+}
+// Passes and kicks fly: a curve lifted off the turf. Returns the svg and the top of the curve (for the label).
+function arc(a, b, lift, color, w, dash, opacity){
+  var cx = (a.x + b.x) / 2, cy = Math.min(a.y, b.y) - lift;
+  var d = 'M' + a.x.toFixed(1) + ' ' + a.y.toFixed(1) + ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+  var o = opacity === undefined ? 1 : opacity;
+  return {
+    svg: '<path d="' + d + '" fill="none" stroke="#000" stroke-opacity="' + (0.3 * o) + '" stroke-width="' + (w + 3) + '"/>' +
+         '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-opacity="' + o + '" stroke-width="' + w + '" stroke-dasharray="' + dash + '"/>',
+    top: { x: cx, y: 0.25 * a.y + 0.5 * cy + 0.25 * b.y },
+  };
+}
+function cross(p, color){
+  var r = 8, d = 'M' + (p.x - r) + ' ' + (p.y - r) + ' L' + (p.x + r) + ' ' + (p.y + r) + ' M' + (p.x + r) + ' ' + (p.y - r) + ' L' + (p.x - r) + ' ' + (p.y + r);
+  return '<path d="' + d + '" stroke="#000" stroke-opacity="0.5" stroke-width="7" stroke-linecap="round"/>' +
+         '<path d="' + d + '" stroke="' + color + '" stroke-width="4" stroke-linecap="round"/>';
+}
+function dot(p, color){ return '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="6" fill="' + color + '" stroke="#000" stroke-opacity="0.4" stroke-width="2"/>'; }
+// Neighbouring labels take turns sitting higher, so short gains don't print on top of each other.
+var chipLift = 0;
+function chip(at, text, cls){
+  return '<div class="abs chip ' + (cls || '') + '" style="left:' + at.x.toFixed(0) + 'px;top:' + (at.y - 9 - chipLift).toFixed(0) + 'px">' + esc(text) + '</div>';
+}
+function mid(a, b){ return { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) }; }
+
+// One play's marks on the field: { svg, chip }.
+function drawPlay(p, team, last){
+  var tc = TEAMS[team].color, dir = TEAMS[team].dir, cls = last ? 'last' : '';
+  var a = spot(p.from, LANE), b, r;
+  switch(p.t){
+    case 'rush':
+    case 'sack':
+      if(p.yds < 0){ a = spot(p.from, LANE2); b = spot(p.to, LANE2); return { svg: seg(a, b, BAD, 6) + dot(b, BAD), chip: chip(mid(a, b), signed(p.yds), 'neg') }; }
+      b = spot(p.to, LANE);
+      return { svg: seg(a, b, tc, 6) + dot(b, tc), chip: chip(mid(a, b), p.td ? 'TD' : signed(p.yds), cls) };
+    case 'pass':
+      b = spot(p.to, LANE);
+      r = arc(a, b, 16 + Math.abs(p.yds) * 1.6, tc, 5, '10 7');
+      return { svg: r.svg + dot(b, tc), chip: chip(r.top, p.td ? 'TD' : signed(p.yds), cls) };
+    case 'inc':
+      b = spot(p.from + dir * p.air, LANE);
+      r = arc(a, b, 16 + p.air * 1.6, tc, 4, '8 8', 0.5);
+      return { svg: r.svg + cross(b, 'rgba(255,255,255,0.8)'), chip: chip(r.top, 'INC', cls) };
+    case 'pen':
+      a = spot(p.from, LANE2); b = spot(p.to, LANE2);
+      return { svg: seg(a, b, FLAG, 4, '2 7') + '<rect x="' + (b.x - 6).toFixed(1) + '" y="' + (b.y - 6).toFixed(1) + '" width="12" height="12" rx="2" fill="' + FLAG + '"/>',
+               chip: chip(mid(a, b), 'FLAG ' + signed(p.yds), 'flag') };
+    case 'int':
+    case 'fum':
+      b = spot(p.caught, LANE);
+      r = p.t === 'int' ? arc(a, b, 16 + p.air * 1.6, tc, 4, '8 8', 0.6) : { svg: '', top: b };
+      return { svg: r.svg + seg(spot(p.caught, LANE2), spot(p.to, LANE2), BAD, 5, '3 7') + cross(b, BAD),
+               chip: chip(r.top, p.t === 'int' ? 'INT' : 'FUMBLE', 'neg') };
+    case 'punt':
+      b = spot(p.to, LANE);
+      r = arc(a, b, 150, tc, 3, '3 8', 0.85);
+      return { svg: r.svg + dot(b, tc), chip: chip(r.top, 'PUNT ' + Math.abs(p.to - p.from), 'kick') };
+    case 'fg':
+      // toward the posts on the end line, kept in the drive's lane so it stays clear of the panels
+      b = spot(dir > 0 ? 110 : -10, LANE - 6);
+      r = arc(a, b, 60, p.good ? FLAG : BAD, 3, '3 8');
+      return { svg: r.svg, chip: chip(r.top, 'FG ' + p.dist + (p.good ? ' ✓' : ' ✗'), p.good ? 'kick' : 'neg') };
+  }
+  return { svg: '', chip: '' };
+}
+
+function placeAt(el, p){ el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px)'; }
+// Jump the ball (new drive, replay) instead of sliding it across the field.
+function snapBall(){
+  var b = $('ball'), d = $('downbox');
+  b.style.transition = 'none'; d.style.transition = 'none';
+  setTimeout(function(){ b.style.transition = ''; d.style.transition = ''; }, 60);
+}
+
+// What the field should show: the live drive, or a replay frame.
+function view(){
+  var r = state.replay;
+  if(r){
+    var shown = r.drive.plays.slice(0, r.i), lp = shown[shown.length - 1];
+    return { team: r.drive.team, start: r.drive.start, plays: shown, spot: lp ? ballAt(lp) : r.drive.start,
+             down: lp && lp.dd ? lp.dd.down : 1, toGo: lp ? (lp.dd ? lp.dd.toGo : 0) : 10, over: !!(lp && ends(lp)) };
+  }
+  var g = state.game;
+  return { team: state.cur.team, start: state.cur.start, plays: state.cur.plays, spot: g.spot,
+           down: g.down, toGo: g.toGo, over: state.over };
+}
+
+function drawField(){
+  var v = view(), dir = TEAMS[v.team].dir, firstYd = v.spot + dir * v.toGo;
+  // No scrimmage or first-down line once the drive is over.
+  $('lines').innerHTML = v.over ? '' :
+    fieldLine(v.spot, '#3D8BFF') + (v.toGo > 0 && firstYd > 0 && firstYd < 100 ? fieldLine(firstYd, '#FFD633') : '');
+
+  var svg = '', chips = '';
+  v.plays.forEach(function(p, i){
+    chipLift = (i % 2) * 38;
+    var m = drawPlay(p, v.team, i === v.plays.length - 1);
+    svg += m.svg; chips += m.chip;
+  });
+  var s0 = spot(v.start, LANE);
+  svg += '<circle cx="' + s0.x.toFixed(1) + '" cy="' + s0.y.toFixed(1) + '" r="8" fill="' + (v.team === 'BYU' ? '#0047BA' : '#0C2340') + '" stroke="#FFFFFF" stroke-width="3"/>';
+  $('trail').innerHTML = svg;
+  $('chips').innerHTML = chips;
+
+  placeAt($('ball'), spot(v.spot, LANE));
+  // the chain crew stands on the near sideline
+  var db = $('downbox'); db.textContent = v.down; db.style.visibility = v.over ? 'hidden' : ''; placeAt(db, spot(v.spot, 51));
+
+  // drive card
+  var net = 0, last = v.plays[v.plays.length - 1];
+  if(last) net = dir * (scrimEnd(last) - v.start);
+  var n = v.plays.filter(function(p){ return p.t !== 'pen'; }).length;
+  $('dA').textContent = TEAMS[v.team].full + ' drive: ' + n + (n === 1 ? ' play, ' : ' plays, ') + net + ' yds';
+  $('dB').textContent = last ? last.text : TEAMS[v.team].full + ' ball at ' + fieldPos(v.start);
+}
+
+/* ------------------------------ panels ------------------------------ */
+// Both panels flip between two pages every 10 s, and jump back to the first
+// page (yards, the leaders on offense) whenever a play happens.
+var statPage = 0, pageTimer = 0;
+function dots(){ return '<i' + (statPage ? '' : ' class="on"') + '></i><i' + (statPage ? ' class="on"' : '') + '></i>'; }
+function firstPage(){
+  statPage = 0;
+  clearInterval(pageTimer);
+  pageTimer = setInterval(function(){ statPage = 1 - statPage; teamRows(); leaderRows(); }, 10000);
+}
+function teamRows(){
+  var a = state.stats.ISU, h = state.stats.BYU;
+  var ypp = function(s){ return s.plays ? (s.yds / s.plays).toFixed(1) : '0.0'; };
+  var rows = [
+    ['Total yards', a.yds, h.yds, 'yds'],
+    ['Yards per play', ypp(a), ypp(h), 'yds'],
+    ['Passing', a.pass, h.pass, 'pass'],
+    ['Comp-Att', a.comp + '-' + a.att, h.comp + '-' + h.att, 'pass'],
+    ['Rushing', a.rush, h.rush, 'rush'],
+    ['Rush attempts', a.car, h.car, 'rush'],
+    ['1st downs', a.fd, h.fd, 'fd'],
+    ['3rd down', a.d3[0] + '-' + a.d3[1], h.d3[0] + '-' + h.d3[1], 'd3'],
+    ['4th down', a.d4[0] + '-' + a.d4[1], h.d4[0] + '-' + h.d4[1], 'd4'],
+    ['Penalties', a.pen[0] + '-' + a.pen[1], h.pen[0] + '-' + h.pen[1], 'pen'],
+    ['Turnovers', a.to, h.to, 'to'],
+    ['Possession', a.top, h.top, ''],
+  ];
+  // Big enough to read across the kitchen means six rows at a time: two pages that take turns.
+  rows = statPage ? [rows[7], rows[8], rows[5], rows[9], rows[10], rows[11]] : [rows[0], rows[1], rows[2], rows[3], rows[4], rows[6]];
+  $('tT').textContent = statPage ? 'Downs & more' : 'Team stats';
+  $('tD').innerHTML = dots();
+  var f = state.flash, fc = f.team === 'BYU' ? ' fB' : ' fA';
+  $('team').innerHTML = rows.map(function(r){
+    return '<div class="row' + (r[3] && f.keys.indexOf(r[3]) >= 0 ? fc : '') + '"><span class="k">' + r[0] +
+           '</span><span class="c o">' + esc(r[1]) + '</span><span class="c b">' + esc(r[2]) + '</span></div>';
+  }).join('');
+}
+
+/* ---------------------------------------------------------------------------
+   Leaders, worked out from the box score every time (the same rule the live
+   version will use on ESPN's per-player box score):
+     BYU  PASS  the most passing yards
+          RUSH  the top two in rushing yards
+          REC   the top three in receiving yards
+          DEF   the most total tackles (ties: more tackles for loss)
+          SACK  the most sacks (if nobody has one yet: TFL, the most TFLs)
+          KICK  the kicker
+     ISU  one line each for passing, rushing and receiving yards
+   So a name can move up or drop off as the game goes; a new name shows in blue.
+   Page 1 is BYU's offense; page 2 is the BYU defense, the kicker and ISU.
+   --------------------------------------------------------------------------- */
+function best(list, key, n, tie){
+  return list.slice().sort(function(x, y){ return (y[key] - x[key]) || (tie ? y[tie] - x[tie] : 0); }).slice(0, n);
+}
+var SIMPLE_LEADERS = /[?&]leaders=simple\b/.test(location.search);
+function leaderRows(){
+  var B = state.players.BYU, A = state.players.ISU, lines = [];
+  // big: the number that matters, u: its unit, sub: the rest in plain words
+  // big: the number that matters, u: its unit, sub: the rest. cat only tells
+  // a passer from a runner when spotting a new name; it isn't shown.
+  var add = function(team, cat, p, big, u, sub){ lines.push({ team: team, cat: cat, name: p.n, big: big, u: u, sub: sub, td: p.td || 0 }); };
+  var tds = function(n){ return n ? ', ' + (n > 1 ? n + ' TD' : 'TD') : ''; };
+  var p = best(B.pass, 'y', 1)[0];
+  add('BYU', 'pass', p, p.y, 'yds', p.c + ' of ' + p.a + tds(p.td) + (p.int ? ', ' + p.int + ' INT' : ''));
+  best(B.rush, 'y', 2).forEach(function(r){ add('BYU', 'rush', r, r.y, 'yds', r.car + ' carries' + tds(r.td)); });
+  best(B.rec, 'y', 3).forEach(function(r){ add('BYU', 'rec', r, r.y, 'yds', r.r + ' catches' + tds(r.td)); });
+  p = best(B.def, 'tkl', 1, 'tfl')[0];
+  add('BYU', 'def', p, p.tkl, 'tackles', p.tfl + ' for loss' + (p.int ? ', an interception' : ''));
+  p = best(B.def, 'sk', 1, 'tfl')[0];
+  if(p.sk) add('BYU', 'sack', p, p.sk, p.sk === 1 ? 'sack' : 'sacks', p.tfl + ' for loss');
+  else { p = best(B.def, 'tfl', 1)[0]; add('BYU', 'sack', p, p.tfl, 'for loss', ''); }
+  p = B.kick[0];
+  if(p.fga) add('BYU', 'kick', p, p.fgm + '/' + p.fga, 'FG', (p.lng ? 'Long of ' + p.lng + ', e' : 'E') + 'xtra points ' + p.xpm + '/' + p.xpa);
+  else add('BYU', 'kick', p, p.xpm + '/' + p.xpa, 'XP', 'Extra points');
+  p = best(A.pass, 'y', 1)[0];
+  add('ISU', 'pass', p, p.y, 'yds', p.c + ' of ' + p.a);
+  p = best(A.rush, 'y', 1)[0];
+  add('ISU', 'rush', p, p.y, 'yds', p.car + ' carries');
+  p = best(A.rec, 'y', 1)[0];
+  add('ISU', 'rec', p, p.y, 'yds', p.r + ' catches');
+
+  var before = state.leaderNames, now = lines.map(function(l){ return l.cat + l.name; });
+  $('lT').textContent = statPage ? 'Defense & Notre Dame' : 'BYU offense';
+  $('lD').innerHTML = dots();
+  var first = statPage ? 6 : 0;
+  $('leaders').innerHTML = lines.slice(first, first + 6).map(function(l, i){
+    var isNew = before && before.indexOf(now[first + i]) < 0;
+    var cls = 'ld' + (l.team === 'ISU' ? ' o' : '') + (isNew ? ' new' : '');
+    // ?leaders=simple: one line each, the name and then yards and touchdowns, big
+    if(SIMPLE_LEADERS)
+      return '<div class="' + cls + ' one"><span class="n">' + (l.team === 'ISU' ? logo(TEAMS.ISU.id) : '') + esc(l.name) + '</span>' +
+             '<span class="big">' + esc(l.big) + '</span><span class="u">' + l.u + '</span>' +
+             '<span class="tds">' + (l.td ? '<span class="big">' + l.td + '</span><span class="u">TD</span>' : '') + '</span></div>';
+    return '<div class="' + cls + '"><div class="l1"><span class="n">' +
+           (l.team === 'ISU' ? logo(TEAMS.ISU.id) : '') + esc(l.name) + '</span><span class="big">' + esc(l.big) + '</span><span class="u">' + l.u +
+           '</span></div><div class="l2">' + esc(l.sub) + '</div></div>';
+  }).join('');
+  state.leaderNames = now;
+}
+
+function drawScore(){
+  var g = state.game;
+  $('sA').textContent = g.score.ISU; $('sH').textContent = g.score.BYU;
+  $('clk').textContent = 'Q4 ' + g.clock;
+  $('pA').className = 'poss' + (g.poss === 'ISU' && !state.over ? ' on' : '');
+  $('pH').className = 'poss' + (g.poss === 'BYU' && !state.over ? ' on' : '');
+  var dots = function(n){ var h = ''; for(var i = 0; i < 3; i++) h += '<i' + (i < n ? '' : ' class="used"') + '></i>'; return h; };
+  $('toA').innerHTML = dots(g.tos.ISU); $('toH').innerHTML = dots(g.tos.BYU);
+  var goal = toGoal(g.poss, g.spot) <= g.toGo;
+  $('dd').textContent = state.over ? state.overText :
+    ord(g.down) + ' & ' + (goal ? 'Goal' : g.toGo) + ' at ' + fieldPos(g.spot);
+  var row = function(t){
+    var q = g.line[t], sum = q[0] + q[1] + q[2] + q[3];
+    return '<tr><td class="t">' + logo(TEAMS[t].id) + '</td><td>' + q.join('</td><td>') + '</td><td class="tot">' + sum + '</td></tr>';
+  };
+  // The logos in here only need drawing once; after that just the numbers change.
+  if(!$('lineScore').rows.length)
+    $('lineScore').innerHTML = '<tr><td class="h"></td><td class="h">1st</td><td class="h">2nd</td><td class="h">3rd</td><td class="h">4th</td><td class="h">Final</td></tr>' +
+                               row('ISU') + row('BYU');
+  ['ISU', 'BYU'].forEach(function(t, r){
+    var q = g.line[t], cells = $('lineScore').rows[r + 1].cells;
+    for(var i = 0; i < 4; i++) cells[i + 1].textContent = q[i];
+    cells[5].textContent = q[0] + q[1] + q[2] + q[3];
+  });
+
+  var b = state.banner;
+  $('banner').className = 'abs pill np' + (b ? ' on' : '');
+  if(b){ $('bA').textContent = b.a; $('bB').textContent = b.b; }
+
+  var c = state.cur, last = c.plays[c.plays.length - 1];
+  var net = last ? TEAMS[c.team].dir * (scrimEnd(last) - c.start) : 0;
+  $('lp').textContent = state.lastPlay;
+  var n = c.plays.filter(function(p){ return p.t !== 'pen'; }).length;
+  $('drv').textContent = TEAMS[c.team].full + ' drive: ' + n + (n === 1 ? ' play, ' : ' plays, ') + net + ' yds';
+  drawMini();
+}
+
+/* ---------------------------------------------------------------------------
+   The drive tracker: the whole field as a flat strip, BYU's end zone on the
+   left. The drive so far in the team's colour, the line of scrimmage in
+   blue, the line to gain in yellow. Tap it for every drive.
+   --------------------------------------------------------------------------- */
+function MX(yd){ return 28 + yd * 3.44; }
+function drawMini(){
+  var g = state.game, c = state.cur, dir = TEAMS[c.team].dir, h = '';
+  h += '<div class="ez" style="left:0;background:#0047BA">' + logo(TEAMS.BYU.id) + '</div><div class="ez" style="left:372px;background:#0C2340">' + logo(TEAMS.ISU.id) + '</div>';
+  for(var y = 10; y < 100; y += 10) h += '<div class="yl" style="left:' + MX(y).toFixed(0) + 'px"></div>';
+  var a = Math.min(c.start, g.spot), w = Math.abs(g.spot - c.start) * 3.44;
+  h += '<div class="run" style="left:' + MX(a).toFixed(0) + 'px;width:' + w.toFixed(0) + 'px;background:' + TEAMS[c.team].color + '"></div>';
+  if(!state.over){
+    var first = g.spot + dir * g.toGo;
+    h += '<div class="los" style="left:' + MX(g.spot).toFixed(0) + 'px"></div>';
+    if(g.toGo > 0 && first > 0 && first < 100) h += '<div class="fd" style="left:' + MX(first).toFixed(0) + 'px"></div>';
+  }
+  h += '<div class="mb" style="left:' + MX(g.spot).toFixed(0) + 'px"></div>';
+  $('mini').innerHTML = h;
+}
+
+/* ---------------------------------------------------------------------------
+   The other games, ranked the way the wall board ranks them: live games by
+   how worth watching they are right now (how much doubt is left, how late it
+   is, who is ranked, a one-score game in the last five minutes), then what
+   kicks off next, then finals. Only the best four make the screen.
+   --------------------------------------------------------------------------- */
+var GAMES = [{"away":{"n":"OSU","id":194,"rank":4,"score":19},"home":{"n":"IU","id":84,"rank":5,"score":15},"state":"post","tv":"FOX"},{"away":{"n":"AUB","id":2,"score":27},"home":{"n":"UGA","id":61,"rank":1,"score":24},"state":"post","tv":"ESPN"},{"away":{"n":"OKST","id":197,"rank":18,"score":32},"home":{"n":"HOU","id":248,"rank":20,"score":35},"state":"post","tv":"FOX","b12":true},{"away":{"n":"UTAH","id":254,"rank":11,"score":27},"home":{"n":"COLO","id":38,"score":24},"state":"post","tv":"ESPN","b12":true}];
+function secs(c){ var m = /^(\d+):(\d{2})$/.exec(c || ''); return m ? +m[1] * 60 + +m[2] : null; }
+function progress(g){
+  if(g.half) return 0.5;
+  return Math.max(0, Math.min(1, ((g.period - 1) * 900 + (900 - secs(g.clock))) / 3600));
+}
+function erfc(x){
+  var t = 1 / (1 + 0.3275911 * x);
+  var y = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+  return Math.max(0, Math.min(1, y * Math.exp(-x * x)));
+}
+function watchability(g){
+  var p = progress(g), margin = Math.abs(g.home.score - g.away.score);
+  var spread = Math.max(7, 16 * Math.sqrt(Math.max(30, 3600 * (1 - p)) / 3600));
+  var s = 100 * erfc(margin / (spread * Math.SQRT2)) * (0.45 + 1.1 * p * p);
+  var r1 = g.away.rank, r2 = g.home.rank, stakes = 1;
+  if(r1 && r2) stakes += 0.35 + (r1 <= 10 ? 0.1 : 0) + (r2 <= 10 ? 0.1 : 0);
+  else if(r1 || r2) stakes += 0.15 + ((r1 || r2) <= 10 ? 0.05 : 0);
+  if(g.b12) stakes += 0.1;
+  s *= stakes;
+  if(g.period === 4 && secs(g.clock) <= 300 && margin <= 8) s += 45 * stakes;
+  if(g.rz && p >= 0.75 && margin <= 8) s += 12;
+  return s;
+}
+function isClose(g){ return g.state === 'in' && g.period >= 3 && Math.abs(g.home.score - g.away.score) <= 8; }
+// The other games' cards: four short logo cards, with the room they leave
+// handed to the stats above (tall, the default); ?cards=logos for the taller
+// logo cards, ?cards=five for five narrower ones, ?cards=names for logo + name rows.
+var CARDS = (/[?&]cards=(\w+)/.exec(location.search) || [])[1] || 'tall';
+var LOGOS_ONLY = CARDS !== 'names', FIVE = CARDS === 'five';
+function drawGames(){
+  var live = GAMES.filter(function(g){ return g.state === 'in'; }).sort(function(x, y){ return watchability(y) - watchability(x); });
+  var list = live.concat(GAMES.filter(function(g){ return g.state === 'pre'; }), GAMES.filter(function(g){ return g.state === 'post'; })).slice(0, FIVE ? 5 : 4);
+  $('games').innerHTML = list.map(function(g, i){
+    var lead = (g.home.score || 0) - (g.away.score || 0), decided = g.state !== 'pre';
+    // Logos only: the logo carries the name, its badge the ranking, a ball under it who has it.
+    var side = function(t, s){
+      return '<div class="lw">' + logo(t.id) + (t.rank ? '<span class="rkb">' + t.rank + '</span>' : '') +
+             (g.state === 'in' && !g.half && g.ball === s ? '<span class="poss on"></span>' : '') + '</div>';
+    };
+    var pts = function(t, lo){ return decided ? '<span class="s' + (lo ? ' lo' : '') + '">' + t.score + '</span>' : ''; };
+    var logosOnly = LOGOS_ONLY ? '<div class="gl">' + side(g.away, 'away') + pts(g.away, decided && lead > 0) +
+      '<span class="vs">' + (decided ? '\u2013' : 'at') + '</span>' + pts(g.home, decided && lead < 0) + side(g.home, 'home') + '</div>' : '';
+    var row = function(t, side, lo){
+      return '<div class="gt' + (lo ? ' lo' : '') + '">' + logo(t.id) + '<span class="n">' + (t.rank ? '<span class="rk">' + t.rank + '</span>' : '') + esc(t.n) +
+             (g.state === 'in' && !g.half && g.ball === side ? '<span class="bl"></span>' : '') + '</span>' +
+             (decided ? '<span class="s">' + t.score + '</span>' : '') + '</div>';
+    };
+    var ck = g.state === 'post' ? 'Final' : g.state === 'pre' ? g.when : g.half ? 'Half' : 'Q' + g.period + ' ' + g.clock;
+    var st = g.state === 'pre' ? g.soon : g.state === 'in' && !g.half ? g.sit : '';
+    return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + (12 + i * (FIVE ? 253 : 317)) + 'px">' +
+           (LOGOS_ONLY ? logosOnly : row(g.away, 'away', decided && lead > 0) + row(g.home, 'home', decided && lead < 0)) +
+           '<div class="gf"><span class="ck">' + esc(ck) + '</span><span class="st' + (g.rz ? ' rz' : '') + '">' + esc(st || '') + '</span>' +
+           '<span class="tv">' + esc(g.tv) + '</span></div></div>';
+  }).join('');
+}
+
+
+
+function render(){
+  drawScore(); teamRows(); leaderRows();
+  if(state.replay){
+    var g = state.game;
+    drawField();
+    $('rB').textContent = state.replay.why;
+    $('bgA').textContent = g.score.ISU; $('bgH').textContent = g.score.BYU; $('bgC').textContent = 'Q4 ' + g.clock;
+  }
+  if(drivesOpen) drawDrives();
+}
+
+/* ===========================================================================
+   Every drive: the flat field with one bar per drive, top to bottom in game
+   order. Tap a drive to replay it on the big field; tap anywhere else to go
+   back. It closes itself after a minute so the wall never gets stuck here.
+   =========================================================================== */
+var drivesOpen = false, drivesTimer = 0;
+function X(yd){ return 140 + yd * 10; }
+function drawDrives(){
+  var g = state.game;
+  $('dvA').textContent = g.score.ISU; $('dvH').textContent = g.score.BYU; $('dvC').textContent = 'Q4 ' + g.clock;
+  var list = state.drives.slice();
+  if(!state.over && state.cur.plays.length) list.push({ team: state.cur.team, start: state.cur.start, end: g.spot, result: 'NOW', q: 4, now: true });
+  var sep = 22, n = list.length, h = Math.min(42, (537 - sep) / Math.max(n, 1)), bh = Math.max(16, Math.round(h - 4)), y = 78, html = '';
+  list.forEach(function(d, i){
+    if(i && list[i - 1].q <= 2 && d.q >= 3){
+      html += '<div class="half" style="top:' + (y + sep / 2 - 6).toFixed(0) + 'px"></div><div class="halfT" style="top:' + (y + sep / 2 - 2).toFixed(0) + 'px">HALFTIME</div>';
+      y += sep;
+    }
+    var x0 = X(Math.min(d.start, d.end)), w = Math.max(10, Math.abs(d.end - d.start) * 10);
+    var label = d.result === 'TD' || d.result === 'FG' ? d.result + ' · ' + d.score : d.result;
+    var fade = d.result === 'Punt' || d.result === 'INT' || d.result === 'Fumble' || d.result === 'Downs';
+    var inside = w >= 18 + label.length * 9;
+    var outPos = d.team === 'BYU' ? 'left:' + (w + 8) + 'px' : 'right:' + (w + 8) + 'px';
+    html += '<div class="bar ' + d.team + (fade ? ' fade' : '') + (d.now ? ' now' : '') + '" data-i="' + (d.now ? 'now' : i) + '" style="left:' + x0 +
+            'px;top:' + y.toFixed(0) + 'px;width:' + w + 'px;height:' + bh + 'px;font-size:' + Math.min(19, bh - 2) + 'px">' +
+            (inside ? esc(label) : '<span class="out" style="' + outPos + '">' + esc(label) + '</span>') + '</div>';
+    y += h;
+  });
+  $('bars').innerHTML = html;
+}
+function openDrives(){
+  drivesOpen = true; $('drives').className = 'abs on'; drawDrives();
+  clearTimeout(drivesTimer); drivesTimer = setTimeout(closeDrives, 60000);
+}
+function closeDrives(){ drivesOpen = false; $('drives').className = 'abs'; clearTimeout(drivesTimer); }
+$('mini').onclick = openDrives;
+$('btnDrives').onclick = openDrives;
+$('drives').onclick = function(e){
+  var t = e.target, root = this;
+  while(t && t !== root && String(t.className).indexOf('bar') !== 0) t = t.parentNode;
+  closeDrives();
+  if(t && t !== root){
+    var i = t.getAttribute('data-i');
+    if(i !== 'now'){ var d = state.drives[+i]; startReplay(d, TEAMS[d.team].full + ' · ' + describe(d), null); }
+  }
+};
+function describe(d){
+  var r = { TD: 'touchdown drive', FG: 'field goal drive', Punt: 'drive ending in a punt', INT: 'drive ending in an interception',
+            Fumble: 'drive ending in a fumble', Downs: 'turned over on downs' }[d.result] || 'drive';
+  return 'Q' + d.q + ' ' + r;
+}
+
+/* ===========================================================================
+   Replays: the big field comes up and the drive's plays run again, one
+   every 2.6 s, then it goes back to the board.
+   After a touchdown the live version waits ~90 s (the extra point and the
+   kickoff break) before replaying the scoring drive; the demo waits 7 s.
+   =========================================================================== */
+var SPEED = +((/[?&]speed=([\d.]+)/.exec(location.search) || [])[1]) || 1;
+var PACE = 14000 / SPEED;                  // between plays; a real game is ~40 s, most of it huddle
+var REPLAY_AFTER_TD = 15000 / SPEED;
+function startReplay(drive, why, done){
+  clearTimeout(state.replayTimer);
+  state.replay = { drive: drive, i: 0, why: why, done: done };
+  $('fieldLayer').className = 'abs on';
+  snapBall(); render();
+  var tick = function(){
+    var r = state.replay;
+    if(!r) return;
+    if(r.i < r.drive.plays.length){
+      r.i += 1; render();
+      state.replayTimer = setTimeout(tick, r.i === r.drive.plays.length ? 5000 : 2600);
+      return;
+    }
+    state.replay = null; $('fieldLayer').className = 'abs'; render();
+    if(r.done) r.done();
+  };
+  state.replayTimer = setTimeout(tick, 2200);
+}
+
+/* ===========================================================================
+   The demo game. BYU leads Iowa State 24-10 with 9:52 left; the earlier
+   drives are filled in so "All drives" has a whole game to show. The script
+   then plays out: an ISU three-and-out with a sack and a punt, a BYU
+   touchdown drive with a loss, a flag, an incompletion and an ISU
+   timeout, the replay, an interception, and a field goal.
+   =========================================================================== */
+/* The real game, from ESPN (see .github/workflows/espn-game-dump.yml). */
+var REAL = {"past":[{"team":"BYU","start":25,"end":100,"result":"TD","q":1,"score":"7\u20130","plays":[{"from":25,"to":25,"text":"B. Bachmeier rush middle for 0 yards to the BYU25","t":"rush","yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":25,"to":37,"text":"B. Bachmeier pass complete to W. Lyons caught at BYU31, for 12 yards to the BYU37, 1ST DOWN","t":"pass","yds":12,"td":false,"dd":{"down":1,"toGo":10}},{"from":37,"to":48,"text":"B. Bachmeier pass complete to J. Phillips caught at BYU46, for 11 yards to the BYU48, 1ST DOWN","t":"pass","yds":11,"td":false,"dd":{"down":1,"toGo":10}},{"from":48,"to":51,"text":"P. Rex rush middle for 3 yards gain to the ND49","t":"rush","yds":3,"td":false,"dd":{"down":2,"toGo":7}},{"from":51,"to":83,"text":"B. Bachmeier pass complete to R. Saleapaga II caught at ND50, for 2 yards to the ND47 PENALTY ND Targeting 15 yards from ND47 to ND32, 1ST DOWN","t":"pass","yds":32,"td":false,"dd":{"down":1,"toGo":10}},{"from":68,"to":86,"text":"B. Bachmeier pass complete to W. Lyons caught at ND16, for 18 yards to the ND14, 1ST DOWN","t":"pass","yds":18,"td":false,"dd":{"down":1,"toGo":10}},{"from":86,"to":86,"text":"B. Bachmeier pass incomplete to R. Saleapaga II thrown to ND00","t":"inc","air":14,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":86,"to":91,"text":"B. Bachmeier rush middle for 5 yards gain to the ND09","t":"rush","yds":5,"td":false,"dd":{"down":3,"toGo":5}},{"from":91,"to":97,"text":"B. Bachmeier pass complete to K. Kasper caught at ND05, for 6 yards to the ND03, 1ST DOWN","t":"pass","yds":6,"td":false,"dd":{"down":1,"toGo":3}},{"from":97,"to":95,"text":"L. Glasker rush right for 2 yards loss to the ND05","t":"rush","yds":-2,"td":false,"dd":{"down":2,"toGo":5}},{"from":95,"to":100,"text":"B. Bachmeier rush middle for 5 yards gain to the ND00 TOUCHDOWN","t":"rush","yds":5,"td":true}]},{"team":"ISU","start":75,"end":29,"result":"FG","q":1,"score":"7\u20133","plays":[{"from":75,"to":57,"text":"C. Carr pass complete to J. Faison caught at ND26, for 18 yards to the ND43, 1ST DOWN","t":"pass","yds":18,"td":false,"dd":{"down":1,"toGo":10}},{"from":57,"to":54,"text":"N. James Jr. rush middle for 3 yards gain to the ND46","t":"rush","yds":3,"td":false,"dd":{"down":2,"toGo":7}},{"from":54,"to":47,"text":"N. James Jr. rush middle for 7 yards gain to the BYU47, 1ST DOWN","t":"rush","yds":7,"td":false,"dd":{"down":1,"toGo":10}},{"from":47,"to":38,"text":"C. Carr pass complete to J. Faison caught at BYU48, for 9 yards to the BYU38","t":"pass","yds":9,"td":false,"dd":{"down":2,"toGo":1}},{"from":38,"to":33,"text":"N. James Jr. rush left for 5 yards gain to the BYU33, 1ST DOWN","t":"rush","yds":5,"td":false,"dd":{"down":1,"toGo":10}},{"from":33,"to":29,"text":"C. Carr pass complete to J. Larsen caught at BYU29, for 4 yards to the BYU29","t":"pass","yds":4,"td":false,"dd":{"down":2,"toGo":6}},{"from":29,"to":29,"text":"N. James Jr. rush middle for 0 yards to the BYU29","t":"rush","yds":0,"td":false,"dd":{"down":3,"toGo":6}},{"from":29,"to":29,"text":"C. Carr pass incomplete to J. Faison thrown to BYU00","t":"inc","air":29,"yds":0,"td":false,"dd":{"down":4,"toGo":6}},{"from":29,"to":29,"text":"S. Porath field goal attempt from 46 yards GOOD","t":"fg","dist":46,"good":true,"yds":0,"td":false}]},{"team":"BYU","start":25,"end":53,"result":"Punt","q":1,"score":"","plays":[{"from":25,"to":30,"text":"B. Bachmeier pass complete to K. Kasper caught at BYU29, for 5 yards to the BYU30, out of bounds","t":"pass","yds":5,"td":false,"dd":{"down":2,"toGo":5}},{"from":30,"to":30,"text":"P. Rex rush middle for 0 yards to the BYU30","t":"rush","yds":0,"td":false,"dd":{"down":3,"toGo":5}},{"from":30,"to":37,"text":"B. Bachmeier pass complete to W. Lyons caught at BYU35, for 7 yards to the BYU37, out of bounds, 1ST DOWN","t":"pass","yds":7,"td":false,"dd":{"down":1,"toGo":10}},{"from":37,"to":41,"text":"P. Rex rush middle for 4 yards gain to the BYU41","t":"rush","yds":4,"td":false,"dd":{"down":2,"toGo":6}},{"from":41,"to":51,"text":"B. Bachmeier pass complete to K. Kasper caught at BYU50, for 10 yards to the ND49, 1ST DOWN","t":"pass","yds":10,"td":false,"dd":{"down":1,"toGo":10}},{"from":51,"to":53,"text":"J. Tonga rush middle for 2 yards gain to the ND47","t":"rush","yds":2,"td":false,"dd":{"down":2,"toGo":8}},{"from":53,"to":53,"text":"B. Bachmeier pass incomplete to R. Saleapaga II thrown to ND47","t":"inc","air":3,"yds":0,"td":false,"dd":{"down":3,"toGo":8}},{"from":53,"to":53,"text":"B. Bachmeier pass incomplete to P. Rex thrown to ND48","t":"inc","air":3,"yds":0,"td":false,"dd":{"down":4,"toGo":8}},{"from":53,"to":84,"text":"F. Shurtz punt 31 yards to the ND16 fair catch by J. Faison at ND16","t":"punt","yds":31,"td":false}]},{"team":"ISU","start":84,"end":0,"result":"TD","q":1,"score":"7\u201310","plays":[{"from":84,"to":77,"text":"C. Carr pass complete to J. Faison caught at ND20, for 7 yards to the ND23","t":"pass","yds":7,"td":false,"dd":{"down":2,"toGo":3}},{"from":77,"to":77,"text":"C. Carr pass incomplete to M. Gilbert thrown to ND45","t":"inc","air":22,"yds":0,"td":false,"dd":{"down":3,"toGo":3}},{"from":77,"to":51,"text":"N. James Jr. rush middle for 26 yards gain to the ND49, 1ST DOWN","t":"rush","yds":26,"td":false,"dd":{"down":3,"toGo":3}},{"from":51,"to":47,"text":"N. James Jr. rush middle for 4 yards gain to the BYU47","t":"rush","yds":4,"td":false,"dd":{"down":2,"toGo":6}},{"from":47,"to":50,"text":"N. James Jr. rush middle for 3 yards loss to the BYU50","t":"rush","yds":-3,"td":false,"dd":{"down":3,"toGo":9}},{"from":50,"to":37,"text":"C. Carr pass complete to M. Gilbert caught at BYU37, for 13 yards to the BYU37, out of bounds at BYU37, 1ST DOWN","t":"pass","yds":13,"td":false,"dd":{"down":1,"toGo":10}},{"from":37,"to":42,"text":"PENALTY ND False Start 5 yards from BYU37 to BYU42. NO PLAY","t":"pen","yds":-5,"td":false,"dd":{"down":1,"toGo":15}},{"from":42,"to":26,"text":"N. James Jr. rush middle for 16 yards gain to the BYU26, 1ST DOWN","t":"rush","yds":16,"td":false,"dd":{"down":1,"toGo":10}},{"from":26,"to":24,"text":"N. James Jr. rush middle for 2 yards gain to the BYU24","t":"rush","yds":2,"td":false,"dd":{"down":2,"toGo":8}},{"from":24,"to":12,"text":"C. Carr pass complete to J. Faison caught at BYU12, for 12 yards to the BYU12, 1ST DOWN. The previous play is under automatic review - \"Pass completion\". CALL UPHELD","t":"pass","yds":12,"td":false,"dd":{"down":1,"toGo":10}},{"from":12,"to":12,"text":"C. Carr pass complete to J. Flanigan caught at BYU13, for 0 yards to the BYU12","t":"pass","yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":12,"to":8,"text":"C. Carr rush middle for 4 yards gain to the BYU08","t":"rush","yds":4,"td":false,"dd":{"down":3,"toGo":6}},{"from":8,"to":0,"text":"N. James Jr. rush middle for 8 yards gain to the BYU00 TOUCHDOWN","t":"rush","yds":8,"td":true}]},{"team":"BYU","start":25,"end":100,"result":"TD","q":2,"score":"14\u201310","plays":[{"from":25,"to":25,"text":"B. Bachmeier pass incomplete to K. Kasper thrown to BYU35","t":"inc","air":10,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":25,"to":33,"text":"P. Rex rush middle for 8 yards gain to the BYU33","t":"rush","yds":8,"td":false,"dd":{"down":3,"toGo":2}},{"from":33,"to":38,"text":"B. Bachmeier rush right for 5 yards gain to the BYU38, 1ST DOWN","t":"rush","yds":5,"td":false,"dd":{"down":1,"toGo":10}},{"from":38,"to":43,"text":"B. Bachmeier rush middle for 5 yards gain to the BYU43","t":"rush","yds":5,"td":false,"dd":{"down":2,"toGo":5}},{"from":43,"to":53,"text":"B. Bachmeier pass complete to K. Kasper caught at ND49, for 10 yards to the ND47, 1ST DOWN","t":"pass","yds":10,"td":false,"dd":{"down":1,"toGo":10}},{"from":53,"to":72,"text":"B. Bachmeier pass complete to L. Glasker caught at ND30, for 19 yards to the ND28, 1ST DOWN","t":"pass","yds":19,"td":false,"dd":{"down":1,"toGo":10}},{"from":72,"to":72,"text":"B. Bachmeier pass incomplete to P. Rex thrown to ND23","t":"inc","air":5,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":72,"to":76,"text":"B. Bachmeier rush middle for 4 yards gain to the ND24","t":"rush","yds":4,"td":false,"dd":{"down":3,"toGo":6}},{"from":76,"to":85,"text":"P. Rex rush right for 9 yards gain to the ND15, 1ST DOWN","t":"rush","yds":9,"td":false,"dd":{"down":1,"toGo":10}},{"from":85,"to":100,"text":"K. Kasper pass complete to B. Bachmeier caught at ND21, for 15 yards to the ND00 TOUCHDOWN","t":"pass","yds":15,"td":false}]},{"team":"ISU","start":75,"end":77,"result":"Punt","q":2,"score":"","plays":[{"from":75,"to":72,"text":"J. Walton rush middle for 3 yards gain to the ND28","t":"rush","yds":3,"td":false,"dd":{"down":2,"toGo":7}},{"from":72,"to":77,"text":"C. Carr pass complete to C. Carr caught at ND28, for 5 yards loss to the ND23","t":"pass","yds":-5,"td":false,"dd":{"down":3,"toGo":13}},{"from":78,"to":78,"text":"C. Carr pass incomplete to J. Flanigan thrown to ND30","t":"inc","air":8,"yds":0,"td":false,"dd":{"down":4,"toGo":12}},{"from":77,"to":28,"text":"J. Scaife punt 49 yards to the BYU28 fair catch by C. DeVries at BYU28","t":"punt","yds":49,"td":false}]},{"team":"BYU","start":28,"end":100,"result":"TD","q":2,"score":"21\u201310","plays":[{"from":28,"to":36,"text":"B. Bachmeier pass complete to L. Glasker caught at BYU33, for 8 yards to the BYU36","t":"pass","yds":8,"td":false,"dd":{"down":2,"toGo":1}},{"from":36,"to":59,"text":"P. Rex rush left for 23 yards gain to the ND41, out of bounds, 1ST DOWN","t":"rush","yds":23,"td":false,"dd":{"down":1,"toGo":10}},{"from":59,"to":60,"text":"J. Tonga rush middle for 1 yard gain to the ND40","t":"rush","yds":1,"td":false,"dd":{"down":2,"toGo":9}},{"from":60,"to":68,"text":"B. Bachmeier pass complete to L. Glasker caught at ND36, for 8 yards to the ND32","t":"pass","yds":8,"td":false,"dd":{"down":3,"toGo":1}},{"from":68,"to":73,"text":"B. Bachmeier rush middle for 2 yards gain to the ND30 PENALTY ND Illegal Formation 5 yards from ND32 to ND27, 1ST DOWN. NO PLAY","t":"pen","yds":5,"td":false,"dd":{"down":1,"toGo":10}},{"from":73,"to":85,"text":"B. Bachmeier pass complete to J. Tonga caught at ND28, for 12 yards to the ND15, out of bounds, 1ST DOWN","t":"pass","yds":12,"td":false,"dd":{"down":1,"toGo":10}},{"from":85,"to":88,"text":"J. Tonga rush middle for 3 yards gain to the ND12","t":"rush","yds":3,"td":false,"dd":{"down":2,"toGo":7}},{"from":88,"to":99,"text":"L. Glasker rush left for 11 yards gain to the ND01, out of bounds, 1ST DOWN. The previous play is under automatic review - \"Runner broke the plane\". CALL OVERTURNED. (Original Play: (01:39) Shotgun L. Glasker rush left for 12 yards gain to the ND00 TOUCHDOWN","t":"rush","yds":11,"td":false,"dd":{"down":1,"toGo":1}},{"from":99,"to":100,"text":"B. Bachmeier rush middle for 1 yard gain to the ND00 TOUCHDOWN","t":"rush","yds":1,"td":true}]},{"team":"ISU","start":75,"end":5,"result":"Fumble","q":2,"score":"","plays":[{"from":75,"to":51,"text":"C. Carr pass complete to J. Greathouse caught at ND49, for 24 yards to the ND49, End Of Play, 1ST DOWN","t":"pass","yds":24,"td":false,"dd":{"down":1,"toGo":10}},{"from":51,"to":51,"text":"C. Carr pass incomplete to M. Gilbert thrown to BYU31","t":"inc","air":20,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":51,"to":44,"text":"C. Carr pass complete to J. Greathouse caught at BYU45, for 7 yards to the BYU44","t":"pass","yds":7,"td":false,"dd":{"down":3,"toGo":3}},{"from":44,"to":37,"text":"C. Carr pass complete to J. Larsen caught at BYU39, for 7 yards to the BYU37, out of bounds, 1ST DOWN","t":"pass","yds":7,"td":false,"dd":{"down":1,"toGo":10}},{"from":37,"to":37,"text":"C. Carr pass incomplete to J. Faison thrown to BYU20","t":"inc","air":17,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":37,"to":32,"text":"C. Carr pass complete to A. Williams caught at BYU33, for 5 yards to the BYU32","t":"pass","yds":5,"td":false,"dd":{"down":3,"toGo":5}},{"from":32,"to":17,"text":"C. Carr pass incomplete to M. Gilbert thrown to BYU10 PENALTY BYU Pass Interference 15 yards from BYU32 to BYU17, 1ST DOWN. NO PLAY","t":"pen","yds":15,"td":false,"dd":{"down":1,"toGo":10}},{"from":17,"to":17,"text":"C. Carr pass incomplete to J. Larsen thrown to BYU00","t":"inc","air":17,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":17,"to":17,"text":"C. Carr pass incomplete to J. Larsen thrown to BYU00","t":"inc","air":17,"yds":0,"td":false,"dd":{"down":3,"toGo":10}},{"from":17,"to":5,"text":"C. Carr pass complete to M. Gilbert caught at BYU09, for 12 yards to the BYU05, 1ST DOWN","t":"pass","yds":12,"td":false,"dd":{"down":1,"toGo":5}},{"from":5,"to":6,"text":"C. Carr rush middle for 1 yard loss to the BYU06 fumbled by C. Carr at BYU08 recovered by BYU J. Williams at BYU06, CALL OVERTURNED.","t":"fum","caught":6,"yds":-1,"td":false}]},{"team":"BYU","start":6,"end":5,"result":"Half","q":2,"score":"","plays":[{"from":6,"to":5,"text":"Kneel down by BYU at BYU05 for loss of 1 yard","t":"rush","yds":-1,"td":false}]},{"team":"ISU","start":75,"end":64,"result":"Punt","q":3,"score":"","plays":[{"from":75,"to":65,"text":"C. Carr pass complete to J. Greathouse caught at ND35, for 10 yards to the ND35, 1ST DOWN","t":"pass","yds":10,"td":false,"dd":{"down":1,"toGo":10}},{"from":65,"to":64,"text":"N. James Jr. rush middle for 1 yard gain to the ND36","t":"rush","yds":1,"td":false,"dd":{"down":2,"toGo":9}},{"from":64,"to":64,"text":"C. Carr pass incomplete to M. Gilbert thrown to ND37","t":"inc","air":3,"yds":0,"td":false,"dd":{"down":3,"toGo":9}},{"from":64,"to":64,"text":"C. Carr pass incomplete to J. Greathouse thrown to BYU40","t":"inc","air":24,"yds":0,"td":false,"dd":{"down":4,"toGo":9}},{"from":64,"to":16,"text":"J. Scaife punt 48 yards to the BYU16 fair catch by C. DeVries at BYU16","t":"punt","yds":48,"td":false}]},{"team":"BYU","start":16,"end":54,"result":"Punt","q":3,"score":"","plays":[{"from":16,"to":19,"text":"B. Bachmeier pass complete to P. Rex caught at BYU15, for 3 yards to the BYU19, out of bounds","t":"pass","yds":3,"td":false,"dd":{"down":2,"toGo":7}},{"from":19,"to":46,"text":"P. Rex rush left for 12 yards gain to the BYU31, 1ST DOWN, PENALTY ND Personal Foul 15 yards from BYU31 to BYU46, 1ST DOWN","t":"rush","yds":27,"td":false,"dd":{"down":1,"toGo":10}},{"from":46,"to":46,"text":"B. Bachmeier pass incomplete to R. Saleapaga II thrown to ND41","t":"inc","air":13,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":46,"to":53,"text":"B. Bachmeier pass complete to K. Kasper caught at ND47, for 7 yards to the ND47, End Of Play","t":"pass","yds":7,"td":false,"dd":{"down":3,"toGo":3}},{"from":53,"to":58,"text":"B. Bachmeier pass complete to J. Phillips caught at ND42, for 5 yards to the ND42, 1ST DOWN","t":"pass","yds":5,"td":false,"dd":{"down":1,"toGo":10}},{"from":58,"to":58,"text":"B. Bachmeier pass incomplete to L. Glasker thrown to ND04","t":"inc","air":38,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":58,"to":61,"text":"B. Bachmeier rush middle for 3 yards gain to the ND39","t":"rush","yds":3,"td":false,"dd":{"down":3,"toGo":7}},{"from":61,"to":51,"text":"B. Bachmeier pass complete to J. Phillips caught at ND20, for 39 yards to the ND00 TOUCHDOWN nullified by penalty","t":"pen","yds":-10,"td":false,"dd":{"down":3,"toGo":17}},{"from":51,"to":54,"text":"P. Rex rush middle for 3 yards gain to the ND46","t":"rush","yds":3,"td":false,"dd":{"down":4,"toGo":14}},{"from":54,"to":94,"text":"F. Shurtz punt 40 yards to the ND06 fair catch by J. Faison at ND06","t":"punt","yds":40,"td":false}]},{"team":"ISU","start":94,"end":85,"result":"Punt","q":3,"score":"","plays":[{"from":94,"to":92,"text":"J. Walton rush middle for 2 yards gain to the ND08","t":"rush","yds":2,"td":false,"dd":{"down":2,"toGo":8}},{"from":92,"to":90,"text":"J. Walton rush middle for 2 yards gain to the ND10","t":"rush","yds":2,"td":false,"dd":{"down":3,"toGo":6}},{"from":90,"to":85,"text":"C. Carr pass complete to N. James Jr. caught at ND14, for 5 yards to the ND15","t":"pass","yds":5,"td":false,"dd":{"down":4,"toGo":1}},{"from":85,"to":40,"text":"J. Scaife punt 45 yards to the BYU40 C. DeVries return 1 yard to the BYU40 fumbled by C. DeVries at BYU40 recovered by ND B. Frazier at BYU41, End Of Play","t":"fum","caught":40,"yds":45,"td":false}]},{"team":"ISU","start":41,"end":13,"result":"FG","q":3,"score":"21\u201313","plays":[{"from":41,"to":33,"text":"C. Carr pass complete to J. Greathouse caught at BYU35, for 8 yards to the BYU33","t":"pass","yds":8,"td":false,"dd":{"down":2,"toGo":2}},{"from":33,"to":30,"text":"N. James Jr. rush left for 3 yards gain to the BYU30, 1ST DOWN","t":"rush","yds":3,"td":false,"dd":{"down":1,"toGo":10}},{"from":30,"to":30,"text":"C. Carr pass incomplete to J. Greathouse thrown to BYU15","t":"inc","air":15,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":30,"to":24,"text":"N. James Jr. rush middle for 6 yards gain to the BYU24","t":"rush","yds":6,"td":false,"dd":{"down":3,"toGo":4}},{"from":24,"to":24,"text":"C. Carr pass incomplete to M. Gilbert thrown to BYU15","t":"inc","air":9,"yds":0,"td":false,"dd":{"down":4,"toGo":4}},{"from":24,"to":18,"text":"C. Carr pass complete to N. James Jr. caught at BYU21, for 6 yards to the BYU18, 1ST DOWN","t":"pass","yds":6,"td":false,"dd":{"down":1,"toGo":10}},{"from":18,"to":14,"text":"C. Carr rush right for 4 yards gain to the BYU14","t":"rush","yds":4,"td":false,"dd":{"down":2,"toGo":6}},{"from":14,"to":14,"text":"C. Carr pass incomplete to J. Flanigan thrown to BYU00","t":"inc","air":14,"yds":0,"td":false,"dd":{"down":3,"toGo":6}},{"from":14,"to":13,"text":"N. James Jr. rush middle for 1 yard gain to the BYU13","t":"rush","yds":1,"td":false,"dd":{"down":4,"toGo":5}},{"from":13,"to":13,"text":"S. Porath field goal attempt from 31 yards GOOD","t":"fg","dist":30,"good":true,"yds":0,"td":false}]},{"team":"BYU","start":23,"end":24,"result":"Downs","q":3,"score":"","plays":[{"from":23,"to":25,"text":"P. Rex rush middle for 2 yards gain to the BYU25","t":"rush","yds":2,"td":false,"dd":{"down":2,"toGo":8}},{"from":25,"to":28,"text":"B. Bachmeier rush left for 3 yards gain to the BYU28","t":"rush","yds":3,"td":false,"dd":{"down":3,"toGo":5}},{"from":28,"to":28,"text":"B. Bachmeier pass incomplete to W. Lyons thrown to BYU45","t":"inc","air":17,"yds":0,"td":false,"dd":{"down":4,"toGo":5}},{"from":28,"to":24,"text":"F. Shurtz rush middle for 4 yards loss to the BYU24, TURNOVER ON DOWNS","t":"rush","yds":-4,"td":false}]},{"team":"ISU","start":24,"end":21,"result":"FG","q":3,"score":"21\u201316","plays":[{"from":24,"to":22,"text":"N. James Jr. rush middle for 2 yards gain to the BYU22","t":"rush","yds":2,"td":false,"dd":{"down":2,"toGo":8}},{"from":22,"to":22,"text":"C. Carr pass incomplete to J. Greathouse thrown to BYU02","t":"inc","air":20,"yds":0,"td":false,"dd":{"down":3,"toGo":8}},{"from":22,"to":21,"text":"C. Carr rush left for 1 yard gain to the BYU21","t":"rush","yds":1,"td":false,"dd":{"down":4,"toGo":7}},{"from":21,"to":21,"text":"S. Porath field goal attempt from 39 yards GOOD","t":"fg","dist":38,"good":true,"yds":0,"td":false}]},{"team":"BYU","start":25,"end":23,"result":"Punt","q":3,"score":"","plays":[{"from":25,"to":27,"text":"P. Rex rush middle for 2 yards gain to the BYU27","t":"rush","yds":2,"td":false,"dd":{"down":1,"toGo":10}},{"from":27,"to":28,"text":"B. Bachmeier pass complete to P. Rex caught at BYU26, for 1 yard to the BYU28","t":"pass","yds":1,"td":false,"dd":{"down":3,"toGo":7}},{"from":28,"to":28,"text":"B. Bachmeier pass incomplete to R. Saleapaga II thrown to BYU40","t":"inc","air":12,"yds":0,"td":false,"dd":{"down":4,"toGo":7}},{"from":28,"to":23,"text":"PENALTY BYU Delay Of Game 5 yards from BYU28 to BYU23. NO PLAY","t":"pen","yds":-5,"td":false,"dd":{"down":4,"toGo":12}},{"from":23,"to":68,"text":"F. Shurtz punt 45 yards to the ND32","t":"punt","yds":45,"td":false}]},{"team":"ISU","start":68,"end":0,"result":"TD","q":4,"score":"21\u201324","plays":[{"from":68,"to":62,"text":"A. Williams rush middle for 6 yards gain to the ND38","t":"rush","yds":6,"td":false,"dd":{"down":2,"toGo":4}},{"from":62,"to":62,"text":"C. Carr pass incomplete to J. Faison thrown to BYU48","t":"inc","air":14,"yds":0,"td":false,"dd":{"down":3,"toGo":4}},{"from":62,"to":24,"text":"C. Carr pass complete to J. Greathouse caught at BYU32, for 38 yards to the BYU24, End Of Play, 1ST DOWN","t":"pass","yds":38,"td":false,"dd":{"down":1,"toGo":10}},{"from":24,"to":17,"text":"C. Carr pass complete to J. Greathouse caught at BYU17, for 7 yards to the BYU17","t":"pass","yds":7,"td":false,"dd":{"down":2,"toGo":3}},{"from":17,"to":15,"text":"A. Williams rush middle for 2 yards gain to the BYU15","t":"rush","yds":2,"td":false,"dd":{"down":3,"toGo":1}},{"from":15,"to":15,"text":"A. Williams rush middle for 0 yards to the BYU15","t":"rush","yds":0,"td":false,"dd":{"down":4,"toGo":1}},{"from":15,"to":10,"text":"C. Carr rush middle for 5 yards gain to the BYU10, 1ST DOWN","t":"rush","yds":5,"td":false,"dd":{"down":1,"toGo":10}},{"from":10,"to":3,"text":"J. Walton rush middle for 7 yards gain to the BYU03","t":"rush","yds":7,"td":false,"dd":{"down":2,"toGo":3}},{"from":3,"to":0,"text":"J. Walton rush middle for 3 yards gain to the BYU00 TOUCHDOWN","t":"rush","yds":3,"td":true}]},{"team":"BYU","start":25,"end":59,"result":"INT","q":4,"score":"","plays":[{"from":25,"to":25,"text":"B. Bachmeier pass incomplete to J. Phillips thrown to BYU37","t":"inc","air":12,"yds":0,"td":false,"dd":{"down":2,"toGo":10}},{"from":25,"to":31,"text":"B. Bachmeier pass complete to W. Lyons caught at BYU29, for 6 yards to the BYU31","t":"pass","yds":6,"td":false,"dd":{"down":3,"toGo":4}},{"from":31,"to":59,"text":"B. Bachmeier pass complete to K. Kasper caught at BYU50, for 28 yards to the ND41, 1ST DOWN","t":"pass","yds":28,"td":false,"dd":{"down":1,"toGo":10}},{"from":59,"to":85,"text":"B. Bachmeier pass intercepted by J. Sanders at ND15, End Of Play","t":"int","air":8,"caught":85,"yds":26,"td":false}]},{"team":"ISU","start":85,"end":82,"result":"Punt","q":4,"score":"","plays":[{"from":85,"to":89,"text":"N. James Jr. rush left for 4 yards loss to the ND11","t":"rush","yds":-4,"td":false,"dd":{"down":2,"toGo":14}},{"from":89,"to":89,"text":"C. Carr rush middle for 0 yards to the ND11","t":"rush","yds":0,"td":false,"dd":{"down":3,"toGo":14}},{"from":89,"to":82,"text":"C. Carr pass complete to N. James Jr. caught at ND11, for 7 yards to the ND18","t":"pass","yds":7,"td":false,"dd":{"down":4,"toGo":7}},{"from":82,"to":45,"text":"J. Scaife punt 60 yards to the BYU22 C. DeVries return 23 yards to the BYU45","t":"punt","yds":37,"td":false}]}],"script":[{"ev":"timeout","team":"ISU","clock":"5:43"},{"t":"pass","yds":5,"clock":"5:29","text":"B. Bachmeier pass complete to L. Glasker caught at BYU46, for 5 yards to the BYU50","p":"B. Bachmeier","c":"L. Glasker","tk":["L. Talich"]},{"t":"inc","yds":0,"clock":"5:03","text":"B. Bachmeier pass incomplete to L. Glasker thrown to ND35","air":15,"p":"B. Bachmeier"},{"t":"pass","yds":9,"clock":"4:53","text":"B. Bachmeier pass complete to J. Phillips caught at ND45, for 9 yards to the ND41, End Of Play, 1ST DOWN","p":"B. Bachmeier","c":"J. Phillips"},{"t":"inc","yds":0,"clock":"4:23","text":"B. Bachmeier pass incomplete to L. Glasker thrown to ND22","air":19,"p":"B. Bachmeier"},{"t":"pass","yds":26,"clock":"4:10","text":"B. Bachmeier pass complete to L. Glasker caught at ND24, for 26 yards to the ND15, 1ST DOWN","p":"B. Bachmeier","c":"L. Glasker","tk":["L. Moore","A. Shuler"]},{"t":"rush","yds":6,"clock":"3:30","text":"B. Bachmeier rush middle for 6 yards gain to the ND09","r":"B. Bachmeier","tk":["L. Talich"]},{"t":"rush","yds":4,"clock":"2:53","text":"B. Bachmeier rush middle for 4 yards gain to the ND05, 1ST DOWN","r":"B. Bachmeier","tk":["J. Onye"]},{"t":"rush","yds":3,"clock":"2:08","text":"B. Bachmeier rush right for 3 yards gain to the ND02","r":"B. Bachmeier","tk":["J. Onye","L. Talich"]},{"ev":"timeout","team":"BYU","clock":"2:00"},{"t":"rush","yds":1,"clock":"1:50","text":"B. Bachmeier rush middle for 1 yard gain to the ND01","r":"B. Bachmeier","tk":["L. Talich","D. Bowen"]},{"ev":"timeout","team":"ISU","clock":"1:53"},{"t":"pen","yds":-5,"clock":"1:50","text":"PENALTY BYU False Start 5 yards from ND01 to ND06. NO PLAY"},{"t":"pass","yds":6,"clock":"1:47","text":"B. Bachmeier pass complete to W. Lyons caught at ND00, for 6 yards to the ND00 TOUCHDOWN","p":"B. Bachmeier","c":"W. Lyons","tk":["F. Shurtz","T. Smith"],"top":"3:56"},{"t":"pass","yds":7,"clock":"1:35","text":"C. Carr pass complete to J. Larsen caught at ND30, for 7 yards to the ND32","p":"C. Carr","c":"J. Larsen","tk":["I. Glasker"]},{"t":"inc","yds":0,"clock":"1:24","text":"C. Carr pass incomplete to J. Larsen thrown to ND37","air":5,"p":"C. Carr"},{"t":"inc","yds":0,"clock":"1:17","text":"C. Carr pass incomplete to J. Greathouse thrown to ND40","air":8,"p":"C. Carr"},{"t":"pass","yds":7,"clock":"1:11","text":"C. Carr pass complete to J. Greathouse caught at ND39, for 7 yards to the ND39, 1ST DOWN","p":"C. Carr","c":"J. Greathouse","tk":["E. Johnson"]},{"t":"inc","yds":0,"clock":"1:00","text":"C. Carr pass incomplete to J. Faison thrown to BYU45","air":16,"p":"C. Carr"},{"t":"inc","yds":0,"clock":"0:54","text":"C. Carr pass incomplete to M. Gilbert thrown to ND45","air":6,"p":"C. Carr"},{"t":"pass","yds":24,"clock":"0:43","text":"C. Carr pass complete to J. Greathouse caught at BYU37, for 24 yards to the BYU37, End Of Play, 1ST DOWN","p":"C. Carr","c":"J. Greathouse"},{"ev":"timeout","team":"BYU","clock":"0:45"},{"t":"inc","yds":0,"clock":"0:40","text":"C. Carr pass incomplete to J. Faison thrown to BYU17","air":20,"p":"C. Carr"},{"t":"pass","yds":7,"clock":"0:34","text":"C. Carr pass complete to J. Faison caught at BYU30, for 7 yards to the BYU30, out of bounds at BYU30","p":"C. Carr","c":"J. Faison"},{"t":"pass","yds":11,"clock":"0:26","text":"C. Carr pass complete to J. Faison caught at BYU19, for 11 yards to the BYU19, out of bounds at BYU19, 1ST DOWN","p":"C. Carr","c":"J. Faison"},{"t":"inc","yds":0,"clock":"0:20","text":"C. Carr pass incomplete to J. Faison thrown to BYU00","air":19,"p":"C. Carr"},{"t":"pass","yds":5,"clock":"0:15","text":"C. Carr pass complete to J. Larsen caught at BYU16, for 5 yards to the BYU14","p":"C. Carr","c":"J. Larsen","tk":["R. Damuni"]},{"t":"inc","yds":0,"clock":"0:10","text":"C. Carr pass incomplete to M. Graham thrown to BYU00","air":14,"p":"C. Carr"},{"ev":"timeout","team":"BYU","clock":"0:10"},{"t":"pass","yds":6,"clock":"0:04","text":"C. Carr pass complete to M. Gilbert caught at BYU09, for 6 yards to the BYU08, 1ST DOWN","p":"C. Carr","c":"M. Gilbert","tk":["F. Satuala"]},{"ev":"timeout","team":"ISU","clock":"0:10"},{"ev":"timeout","team":"ISU","clock":"0:04"},{"t":"inc","yds":0,"clock":"0:04","text":"C. Carr pass incomplete to J. Greathouse thrown to BYU00","air":8,"p":"C. Carr"},{"ev":"final","clock":"0:00","top":"1:47"}],"stats":{"ISU":{"yds":309,"pass":194,"comp":20,"att":34,"rush":115,"car":30,"fd":18,"d3":[6,15],"d4":[2,2],"pen":[4,40],"to":1,"top":"29:11","plays":64},"BYU":{"yds":300,"pass":193,"comp":20,"att":31,"rush":107,"car":26,"fd":20,"d3":[6,10],"d4":[0,1],"pen":[3,30],"to":2,"top":"25:06","plays":57}},"players":{"BYU":{"pass":[{"n":"B. Bachmeier","c":19,"a":30,"y":178,"td":0,"int":1},{"n":"K. Kasper","c":1,"a":1,"y":15,"td":1,"int":0}],"rush":[{"n":"P. Rex","car":10,"y":66,"td":0},{"n":"B. Bachmeier","car":9,"y":31,"td":2},{"n":"L. Glasker","car":2,"y":9,"td":0},{"n":"J. Tonga","car":3,"y":6,"td":0},{"n":"F. Shurtz","car":1,"y":-4,"td":0}],"rec":[{"n":"L. Glasker","r":3,"y":35,"td":0},{"n":"K. Kasper","r":6,"y":66,"td":0},{"n":"W. Lyons","r":4,"y":43,"td":0},{"n":"J. Phillips","r":2,"y":16,"td":0},{"n":"B. Bachmeier","r":1,"y":15,"td":1},{"n":"J. Tonga","r":1,"y":12,"td":0},{"n":"P. Rex","r":2,"y":4,"td":0},{"n":"R. Saleapaga II","r":1,"y":2,"td":0}],"def":[{"n":"C. Uluave","tkl":9,"tfl":1,"sk":0,"int":0},{"n":"R. Damuni","tkl":6,"tfl":0,"sk":0,"int":0},{"n":"I. Glasker","tkl":5,"tfl":0,"sk":0,"int":0},{"n":"F. Satuala","tkl":4,"tfl":0,"sk":0,"int":0},{"n":"E. Johnson","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"J. Williams","tkl":3,"tfl":0,"sk":0,"int":0},{"n":"N. Taumoepeau","tkl":3,"tfl":1,"sk":0,"int":0},{"n":"B. Schoonover","tkl":3,"tfl":1,"sk":0,"int":0},{"n":"T. Prassas","tkl":3,"tfl":0,"sk":0,"int":0},{"n":"K. Tanuvasa","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"M. Leach","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"H. Clegg","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"S. Esera","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"J. Kirkland","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"A. Kaufusi","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"J. Clifton","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"T. Akana","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"M. Hall","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"T. Alexander III","tkl":1,"tfl":0,"sk":0,"int":0},{"n":"B. Lindsey","tkl":1,"tfl":0,"sk":0,"int":0},{"n":"K. Wall","tkl":0,"tfl":0,"sk":0,"int":0}],"kick":[{"n":"M. Dunn","fgm":0,"fga":0,"lng":0,"xpm":3,"xpa":3}]},"ISU":{"pass":[{"n":"C. Carr","c":20,"a":34,"y":194,"td":0,"int":0}],"rush":[{"n":"N. James Jr.","car":16,"y":77,"td":1},{"n":"J. Walton","car":5,"y":17,"td":1},{"n":"C. Carr","car":6,"y":13,"td":0},{"n":"A. Williams","car":3,"y":8,"td":0}],"rec":[{"n":"J. Greathouse","r":6,"y":94,"td":0},{"n":"J. Faison","r":4,"y":46,"td":0},{"n":"M. Gilbert","r":2,"y":25,"td":0},{"n":"J. Larsen","r":2,"y":11,"td":0},{"n":"N. James Jr.","r":3,"y":18,"td":0},{"n":"A. Williams","r":1,"y":5,"td":0},{"n":"J. Flanigan","r":1,"y":0,"td":0},{"n":"C. Carr","r":1,"y":-5,"td":0}],"def":[{"n":"L. Talich","tkl":4,"tfl":1,"sk":0,"int":0},{"n":"D. Bowen","tkl":7,"tfl":0,"sk":0,"int":0},{"n":"J. Sneed","tkl":7,"tfl":0,"sk":0,"int":0},{"n":"B. Young","tkl":5,"tfl":0,"sk":0,"int":0},{"n":"L. Moore","tkl":4,"tfl":0,"sk":0,"int":0},{"n":"C. Gray","tkl":3,"tfl":0,"sk":0,"int":0},{"n":"J. Onye","tkl":1,"tfl":0,"sk":0,"int":0},{"n":"A. Shuler","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"J. Ausberry","tkl":3,"tfl":0,"sk":0,"int":0},{"n":"D. McKinney","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"K. Keeley","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"K. Viliamu-Asa","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"T. Gray","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"F. Brewu","tkl":2,"tfl":0,"sk":0,"int":0},{"n":"J. Flanigan","tkl":1,"tfl":0,"sk":0,"int":0},{"n":"S. Porath","tkl":1,"tfl":0,"sk":0,"int":0},{"n":"J. O'Brien","tkl":1,"tfl":1,"sk":0,"int":0},{"n":"B. Traore","tkl":1,"tfl":0,"sk":0,"int":0},{"n":"A. Mukam","tkl":1,"tfl":0,"sk":0,"int":0},{"n":"L. Thomas","tkl":1,"tfl":0,"sk":0,"int":0},{"n":"J. Sanders","tkl":0,"tfl":0,"sk":0,"int":1},{"tkl":-1,"tfl":0,"sk":0,"int":0,"n":"F. Shurtz"},{"tkl":-1,"tfl":0,"sk":0,"int":0,"n":"T. Smith"}],"kick":[{"n":"S. Porath","fgm":3,"fga":3,"lng":46,"xpm":1,"xpa":1}]}}};
+var SCRIPT = REAL.script;
+
+var state, stepTimer = 0;
+function fresh(){
+  var copy = function(o){ return JSON.parse(JSON.stringify(o)); };
+  return {
+    game: { score: { BYU: 21, ISU: 24 }, line: { BYU: [7, 14, 0, 0], ISU: [3, 7, 6, 8] }, clock: '5:43',
+            poss: 'BYU', spot: 45, down: 1, toGo: 10, tos: { BYU: 3, ISU: 3 } },
+    drives: copy(REAL.past),
+    cur: { team: 'BYU', start: 45, plays: [] },
+    over: false, overText: '', banner: null, replay: null, replayTimer: 0, hold: false, next: null,
+    stats: copy(REAL.stats),
+    players: copy(REAL.players),
+    flash: { team: '', keys: '' },
+    leaderNames: null,
+    lastPlay: 'C. DeVries returns the punt 23 yards to the BYU 45',
+    step: 0,
+  };
+}
+function byName(list, name){
+  for(var i = 0; i < list.length; i++) if(list[i].n === name) return list[i];
+  // Someone not in the box score yet: start them at zero, shaped like the others.
+  var p = { n: name }, t = list[0] || {};
+  for(var k in t) if(k !== 'n') p[k] = 0;
+  list.push(p);
+  return p;
+}
+function addTop(team, mmss){
+  var t = state.stats[team].top.split(':'), a = mmss.split(':'), n = +t[0] * 60 + +t[1] + +a[0] * 60 + +a[1];
+  state.stats[team].top = Math.floor(n / 60) + ':' + ('0' + n % 60).slice(-2);
+}
+
+function newDrive(team, at){
+  var g = state.game;
+  g.poss = team; g.spot = at; g.down = 1; g.toGo = Math.min(10, toGoal(team, at));
+  state.cur = { team: team, start: at, plays: [] };
+  state.over = false; state.overText = ''; state.flash = { team: '', keys: '' };
+  snapBall();
+}
+function endDrive(result, text){
+  var c = state.cur, last = c.plays[c.plays.length - 1];
+  state.drives.push({ team: c.team, start: c.start, end: last.td ? (c.team === 'BYU' ? 100 : 0) : scrimEnd(last),
+                      result: result, q: 4, score: result === 'TD' || result === 'FG' ? scoreText() : '', plays: c.plays });
+  state.over = true; state.overText = text;
+}
+function kickoffTo(team){ return team === 'BYU' ? 25 : 75; }
+
+function runPlay(e){
+  var g = state.game, team = g.poss, opp = other(team), dir = TEAMS[team].dir, from = g.spot;
+  var s = state.stats[team], P = state.players[team], Dp = state.players[opp];
+  var p = { t: e.t, from: from, to: from, yds: e.yds || 0, text: e.text }, keys = [];
+  var downBefore = g.down;
+  g.clock = e.clock;
+
+  if(e.t === 'rush' || e.t === 'pass' || e.t === 'sack' || e.t === 'pen' || e.t === 'punt'){
+    p.to = Math.max(0, Math.min(100, from + dir * e.yds));
+  }
+  if(e.t === 'inc') p.air = e.air;
+  if(e.t === 'int'){ p.air = e.air; p.caught = from + dir * e.air; p.to = p.caught - dir * e.ret; }
+  if(e.t === 'fg'){ p.dist = toGoal(team, from) + 17; p.good = true; }
+  p.td = (e.t === 'rush' || e.t === 'pass') && toGoal(team, p.to) === 0;
+  var gained = dir * (p.to - from);
+
+  // team stats and the box score (college football counts sacks as rushing)
+  if(e.t === 'rush' || e.t === 'sack'){
+    s.yds += gained; s.plays += 1; s.rush += gained; s.car += 1; keys.push('yds', 'rush');
+    if(e.r){ var ru = byName(P.rush, e.r); ru.car += 1; ru.y += gained; if(p.td) ru.td += 1; }
+    if(e.sk){ var sk = byName(Dp.def, e.sk); sk.sk += 1; sk.tfl += 1; sk.tkl += 1; }
+  }
+  if(e.t === 'pass'){
+    s.yds += gained; s.plays += 1; s.pass += gained; s.comp += 1; s.att += 1; keys.push('yds', 'pass');
+    var qb = byName(P.pass, e.p); qb.c += 1; qb.a += 1; qb.y += gained; if(p.td) qb.td += 1;
+    var rc = byName(P.rec, e.c); rc.r += 1; rc.y += gained; if(p.td) rc.td += 1;
+  }
+  if(e.t === 'inc'){ s.plays += 1; s.att += 1; byName(P.pass, e.p).a += 1; keys.push('pass'); }
+  if(e.t === 'int'){
+    s.plays += 1; s.att += 1; s.to += 1; keys.push('pass', 'to');
+    var q2 = byName(P.pass, e.p); q2.a += 1; q2.int += 1;
+    byName(Dp.def, e.pick).int += 1;
+  }
+  if(e.t === 'pen'){ s.pen[0] += 1; s.pen[1] += -e.yds; keys.push('pen'); }
+  [].concat(e.tk || []).forEach(function(n){ byName(Dp.def, n).tkl += 1; });
+  if(e.t === 'fg'){ var k = P.kick[0]; k.fga += 1; k.fgm += 1; k.lng = Math.max(k.lng, p.dist); }
+
+  state.cur.plays.push(p);
+  state.lastPlay = e.text;
+  state.banner = null;
+  state.flash = { team: team, keys: keys.join(' ') };
+
+  if(e.top) addTop(team, e.top);
+  if(p.td){
+    if(downBefore === 3){ s.d3[0] += 1; s.d3[1] += 1; }
+    if(downBefore === 4){ s.d4[0] += 1; s.d4[1] += 1; }
+    g.score[team] += 7; g.line[team][3] += 7;
+    P.kick[0].xpa += 1; P.kick[0].xpm += 1;
+    g.spot = p.to; g.down = 1; g.toGo = 0;
+    endDrive('TD', 'Touchdown, ' + TEAMS[team].full);
+    return 'td';
+  }
+  if(e.t === 'punt'){ g.spot = p.to; endDrive('Punt', TEAMS[team].full + ' punts'); state.next = { team: opp, at: p.to }; return 'end'; }
+  if(e.t === 'int'){ g.spot = p.to; endDrive('INT', 'Intercepted! ' + TEAMS[opp].full + ' ball'); state.next = { team: opp, at: p.to }; return 'end'; }
+  if(e.t === 'fg'){
+    g.score[team] += 3; g.line[team][3] += 3;
+    endDrive('FG', p.dist + '-yard field goal is good');
+    return 'fg';
+  }
+
+  // downs: a flag replays the down; a gain past the sticks is a first down
+  var need = g.toGo;
+  if(e.t === 'pen'){ g.toGo -= gained; if(g.toGo <= 0){ g.down = 1; g.toGo = 10; } }
+  else if(gained >= need){ g.down = 1; g.toGo = 10; s.fd += 1; keys.push('fd'); }
+  else { g.down += 1; g.toGo = need - gained; }
+  if(downBefore === 3 && e.t !== 'pen'){ s.d3[1] += 1; if(g.down === 1) s.d3[0] += 1; keys.push('d3'); }
+  if(downBefore === 4 && e.t !== 'pen'){ s.d4[1] += 1; if(g.down === 1) s.d4[0] += 1; keys.push('d4'); }
+  g.spot = p.to;
+  g.toGo = Math.min(g.toGo, toGoal(team, g.spot));
+  p.dd = { down: g.down, toGo: g.toGo };
+  state.flash = { team: team, keys: keys.join(' ') };
+  return 'ok';
+}
+
+function busy(){ return drivesOpen || !!state.replay || state.hold; }
+function later(ms){ clearTimeout(stepTimer); stepTimer = setTimeout(step, ms); }
+
+function step(){
+  if(busy()){ later(600); return; }
+  if(state.next){ newDrive(state.next.team, state.next.at); state.next = null; state.lastPlay = 'Kickoff, touchback'; render(); later(PACE * 0.6); return; }
+  var e = SCRIPT[state.step];
+  if(!e){ restart(); return; }
+  state.step += 1;
+
+  if(e.ev === 'final'){
+    state.game.clock = e.clock; addTop('ISU', e.top);
+    endDrive('End', 'Final');
+    state.banner = { a: 'Final', b: 'BYU 28, Notre Dame 24' };
+    state.lastPlay = 'End of game. BYU wins 28\u201324.';
+    render(); later(PACE * 3); return;
+  }
+  if(e.ev === 'timeout'){
+    state.game.tos[e.team] -= 1; state.game.clock = e.clock;
+    state.banner = { a: 'Timeout, ' + TEAMS[e.team].full, b: '' };
+    state.lastPlay = 'Timeout, ' + TEAMS[e.team].full;
+    render(); later(PACE * 0.6); return;
+  }
+
+  var r = runPlay(e);
+  firstPage();
+  render();
+  if(r === 'td'){
+    state.hold = true;
+    var drive = state.drives[state.drives.length - 1], scorer = state.game.poss;
+    $('td').className = 'abs np on';
+    setTimeout(function(){ $('td').className = 'abs np'; }, 3200);
+    setTimeout(function(){
+      var go = function(){
+        if(drivesOpen || state.replay){ setTimeout(go, 600); return; }
+        startReplay(drive, TEAMS[scorer].full + ' touchdown drive', function(){
+          state.hold = false; state.next = { team: other(scorer), at: kickoffTo(other(scorer)) };
+        });
+      };
+      go();
+    }, REPLAY_AFTER_TD);
+    later(600);
+    return;
+  }
+  later(r === 'fg' ? PACE * 2 : PACE);
+}
+
+function restart(){
+  clearTimeout(state.replayTimer);
+  state = fresh(); snapBall(); render(); later(2500);
+}
+
+state = fresh();
+firstPage();
+render();
+drawGames();
+$('stage').className = 'ready cards-' + CARDS;
+later(2500);
+// Fetch the field picture now, so the first replay never shows it half-loaded.
+new Image().src = 'lights.jpg';
+</script>
+</body>
+</html>
