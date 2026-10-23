@@ -264,17 +264,36 @@ const URL = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
             'college-football/scoreboard?groups=80&limit=300';
 
 /* ------------------------- which games count -------------------------
-   Only games worth a look: one with a ranked team, one with a Big 12 team
-   (BYU's league), and Michigan's and Notre Dame's, whoever they play.
+   Two tiers. The games that matter: any with a ranked team, any with a
+   Big 12 team (BYU's league), and Michigan's and Notre Dame's. Results and
+   what's coming up show only those. Live, the rest of Power Four (Notre
+   Dame counts) and ranked teams against FBS opponents also count, but only
+   fill the screen after every game that matters.
    ESPN tags every FBS team with its conference (the Big 12 is 4); the
-   abbreviation list is the fallback when it doesn't.                     */
+   abbreviation lists are the fallback when it doesn't. The Pac-12 is not
+   Power Four; FCS teams get some other conference number or none.        */
+const P4_CONF  = new Set(['1', '4', '5', '8']);          // ACC, Big 12, Big Ten, SEC
+const FBS_CONF = new Set(['1', '4', '5', '8', '9', '12', '15', '17', '18', '37', '151']);
+// Fallback for a team ESPN sends without a conference (2026 membership).
+const P4_ABBR = new Set([
+  'ALA','ARK','AUB','FLA','UGA','UK','LSU','MISS','MSST','MIZ','OU','SC','TENN','TEX','TA&M','TAMU','VAN',
+  'ILL','IND','IOWA','MD','MICH','MSU','MINN','NEB','NU','OSU','ORE','PSU','PUR','RUTG','UCLA','USC','WASH','WIS',
+  'ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU','KSU','OKST','TCU','TTU','UCF','UTAH','WVU',
+  'BC','CAL','CLEM','DUKE','FSU','GT','LOU','MIA','UNC','NCST','PITT','SMU','STAN','SYR','UVA','VT','WAKE',
+  'ND']);
 const BIG12 = new Set(['ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU',
                        'KSU','OKST','TCU','TTU','UCF','UTAH','WVU']);
-
 const FAVORITES = new Set(['MICH', 'ND']);
+
+const isP4  = t => t.conf ? (P4_CONF.has(t.conf) || t.abbr === 'ND') : P4_ABBR.has(t.abbr);
+const isFBS = t => t.conf ? FBS_CONF.has(t.conf) : P4_ABBR.has(t.abbr);
 const isB12 = t => t.conf ? t.conf === '4' : BIG12.has(t.abbr);
-const counts = g => !!g.home.rank || !!g.away.rank || isB12(g.home) || isB12(g.away) ||
-                    FAVORITES.has(g.home.abbr) || FAVORITES.has(g.away.abbr);
+// Fetched and kept: everything that could be worth showing live.
+const counts = g => isP4(g.home) || isP4(g.away) ||
+                    (isFBS(g.home) && isFBS(g.away) && (!!g.home.rank || !!g.away.rank));
+// The games that matter.
+const matters = g => !!g.home.rank || !!g.away.rank || isB12(g.home) || isB12(g.away) ||
+                     FAVORITES.has(g.home.abbr) || FAVORITES.has(g.away.abbr);
 
 const HERO = 4;
 const BOOT = Date.now();
@@ -695,10 +714,12 @@ function render(){
     showMessage('<b>No games this week</b>No Power Four or ranked games on ESPN\'s scoreboard right now.');
     return;
   }
-  const live = games.filter(g => g.state === 'in').sort(byWatch);
-  const soon = games.filter(g => g.state === 'pre')
+  // Live: the games that matter first, best first; the others after them.
+  const live = games.filter(g => g.state === 'in')
+                    .sort((x, y) => (matters(y) - matters(x)) || byWatch(x, y));
+  const soon = games.filter(g => g.state === 'pre' && matters(g))
                     .sort((x, y) => (x.kickoff || 0) - (y.kickoff || 0));
-  const done = games.filter(g => g.state === 'post')
+  const done = games.filter(g => g.state === 'post' && matters(g))
                     .sort((x, y) => (x.off - y.off) || (y.byu - x.byu) || (stakes(y) - stakes(x)) ||
                                     (y.b12 - x.b12) || ((y.kickoff || 0) - (x.kickoff || 0)));
 
