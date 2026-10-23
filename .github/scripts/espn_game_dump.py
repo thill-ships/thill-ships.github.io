@@ -8,7 +8,8 @@ given seasons and prints, one line per item:
   TEAM    team box score stats
   PLAYER  per-player box score lines
   OTHER   the other FBS games that day (for the bottom of the board)
-Read-only: never writes anything.
+With RAW set, also prints the raw summary and scoreboard JSON, gzipped and
+base64-encoded. Read-only: never writes anything.
 """
 import json
 import os
@@ -48,6 +49,13 @@ if not found:
     raise SystemExit(0)
 
 s = get(f'{BASE}/summary?event={found}')
+if os.environ.get('RAW'):
+    # The untouched JSON, gzipped and base64'd onto one line each, for building fixtures.
+    import base64, gzip
+    day0 = (s['header']['competitions'][0].get('date') or '')[:10].replace('-', '')
+    sb = get(f'{BASE}/scoreboard?groups=80&limit=300&dates={day0}')
+    for tag, obj in (('RAWSUMMARY', s), ('RAWSCOREBOARD', sb)):
+        print(tag, base64.b64encode(gzip.compress(json.dumps(obj, separators=(',', ':')).encode())).decode())
 comp = s['header']['competitions'][0]
 out('GAME', {
     'id': found, 'date': comp.get('date'),

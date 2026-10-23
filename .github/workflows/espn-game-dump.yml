@@ -22,6 +22,10 @@ on:
         description: 'Seasons to search, newest first'
         required: false
         default: '2026 2025'
+      raw:
+        description: 'Also print the raw JSON (gzip + base64)'
+        required: false
+        default: '1'
 
 jobs:
   dump:
@@ -37,4 +41,5 @@ jobs:
           TEAM: ${{ inputs.team }}
           OPPONENT: ${{ inputs.opponent }}
           SEASONS: ${{ inputs.seasons }}
+          RAW: ${{ inputs.raw || '1' }}
         run: python .github/scripts/espn_game_dump.py
