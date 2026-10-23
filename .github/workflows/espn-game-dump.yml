@@ -2,7 +2,8 @@ name: ESPN — dump one game for a demo
 
 # Read-only. Prints one game's play-by-play, box score and that day's other
 # games, compactly, so a wall-board demo can be built from the real thing.
-# Defaults: the latest finished BYU (252) vs Notre Dame (87) game.
+# Run by hand, defaults to the latest finished BYU (252) vs Notre Dame (87)
+# football game. A push runs it for BYU's latest finished basketball game.
 on:
   push:
     paths:
@@ -10,6 +11,14 @@ on:
       - '.github/scripts/espn_game_dump.py'
   workflow_dispatch:
     inputs:
+      sport:
+        description: 'ESPN sport path'
+        required: false
+        default: 'football/college-football'
+      event:
+        description: 'One game by ESPN id (optional)'
+        required: false
+        default: ''
       team:
         description: 'ESPN team id'
         required: false
@@ -39,7 +48,9 @@ jobs:
       - name: Dump the game
         env:
           TEAM: ${{ inputs.team }}
-          OPPONENT: ${{ inputs.opponent }}
+          SPORT: ${{ inputs.sport || 'basketball/mens-college-basketball' }}
+          EVENT: ${{ inputs.event }}
+          OPPONENT: ${{ inputs.opponent || 'any' }}
           SEASONS: ${{ inputs.seasons }}
           RAW: ${{ inputs.raw || '1' }}
         run: python .github/scripts/espn_game_dump.py

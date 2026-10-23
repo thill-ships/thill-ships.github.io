@@ -15,7 +15,10 @@ import json
 import os
 import urllib.request
 
-BASE = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football'
+SPORT = os.environ.get('SPORT') or 'football/college-football'
+BASE = 'https://site.api.espn.com/apis/site/v2/sports/' + SPORT
+# The scoreboard group that means "all of Division I's top level" differs by sport.
+GROUPS = '50' if 'basketball' in SPORT else '80'
 
 
 def get(url):
@@ -28,7 +31,8 @@ def out(tag, obj):
 
 
 team = os.environ.get('TEAM') or '252'
-opp = os.environ.get('OPPONENT') or '87'
+opp = os.environ.get('OPPONENT') or '87'     # 'any' = the latest finished game
+event = os.environ.get('EVENT') or ''          # or one game by id
 seasons = (os.environ.get('SEASONS') or '2026 2025').split()
 
 found = None
@@ -38,9 +42,13 @@ for season in seasons:
         comp = ev['competitions'][0]
         ids = [c['team']['id'] for c in comp['competitors']]
         out('SCHED', {'season': season, 'id': ev['id'], 'date': ev['date'], 'name': ev.get('shortName'),
-                      'state': comp['status']['type']['state']})
-        if opp in ids and comp['status']['type']['state'] == 'post' and not found:
-            found = ev['id']
+                      'state': comp['status']['type']['state'],
+                      'score': [(c.get('score') or {}).get('displayValue') if isinstance(c.get('score'), dict) else c.get('score')
+                                for c in comp['competitors']],
+                      'rank': [(c.get('curatedRank') or {}).get('current') for c in comp['competitors']]})
+        if (event == ev['id'] or (not event and (opp == 'any' or opp in ids))) \
+                and comp['status']['type']['state'] == 'post':
+            found = ev['id']        # keeps the last match: the most recent game
     if found:
         break
 
@@ -53,7 +61,7 @@ if os.environ.get('RAW'):
     # The untouched JSON, gzipped and base64'd onto one line each, for building fixtures.
     import base64, gzip
     day0 = (s['header']['competitions'][0].get('date') or '')[:10].replace('-', '')
-    sb = get(f'{BASE}/scoreboard?groups=80&limit=300&dates={day0}')
+    sb = get(f'{BASE}/scoreboard?groups={GROUPS}&limit=300&dates={day0}')
     for tag, obj in (('RAWSUMMARY', s), ('RAWSCOREBOARD', sb)):
         print(tag, base64.b64encode(gzip.compress(json.dumps(obj, separators=(',', ':')).encode())).decode())
 comp = s['header']['competitions'][0]
@@ -90,7 +98,7 @@ for t in s.get('boxscore', {}).get('players', []):
 
 day = (comp.get('date') or '')[:10].replace('-', '')
 if day:
-    board = get(f'{BASE}/scoreboard?groups=80&limit=300&dates={day}')
+    board = get(f'{BASE}/scoreboard?groups={GROUPS}&limit=300&dates={day}')
     for ev in board.get('events', []):
         c = ev['competitions'][0]
         out('OTHER', {'name': ev.get('shortName'), 'state': c['status']['type']['state'],
