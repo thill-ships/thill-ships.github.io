@@ -85,6 +85,9 @@
     grid-gap:1.5vh 1vw;}
   .gc{background:var(--tile);border-radius:1.6vh;padding:1vh 1vw 0;display:flex;flex-direction:column;min-width:0;min-height:0;}
   .gc.post{background:#0B152B;}
+  .gc.empty{background:transparent;}
+  .gnote{grid-column:span 4;display:flex;align-items:center;justify-content:center;background:rgba(14,26,51,0.35);
+    border-radius:1.6vh;font-size:3vh;color:var(--faint);}
   .gc.byu{box-shadow:inset 0 0 0 .35vh var(--royal);}
   .gc .gl{flex:1;min-height:0;display:flex;align-items:center;}
   .gc .lw{position:relative;flex:none;width:9vh;height:9vh;}
@@ -261,26 +264,17 @@ const URL = 'https://site.api.espn.com/apis/site/v2/sports/football/' +
             'college-football/scoreboard?groups=80&limit=300';
 
 /* ------------------------- which games count -------------------------
-   Every game with a Power Four team (Notre Dame counts), whoever they
-   play. Anyone else only when ranked, and then only against an FBS
-   opponent. The Pac-12 is not Power Four. ESPN tags every FBS team with
-   its conference; FCS teams get some other number or none at all.        */
-const P4_CONF  = new Set(['1', '4', '5', '8']);          // ACC, Big 12, Big Ten, SEC
-const FBS_CONF = new Set(['1', '4', '5', '8', '9', '12', '15', '17', '18', '37', '151']);
-// Fallback for a team ESPN sends without a conference (2026 membership).
-const P4_ABBR = new Set([
-  'ALA','ARK','AUB','FLA','UGA','UK','LSU','MISS','MSST','MIZ','OU','SC','TENN','TEX','TA&M','TAMU','VAN',
-  'ILL','IND','IOWA','MD','MICH','MSU','MINN','NEB','NU','OSU','ORE','PSU','PUR','RUTG','UCLA','USC','WASH','WIS',
-  'ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU','KSU','OKST','TCU','TTU','UCF','UTAH','WVU',
-  'BC','CAL','CLEM','DUKE','FSU','GT','LOU','MIA','UNC','NCST','PITT','SMU','STAN','SYR','UVA','VT','WAKE',
-  'ND']);
+   Only games worth a look: one with a ranked team, one with a Big 12 team
+   (BYU's league), and Michigan's and Notre Dame's, whoever they play.
+   ESPN tags every FBS team with its conference (the Big 12 is 4); the
+   abbreviation list is the fallback when it doesn't.                     */
 const BIG12 = new Set(['ARIZ','ASU','BAY','BYU','CIN','COLO','HOU','ISU','KU',
                        'KSU','OKST','TCU','TTU','UCF','UTAH','WVU']);
 
-const isP4  = t => t.conf ? (P4_CONF.has(t.conf) || t.abbr === 'ND') : P4_ABBR.has(t.abbr);
-const isFBS = t => t.conf ? FBS_CONF.has(t.conf) : P4_ABBR.has(t.abbr);
-const counts = g => isP4(g.home) || isP4(g.away) ||
-                    (isFBS(g.home) && isFBS(g.away) && (!!g.home.rank || !!g.away.rank));
+const FAVORITES = new Set(['MICH', 'ND']);
+const isB12 = t => t.conf ? t.conf === '4' : BIG12.has(t.abbr);
+const counts = g => !!g.home.rank || !!g.away.rank || isB12(g.home) || isB12(g.away) ||
+                    FAVORITES.has(g.home.abbr) || FAVORITES.has(g.away.abbr);
 
 const HERO = 4;
 const BOOT = Date.now();
@@ -723,11 +717,23 @@ function render(){
   const left = arr => arr.filter(g => !used[g.id]);
 
   $('msg').style.display = 'none';
-  // The grid: the sixteen best games right now. Live ones by how worth
-  // watching they are, then what kicks off next (BYU first), then results.
+  // The grid, by row: the top two are live games only (the eight most worth
+  // watching; an empty spot stays empty), then results, then what kicks off
+  // next. Those two rows show four at a time and take turns every 8 s.
   if(GRID && !byuMode){
     const next = soon.filter(g => g.byu).concat(soon.filter(g => !g.byu));
-    put('grid', live.concat(next, done).slice(0, 16).map(gridCard).join(''));
+    const empty = '<div class="gc empty"></div>';
+    const fill = (list, n) => { const out = list.map(gridCard); while(out.length < n) out.push(empty); return out.join(''); };
+    const page = (list, turn) => {
+      const pages = Math.max(1, Math.ceil(list.length / 4)), at = turn % pages;
+      return list.slice(at * 4, at * 4 + 4);
+    };
+    const note = (text, rows) => `<div class="gnote" style="grid-row:span ${rows}">${esc(text)}</div>`;
+    const shownDone = page(done, gridTurn), shownNext = page(next, gridTurn);
+    put('grid',
+      (live.length ? fill(live.slice(0, 8), 8) : note('Nothing live right now', 2)) +
+      (done.length ? fill(shownDone, 4) : note('No finals yet', 1)) +
+      (next.length ? fill(shownNext, 4) : note('Nothing else on the schedule', 1)));
     finishHeader(live, hv);
     return;
   }
@@ -785,6 +791,7 @@ function finishHeader(live, hv){
 function onBoard(){ return games; }
 
 let byuMode = false, soloMode = false;
+let gridTurn = 0;               // which four results / upcoming games are showing
 // Sixteen cards unless ?layout=list asks for the old four cards and a list.
 const GRID = !/[?&]layout=list\b/.test(location.search);
 if(GRID) document.body.className = 'grid16';
@@ -1204,6 +1211,8 @@ function schedule(){
 // The clock, the "in 25m" countdowns and the staleness note move on their
 // own; redraw them between fetches. No network involved.
 setInterval(() => { if(games.length) render(); else stamp(); }, 30000);
+// The results row and the upcoming row each show four at a time; turn the page.
+setInterval(() => { gridTurn++; if(GRID && !byuMode && games.length) render(); }, 8000);
 window.addEventListener('resize', () => { fitRows = 0; if(games.length) render(); });
 
 // A tap asks for full screen, to get rid of the browser's URL bar. The
