@@ -8,8 +8,8 @@ android {
         applicationId 'io.github.thillships.wall'
         minSdk 26          // the kitchen calendar runs Android 10 (29)
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.1'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
