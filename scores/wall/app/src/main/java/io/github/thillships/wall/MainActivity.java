@@ -81,6 +81,10 @@ public class MainActivity extends Activity {
         String url = data != null ? data.toString() : prefs.getString("url", HOME);
         prefs.edit().putString("url", url).apply();
         handler.removeCallbacks(retry);
+        // GitHub Pages lets a page be reused for 10 minutes; whenever a page is
+        // opened on purpose, start clean so it is always the newest version.
+        // Between opens the cache stays on, so logos and pictures aren't refetched.
+        web.clearCache(true);
         web.loadUrl(url);
     }
 
