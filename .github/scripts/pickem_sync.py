@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -76,37 +77,36 @@ def existing_spreads(season):
         return set()
 
 
-def known_ids(ids):
-    """Which of these games the table already has.
+def patch_scores(row):
+    """Update one game's live columns. Returns how many rows it touched.
 
-    The live path writes a partial row -- scores and status, nothing else --
-    and a PostgREST upsert is an INSERT ... ON CONFLICT DO UPDATE. For a game
-    already in the table that is an update and all is well; for one that is
-    not, Postgres tries to INSERT those few columns and the NOT NULL on
-    `season` rejects the whole batch. So the two cases have to be told apart
-    before anything is sent.
-
-    Returns None if the question could not be answered. Guessing is not safe in
-    either direction -- assume known and a new game crashes the batch, assume
-    new and an existing game gets its frozen line overwritten -- so the caller
-    sits this cycle out instead. It runs again in a few minutes.
+    A true UPDATE, not an upsert. PostgREST's upsert is INSERT ... ON CONFLICT
+    DO UPDATE, and Postgres checks NOT NULL against the proposed insert tuple
+    BEFORE it looks for a conflict -- so a partial row omitting `season` is
+    rejected whether or not the game is already in the table. An UPDATE never
+    forms an insert tuple, so the columns it leaves alone are simply not its
+    business, and an id that does not exist is a no-op rather than an error.
     """
-    if not ids:
-        return set()
-    out = set()
-    ids = list(ids)
-    for i in range(0, len(ids), 100):          # keep the URL a sane length
-        chunk = ",".join(str(x) for x in ids[i:i + 100])
-        url = (f"{SUPABASE_URL}/rest/v1/pickem_games?select=id&id=in.({chunk})")
-        req = urllib.request.Request(url, headers={
-            "apikey": SERVICE_KEY, "Authorization": f"Bearer {SERVICE_KEY}"})
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                out |= {str(r["id"]) for r in json.loads(resp.read().decode("utf-8"))}
-        except Exception as exc:                               # noqa: BLE001
-            print(f"!! could not check which games already exist ({exc})")
-            return None
-    return out
+    gid = urllib.parse.quote(str(row["id"]), safe="")
+    body = {k: v for k, v in row.items() if k != "id"}
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/pickem_games?id=eq.{gid}",
+        data=json.dumps(body).encode("utf-8"),
+        method="PATCH",
+        headers={
+            "apikey": SERVICE_KEY,
+            "Authorization": f"Bearer {SERVICE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return len(json.loads(resp.read().decode("utf-8") or "[]"))
+    except urllib.error.HTTPError as exc:
+        print(f"!! Supabase rejected the score update for {row['id']} ({exc.code}): "
+              f"{exc.read().decode('utf-8', 'replace')[:300]}")
+        raise
 
 
 def football_season(now=None):
@@ -310,25 +310,21 @@ def sync_scores_only(season):
         print("No games on the board right now. Nothing to update.")
         return
 
-    # The scoreboard with no week parameter returns whatever is on today, which
-    # is not always a subset of what the weekly sync has loaded -- a rescheduled
-    # game, a new event id, a week the full sync has not reached. Those have to
-    # be inserted whole rather than score-patched.
-    here = known_ids([p["id"] for p in parsed])
-    if here is None:
-        print("Skipping this cycle rather than guessing. Nothing was written.")
-        return
-    updates, inserts, skipped, live_now, finals = [], [], [], 0, 0
+    # The update tells us whether the game was there: nothing matched means the
+    # scoreboard is showing one the weekly sync has not loaded -- a rescheduled
+    # game, a new event id, a week it has not reached. Those get written whole.
+    updated, inserts, skipped, live_now, finals = 0, [], [], 0, 0
     for full in parsed:
-        if full["id"] in here:
-            updates.append({
-                "id": full["id"],
-                "status": full["status"],
-                "home_score": full["home_score"],
-                "away_score": full["away_score"],
-                "winner_id": full["winner_id"],
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            })
+        touched = patch_scores({
+            "id": full["id"],
+            "status": full["status"],
+            "home_score": full["home_score"],
+            "away_score": full["away_score"],
+            "winner_id": full["winner_id"],
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        })
+        if touched:
+            updated += 1
         elif full["week"]:
             # New to us. Write it in full, exactly as the weekly sync would --
             # there is no stored line to disturb, because there is no row yet.
@@ -342,11 +338,10 @@ def sync_scores_only(season):
         elif full["status"] == "final":
             finals += 1
 
-    for batch in (updates, inserts):
-        for i in range(0, len(batch), 100):
-            upsert(batch[i:i + 100])
+    for i in range(0, len(inserts), 100):
+        upsert(inserts[i:i + 100])
 
-    print(f"Score sync: {len(updates)} games updated, {len(inserts)} added "
+    print(f"Score sync: {updated} games updated, {len(inserts)} added "
           f"({live_now} in progress, {finals} final).")
     for row in inserts:
         print(f"  new to us: {row['away_abbr']} at {row['home_abbr']}, week {row['week']}")
