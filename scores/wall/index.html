@@ -83,7 +83,7 @@
   body.grid16 .hero,body.grid16 .main{display:none !important;}
   body.grid16 .grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);
     grid-gap:1.5vh 1vw;}
-  .gc{background:var(--tile);border-radius:1.6vh;padding:1vh 1vw 0;display:flex;flex-direction:column;min-width:0;min-height:0;}
+  .gc{position:relative;background:var(--tile);border-radius:1.6vh;padding:1vh 1vw 0;display:flex;flex-direction:column;min-width:0;min-height:0;}
   .gc.post{background:#0B152B;}
   .gc.empty{background:transparent;}
   .gnote{grid-column:span 4;display:flex;align-items:center;justify-content:center;background:rgba(14,26,51,0.35);
@@ -106,7 +106,8 @@
   .gc.post .ck{color:var(--dim);}
   .gc .st{flex:1;min-width:0;margin-left:.8vw;color:rgba(255,255,255,0.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .gc .st.rz{color:#FF8A80;}
-  .gc .tv{flex:none;max-width:6.5vw;margin-left:.6vw;font-size:2.8vh;font-weight:600;color:var(--dim);white-space:nowrap;
+  /* the network sits at the top of the card, so the down and spot get the whole footer */
+  .gc .tv{position:absolute;left:0;right:0;top:.6vh;text-align:center;font-size:2.4vh;font-weight:600;letter-spacing:.05vh;color:var(--dim);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;}
 
   /* ---- everything else, one line each, filled column by column ---- */
@@ -601,8 +602,8 @@ function gridLogoFailed(img){
   img.outerHTML = `<span class="ab">${esc(img.getAttribute('data-abbr'))}</span>`;
 }
 
-// One game in the grid: logo, score, score, logo, and a line for the clock,
-// the down (or how soon it kicks off) and the network.
+// One game in the grid: the network along the top, logo, score, score, logo,
+// and a line for the clock and the down (or how soon it kicks off).
 function gridCard(g){
   const lead = num(g.home.score) - num(g.away.score), decided = g.state !== 'pre';
   const side = t => `<div class="lw">${gridLogo(t)}` + (t.rank ? `<span class="rkb">${t.rank}</span>` : '') +
@@ -616,9 +617,9 @@ function gridCard(g){
   const ck = g.state === 'pre' ? (g.kickoff ? dayText(g.kickoff) : '') : clockText(g);
   const tap = g.state === 'pre' ? '' : ` onclick="goLive('${g.byu ? '' : esc(g.id)}')"`;
   return `<div class="gc${g.state === 'post' ? ' post' : ''}${g.byu ? ' byu' : ''}"${tap}>` +
+    `<span class="tv">${esc(g.tv1)}</span>` +
     `<div class="gl">${side(g.away)}${mid}${side(g.home)}</div>` +
-    `<div class="gf"><span class="ck">${esc(ck)}</span><span class="st${live && g.redZone ? ' rz' : ''}">${esc(sit)}</span>` +
-    `<span class="tv">${esc(g.tv1)}</span></div></div>`;
+    `<div class="gf"><span class="ck">${esc(ck)}</span><span class="st${live && g.redZone ? ' rz' : ''}">${esc(sit)}</span></div></div>`;
 }
 // "Today", "Sat" or "Oct 25" for an upcoming game's footer.
 function dayText(d){
