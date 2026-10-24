@@ -16,6 +16,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.lang.ref.WeakReference;
+
 /**
  * The wall board, full screen: no status bar, no navigation bar, no browser
  * bar, and the screen never sleeps while it is open.
@@ -23,6 +25,9 @@ import android.webkit.WebViewClient;
  * Opens the page it is given (adb: am start ... -d URL), or else the last
  * page it showed, or else the scores board. If the page fails to load (the
  * Wi-Fi drops), it tries again every 15 seconds.
+ *
+ * Also starts the floating button (BubbleService) that switches between the
+ * calendar and the scores without a computer, if it has been allowed.
  */
 public class MainActivity extends Activity {
     private static final String HOME = "https://thill-ships.github.io/scores/wall/";
@@ -66,6 +71,7 @@ public class MainActivity extends Activity {
         setContentView(web);
         hideBars();
         open(getIntent());
+        BubbleService.start(this);
     }
 
     @Override
@@ -112,11 +118,15 @@ public class MainActivity extends Activity {
         super.onResume();
         web.onResume();
         hideBars();
+        BubbleService.scores = new WeakReference<>(this);
+        BubbleService.refresh();
     }
 
     @Override
     protected void onPause() {
         web.onPause();
+        BubbleService.scores = new WeakReference<>(null);
+        BubbleService.refresh();
         super.onPause();
     }
 

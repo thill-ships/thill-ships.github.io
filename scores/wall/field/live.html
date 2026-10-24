@@ -143,7 +143,8 @@
   .gf .ck{font-family:var(--num);font-weight:600;font-size:31px;color:var(--hi);white-space:nowrap;}
   .gf .st{flex:1;min-width:0;margin-left:10px;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .gf .st.rz{color:#FF8A80;}
-  .gf .tv{font-size:23px;font-weight:600;color:rgba(255,255,255,0.7);margin-left:8px;white-space:nowrap;}
+  /* the network sits at the top of the card, so the down and spot get the whole footer */
+  .gc .tv{position:absolute;left:0;right:0;top:3px;text-align:center;font-size:17px;font-weight:600;letter-spacing:.5px;color:rgba(255,255,255,0.6);white-space:nowrap;}
   .gc.post .gf .ck{color:var(--dim);}
   /* ?cards=logos: logos and scores only, side by side, scoreboard style */
   .gl{display:flex;align-items:center;height:88px;}
@@ -160,7 +161,7 @@
   .cards-five .gl .vs{font-size:18px;}
   .cards-five .gf{font-size:22px;}
   .cards-five .gf .ck{font-size:27px;}
-  .cards-five .gf .tv{font-size:20px;}
+  .cards-five .gc .tv{font-size:15px;}
   /* ?cards=tall: four shorter cards, and the 32px they give up goes to the stats */
   .cards-tall .panel{height:490px;}
   .cards-tall .row{height:71px;}
@@ -176,11 +177,12 @@
   .cards-tall #demo{top:466px;}
   .cards-tall .pill{top:386px;}
   .cards-tall #strip{top:508px;}
-  .cards-tall .gc{top:568px;height:118px;padding-top:4px;}
-  .cards-tall .gl{height:72px;}
-  .cards-tall .gl .lw,.cards-tall .gl .lw img{width:62px;height:62px;}
-  .cards-tall .gl .s{font-size:54px;}
-  .cards-tall .gf{margin-top:2px;}
+  .cards-tall .gc{top:568px;height:118px;padding-top:20px;}
+  .cards-tall .gc .tv{top:2px;font-size:16px;}
+  .cards-tall .gl{height:56px;}
+  .cards-tall .gl .lw,.cards-tall .gl .lw img{width:52px;height:52px;}
+  .cards-tall .gl .s{font-size:48px;}
+  .cards-tall .gf{margin-top:0;}
 
   /* ---- banners: timeouts on the board ---- */
   .pill{left:640px;top:358px;transform:translateX(-50%);white-space:nowrap;text-align:center;border-radius:14px;
@@ -755,8 +757,8 @@ function drawGames(){
     var st = g.state === 'pre' ? g.soon : g.state === 'in' && !g.half ? g.sit : '';
     return '<div class="gc' + (isClose(g) ? ' close' : '') + (g.state === 'post' ? ' post' : '') + '" style="left:' + (12 + i * (FIVE ? 253 : 317)) + 'px">' +
            (LOGOS_ONLY ? logosOnly : row(g.away, 'away', decided && lead > 0) + row(g.home, 'home', decided && lead < 0)) +
-           '<div class="gf"><span class="ck">' + esc(ck) + '</span><span class="st' + (g.rz ? ' rz' : '') + '">' + esc(st || '') + '</span>' +
-           '<span class="tv">' + esc(g.tv) + '</span></div></div>';
+           '<span class="tv">' + esc(g.tv) + '</span>' +
+           '<div class="gf"><span class="ck">' + esc(ck) + '</span><span class="st' + (g.rz ? ' rz' : '') + '">' + esc(st || '') + '</span></div></div>';
   }).join('');
 }
 
