@@ -124,6 +124,10 @@
   #strip .tag{font-size:21px;color:var(--hi);margin-right:14px;white-space:nowrap;}
   #strip .txt{flex:1;min-width:0;font-size:27px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #strip .drv{font-size:25px;color:var(--dim);margin:0 16px;white-space:nowrap;}
+  /* the TV delay: tap - or + to line the board up with the broadcast */
+  #dly{display:flex;align-items:center;margin-left:8px;border:1px solid rgba(255,255,255,0.28);border-radius:20px;white-space:nowrap;}
+  #dly b{font-size:26px;line-height:34px;font-weight:600;padding:0 14px;color:#FFFFFF;cursor:pointer;}
+  #dly span{font-size:19px;color:rgba(255,255,255,0.75);min-width:84px;text-align:center;}
   #btnHome{font-size:21px;color:rgba(255,255,255,0.75);border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:5px 16px;cursor:pointer;white-space:nowrap;margin-left:8px;}
   .lgs{display:block;}
   #btnDrives{font-size:21px;color:rgba(255,255,255,0.75);border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:5px 16px;cursor:pointer;white-space:nowrap;}
@@ -283,7 +287,7 @@
   <div class="abs np" id="demo"></div>
   <div class="abs pill np" id="banner"><div class="a" id="bA"></div><div class="b" id="bB"></div></div>
 
-  <div class="abs" id="strip"><span class="tag">Last play</span><span class="txt" id="lp"></span><span class="drv" id="drv"></span><span id="btnDrives">All drives</span><span id="btnHome">All games</span></div>
+  <div class="abs" id="strip"><span class="tag">Last play</span><span class="txt" id="lp"></span><span class="drv" id="drv"></span><span id="btnDrives">All drives</span><span id="dly"><b id="dlyM">−</b><span id="dlyT"></span><b id="dlyP">+</b></span><span id="btnHome">All games</span></div>
   <div id="games"></div>
 
   <div class="abs" id="fieldLayer">
@@ -1220,6 +1224,71 @@ function leaveWhenDone(gameState){
 
 function stamp(text){ $('demo').textContent = text; }
 
+/* ------------------------------ the TV delay ------------------------------
+   The broadcast runs behind the real game, and ESPN's data reaches us after
+   it by a few seconds to a minute or so, never the same twice. So nothing is
+   shown as soon as it arrives: every fetch is kept, stamped with when its
+   newest play really happened (ESPN's "wallclock" on each play), and shown
+   only once that moment is DELAY seconds old. The board then runs a steady
+   DELAY behind the game whatever ESPN is doing, as long as ESPN is quicker
+   than the delay. - and + set it, 5 s a tap; it is remembered.
+   A fetch that brings something new without a new play time (a score, the
+   scoreboard's latest play) is stamped with when it arrived instead, so
+   nothing slips out early.                                               */
+var DELAY_KEY = 'wall.delay';
+var delay = recall(DELAY_KEY) === null ? 30 : Math.max(0, Math.min(180, +recall(DELAY_KEY) || 0));
+var snaps = [], shown = null;
+function drawDelay(){ $('dlyT').textContent = delay ? delay + 's delay' : 'No delay'; }
+function setDelay(d){ delay = Math.max(0, Math.min(180, d)); store(DELAY_KEY, String(delay)); drawDelay(); showDue(); }
+$('dlyM').onclick = function(e){ e.stopPropagation(); setDelay(delay - 5); };
+$('dlyP').onclick = function(e){ e.stopPropagation(); setDelay(delay + 5); };
+drawDelay();
+
+// When the newest play in a summary happened, from ESPN's wallclock on each play.
+function playedAt(sum){
+  var t = 0, dv = sum.drives || {};
+  (dv.previous || []).concat(dv.current ? [dv.current] : []).forEach(function(d){
+    (d.plays || []).forEach(function(p){ var w = Date.parse(p.wallclock || ''); if(w > t) t = w; });
+  });
+  return t;
+}
+// What a viewer would notice changing: the score, the state, the latest play.
+function signature(sum, ev){
+  var comp = sum.header.competitions[0], c = ev && ev.competitions && ev.competitions[0], sit = c && c.situation || {};
+  return [(comp.competitors || []).map(function(x){ return x.score; }).join('-'), (comp.status || {}).period,
+          ((comp.status || {}).type || {}).state, (sit.lastPlay || {}).id || '', sit.downDistanceText || ''].join('|');
+}
+function keep(sum, ev, events){
+  var now = Date.now(), last = snaps.length ? snaps[snaps.length - 1] : shown;
+  var at = playedAt(sum), sig = signature(sum, ev);
+  if(!at) at = now;
+  if(last){
+    if(at <= last.at && sig !== last.sig) at = now;   // new to see, but no new play time: count it from now
+    at = Math.max(at, last.at);
+  }
+  var snap = { sum: sum, ev: ev, events: events, at: at, sig: sig };
+  // A newer copy of the same moment (corrections, the clock) replaces the old one.
+  if(snaps.length && snaps[snaps.length - 1].at === at) snaps[snaps.length - 1] = snap; else snaps.push(snap);
+}
+// Show the newest fetch that is at least DELAY old. The very first one shows
+// straight away, so the page never opens blank.
+function showDue(){
+  var due = Date.now() - delay * 1000, pick = -1;
+  for(var i = 0; i < snaps.length; i++) if(snaps[i].at <= due || !shown) pick = i;
+  if(!shown && snaps.length) pick = 0;
+  if(pick < 0) return;
+  var s = snaps[pick];
+  snaps = snaps.slice(pick + 1);
+  if(shown && s === shown) return;
+  shown = s;
+  var gameState = apply(s.sum, s.ev, s.events);
+  if(!state.replay) render();
+  drawGames();
+  $('stage').className = 'ready cards-' + CARDS;
+  leaveWhenDone(gameState);
+}
+setInterval(showDue, 1000);
+
 async function poll(){
   var gameState = '';
   try{
@@ -1230,21 +1299,21 @@ async function poll(){
     if(!id){ stamp('No BYU game today'); $('stage').className = 'ready cards-' + CARDS; setTimeout(function(){ goHome(false); }, 5000); return; }
     eventId = String(id);
     var sum = await getJSON(API + 'summary?event=' + id);
-    gameState = apply(sum, ev, events);
-    if(!state.replay) render();
-    drawGames();
-    $('stage').className = 'ready cards-' + CARDS;
+    keep(sum, ev, events);
+    var st = (ev && (ev.competitions || [])[0] && ev.competitions[0].status) || (sum.header.competitions[0] || {}).status || {};
+    gameState = (st.type || {}).state || '';
+    showDue();
     everLoaded = true; failures = 0;
     stamp('Live from ESPN · ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(' ', '').toLowerCase());
-    leaveWhenDone(gameState);
   }catch(e){
     failures++;
     stamp(everLoaded ? 'Can’t reach ESPN — trying again' : 'Loading…');
     if(!everLoaded) $('stage').className = 'ready cards-' + CARDS;
   }
   clearTimeout(pollTimer);
-  // Every 30 s while BYU plays, every minute otherwise; longer after failures.
-  var wait = gameState === 'in' && isByu ? 30000 : 60000;
+  // Every 10 s while the game is on, so each play is in hand well before its
+  // turn to show; every minute otherwise; longer after failures.
+  var wait = gameState === 'in' ? 10000 : 60000;
   pollTimer = setTimeout(poll, failures ? Math.min(30000 * failures, 300000) : wait);
 }
 
