@@ -10,9 +10,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -28,8 +31,8 @@ import java.lang.ref.WeakReference;
  *
  * It needs the "display over other apps" permission, granted once over adb:
  *   adb shell appops set io.github.thillships.wall SYSTEM_ALERT_WINDOW allow
- * Without it nothing here runs and the app works as before. It starts when
- * the app opens and again whenever the calendar restarts.
+ * Without it the button never shows and the app works as before. It starts
+ * when the app opens and again whenever the calendar restarts.
  */
 public class BubbleService extends Service {
     private static final String CHANNEL = "bubble";
@@ -42,10 +45,28 @@ public class BubbleService extends Service {
     private TextView bubble;
     private WindowManager.LayoutParams lp;
 
+    static final String TAG = "WallBubble";
+    private static final long CHECK_MS = 20_000, CHECK_FOR_MS = 15 * 60_000;
+
     static void start(Context c) {
-        if (!Settings.canDrawOverlays(c)) return;
+        Log.i(TAG, "start: canDrawOverlays=" + Settings.canDrawOverlays(c));
         c.startForegroundService(new Intent(c, BubbleService.class));
     }
+
+    // Right after a restart the permission can read as off for a while, so
+    // keep looking for a quarter of an hour before giving up.
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private long startedAt;
+    private final Runnable check = new Runnable() {
+        @Override
+        public void run() {
+            boolean ok = Settings.canDrawOverlays(BubbleService.this);
+            Log.i(TAG, "check: canDrawOverlays=" + ok);
+            if (ok) { if (bubble == null) addBubble(); return; }
+            if (System.currentTimeMillis() - startedAt < CHECK_FOR_MS) handler.postDelayed(this, CHECK_MS);
+            else stopSelf();
+        }
+    };
 
     // MainActivity calls this when the scores come to the front or leave it.
     static void refresh() {
@@ -66,7 +87,8 @@ public class BubbleService extends Service {
                 .setContentTitle("Scores button")
                 .setContentText("Tap the floating button to switch between the calendar and the scores.")
                 .build());
-        if (Settings.canDrawOverlays(this)) addBubble();
+        startedAt = System.currentTimeMillis();
+        check.run();
     }
 
     @Override
@@ -75,6 +97,7 @@ public class BubbleService extends Service {
     }
 
     private void addBubble() {
+        Log.i(TAG, "showing the button");
         wm = getSystemService(WindowManager.class);
         DisplayMetrics dm = getResources().getDisplayMetrics();
         int size = Math.round(64 * dm.density);
@@ -143,6 +166,7 @@ public class BubbleService extends Service {
 
     @Override
     public void onDestroy() {
+        handler.removeCallbacks(check);
         if (bubble != null) wm.removeView(bubble);
         bubble = null;
         super.onDestroy();

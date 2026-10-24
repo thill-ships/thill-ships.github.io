@@ -8,6 +8,7 @@ import android.content.Intent;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context c, Intent intent) {
-        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) BubbleService.start(c);
+        android.util.Log.i(BubbleService.TAG, "boot: " + intent.getAction());
+        BubbleService.start(c);
     }
 }
