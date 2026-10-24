@@ -114,6 +114,54 @@ Send them `https://thill-ships.github.io/pickem/`. They tap **Create an account*
 and any password, and set a display name. No confirmation email, no waiting. That browser
 stays signed in all season.
 
+## 8. Make yourself the commissioner
+
+One thing the app can't do for you, because it is the thing that decides who is allowed
+to do anything: tell the database that you're in charge. Sign in to the app once first so
+your account exists, then run this in the Supabase
+[SQL editor](https://supabase.com/dashboard/project/yehpygarkxdopdvugifk/sql/new), with
+your own email in place of the one here:
+
+```sql
+insert into pickem_admins (user_id)
+select id from auth.users where email = 'you@example.com'
+on conflict do nothing;
+```
+
+Reload the app and a **Catch-up window** section appears at the bottom of your profile
+sheet. Nobody else sees it, and there is deliberately no way to grant it from the browser —
+promoting someone needs the SQL editor, which needs your Supabase login.
+
+---
+
+## Catch-up windows
+
+Someone forgets a week. The deadline has passed, the games are being played, and they're
+sitting out through no real fault of their own. Open your profile, pick their name, choose
+15 minutes to 2 hours, and open a window. For as long as it runs, that one person can pick
+**every game that week — including games already finished**.
+
+That sounds like a cheat, and it would be, except for three things the database enforces:
+
+- **Everyone sees the window is open.** A banner on the picks screen names the person and
+  counts down. There is no quiet grant.
+- **They can't see anyone else's picks while it's open.** Normally the week goes public at
+  the deadline. For somebody still owing picks, it stays shut — otherwise the window would
+  be worth more than the picks, because they'd be choosing with the answers in front of them.
+- **Every pick made after a kickoff is stamped `Late`.** It shows on the card and it's
+  counted on the leaderboard next to their name, for the rest of the season.
+
+Two things a window deliberately does *not* do. It can't reach a week whose lines aren't
+out yet, because picks against numbers nobody else has seen would be a real edge. And it
+can't undo a lock-in: once you've locked yourself in you may have seen other people's
+picks, so reopening yours would let you answer them.
+
+Picks made during a window score normally. If you'd rather they didn't, say so and that's
+a one-line change — but think about whether the `Late` stamp is already enough, given
+everybody can see it.
+
+To cut a window short, open your profile and hit **Close it**. Picks already made stand.
+
 ---
 
 ## Scoring
@@ -171,9 +219,18 @@ Not by the honor system — by the database.
 
 - **Picks only work inside the window.** A Row Level Security policy rejects any insert or
   update before Sunday 6am or after `min(kickoff)` for that week. Someone poking at the API
-  directly can't pick early against an unset line, or backdate a pick afterwards.
+  directly can't pick early against an unset line, or backdate a pick afterwards. The one
+  exception is a catch-up window, and it is the same policy that grants it — not a bypass.
+- **Only a commissioner opens a catch-up window.** `pickem_admins` has no insert, update or
+  delete policy at all, so nobody can promote themselves from the browser, and the grant
+  policy checks `pickem_is_admin()` and caps any window at 24 hours.
+- **The `Late` stamp is not the client's to set.** A trigger decides it, by comparing the
+  write against that game's kickoff. Nothing the browser sends can clear it, and a routine
+  update that doesn't change the pick leaves it alone, so on-time picks can't be
+  retroactively branded.
 - **Nobody sees anyone else's picks until the lock.** The read policy returns only your
-  own rows until the deadline passes.
+  own rows until the deadline passes — and it keeps returning only your own, deadline or
+  not, for as long as your own catch-up window is open.
 - **Only the sync job writes games.** It uses the service_role key, which bypasses RLS.
   Nothing in the browser can touch scores, spreads, or point values.
 - **Locking in is irreversible.** There is no update or delete policy on the locks table, so

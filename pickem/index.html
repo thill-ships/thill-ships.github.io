@@ -121,8 +121,27 @@
   .pk .fav.miss{background:var(--red);color:#fff;}
   .auto{position:absolute;bottom:9px;right:9px;font-size:9px;font-weight:800;letter-spacing:.06em;
     text-transform:uppercase;background:#E7EAF0;color:var(--muted);padding:2px 6px;border-radius:999px;}
+  .late{position:absolute;bottom:9px;right:9px;font-size:9px;font-weight:800;letter-spacing:.06em;
+    text-transform:uppercase;background:#FFE9E4;color:#C2410C;padding:2px 6px;border-radius:999px;}
   .pts{position:absolute;top:9px;left:9px;font-size:9.5px;font-weight:800;letter-spacing:.03em;
     background:#FFF1DC;color:var(--amber);padding:3px 6px;border-radius:999px;}
+  .lock.grace{background:#FFF8EC;box-shadow:inset 0 0 0 2px #F0B860;}
+  .gbar{margin:12px 15px 0;background:#FFF8EC;border-radius:16px;padding:11px 14px;
+    box-shadow:inset 0 0 0 1px #F3DCB4;font-size:12px;color:#8A5A12;line-height:1.5;}
+  .gbar b{font-weight:800;}
+  .adm{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);}
+  .adm h3{font-size:14px;font-weight:800;letter-spacing:-.01em;margin:0 0 4px;}
+  .adm p{font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 12px;}
+  .adm select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;
+    font:inherit;font-size:14px;background:#fff;color:var(--ink);margin-bottom:10px;}
+  .adm .row{display:flex;gap:8px;margin-bottom:10px;}
+  .adm .row button{flex:1;padding:9px 0;border:1px solid var(--line);border-radius:11px;
+    background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;}
+  .adm .row button.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .adm .live{font-size:12px;color:var(--muted);line-height:1.6;margin:12px 0 0;}
+  .adm .live b{color:var(--ink);}
+  .adm .live button{margin-left:8px;border:0;background:none;color:var(--red);
+    font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;padding:0;}
   .lin{margin:16px 15px 0;background:var(--card);border-radius:20px;padding:18px 17px;
     box-shadow:var(--lift);text-align:center;}
   .lin.done{background:#F1F7F3;}
@@ -231,6 +250,7 @@
     <div class="view on" id="v-picks">
       <div class="wks" id="wks"></div>
       <div id="lockBar"></div>
+      <div id="graceBar"></div>
       <div id="games"></div>
       <div id="lockIn"></div>
     </div>
@@ -265,6 +285,14 @@
               them. People still deciding stay hidden.</li>
           <li><b>If you never lock in, you're locked in automatically at the deadline</b>,
               and then everybody's picks are public.</li>
+          <li><b>Miss a week entirely and the commissioner can give you a catch-up
+              window.</b> It lasts an hour or two, it's for one person at a time, and inside
+              it you can pick every game that week &mdash; including games already played.
+              Three things keep it honest: the whole league sees the window is open, you
+              can't see anybody else's picks until yours are in, and every pick you make
+              after a game has kicked off is marked <b>Late</b> on the card and counted on
+              the leaderboard. It's there so somebody who forgot can still play, not so
+              anybody can win a week they sat out.</li>
           <li><b>Most points at the end of the season wins.</b> That's the whole thing.</li>
         </ul>
       </div>
@@ -286,6 +314,16 @@
       </div>
       <button class="sw" id="notifySw" onclick="toggleNotify()" aria-label="Reminder emails"></button>
     </div>
+    <div class="adm" id="admBox" style="display:none">
+      <h3>Catch-up window</h3>
+      <p>Give one person a short window to pick this week, including games
+         already played. While it's open they can't see anyone else's picks, and
+         anything they pick after kickoff is marked <b>Late</b> for everyone.</p>
+      <select id="admWho"></select>
+      <div class="row" id="admMins"></div>
+      <button class="btn" onclick="grantGrace()">Open the window</button>
+      <div class="live" id="admLive"></div>
+    </div>
     <div style="font-size:11.5px;color:var(--faint);text-align:center;margin:14px 0 12px">
       Version <span id="buildStamp"></span>
     </div>
@@ -306,12 +344,14 @@ const CFG = {
   key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
 };
 
-const BUILD = '2026-10-02.2';   // bump on every change; shown in the profile sheet
+const BUILD = '2026-10-24.1';   // bump on every change; shown in the profile sheet
 
 let supa=null, user=null, player=null;
 let weeks=[], games=[], picks={}, allPicks=[], standings=[], names={};
 let locks=[], myLocked=false;
 let picksAuto={};   // game_id -> true when the favourite was assigned for you
+let picksLate={};   // game_id -> true when the pick was made after kickoff
+let grace=[], myGrace=null, isAdmin=false, graceMins=60;
 let season=null, week=null, lockAt=null, openAt=null, ticker=null;
 
 const $ = id => document.getElementById(id);
@@ -321,8 +361,13 @@ const ready = () => CFG.url.startsWith('http') && CFG.key.length > 20;
 // Four distinct questions that used to be conflated:
 const windowOpen = () => !openAt || Date.now() >= openAt.getTime();   // Sunday midnight passed
 const weekOver   = () => !lockAt || Date.now() >= lockAt.getTime();   // first kickoff passed
-const canPick    = () => windowOpen() && !weekOver() && !myLocked;
-const revealed   = () => weekOver() || myLocked;                      // may see others' picks
+// A catch-up window the commissioner granted you, still running.
+const graceOpen  = () => !!myGrace && Date.now() < myGrace.getTime();
+const canPick    = () => windowOpen() && !myLocked && (!weekOver() || graceOpen());
+// While your own window is open you still owe picks, so the week stays shut to
+// you however late it is. The database enforces this too; here it just stops
+// the page rendering a tally it would not be sent.
+const revealed   = () => (weekOver() || myLocked) && !graceOpen();
 const locked     = () => !canPick();                                  // older call sites
 
 function pointsFor(g, teamId){
@@ -448,6 +493,9 @@ async function signedIn(u){
   $('gate').style.display='none'; $('app').style.display='';
   $('meBtn').style.display=''; $('tabs').style.display='';
   await ensurePlayer();
+  const { data:ad } = await supa.from('pickem_admins')
+    .select('user_id').eq('user_id',user.id).maybeSingle();
+  isAdmin = !!ad;
   await loadAll();
   realtime();
 }
@@ -522,10 +570,11 @@ async function loadWeek(scrollWeeks){
     const { data:p } = await supa.from('pickem_picks').select('*').in('game_id',games.map(x=>x.id));
     allPicks=p||[];
   }
-  picks={}; picksAuto={};
+  picks={}; picksAuto={}; picksLate={};
   allPicks.filter(p=>p.user_id===user.id).forEach(p=>{
     picks[p.game_id]=p.team_id;
     if(p.auto) picksAuto[p.game_id]=true;
+    if(p.late) picksLate[p.game_id]=true;
   });
 
   const { data:lk } = await supa.from('pickem_locks').select('*')
@@ -533,8 +582,14 @@ async function loadWeek(scrollWeeks){
   locks = lk || [];
   myLocked = locks.some(l => l.user_id === user.id);
 
+  const { data:gr } = await supa.from('pickem_grace').select('*')
+    .eq('season',season).eq('week',week);
+  grace = (gr||[]).filter(x => new Date(x.expires_at).getTime() > Date.now());
+  const mine = grace.find(x => x.user_id === user.id);
+  myGrace = mine ? new Date(mine.expires_at) : null;
+
   $('lockBar')._built=false;   // week changed, rebuild the bar from scratch
-  renderWeeks(scrollWeeks); renderLock(); renderGames(); renderLockIn();
+  renderWeeks(scrollWeeks); renderLock(); renderGrace(); renderGames(); renderLockIn();
   startLiveScores();
   clearInterval(ticker); ticker=setInterval(renderLock,1000);
 }
@@ -550,7 +605,7 @@ async function loadStandings(){
 async function setPick(gameId, teamId){
   if(!windowOpen()) return toast('Picks open Sunday at 6am');
   if(myLocked)      return toast("You're locked in for this week");
-  if(weekOver())    return toast('This week is locked');
+  if(weekOver() && !graceOpen()) return toast('This week is locked');
   const prev=picks[gameId];
   picks[gameId]=teamId;
   paintPick(gameId); renderLock(); updatePip(); renderLockIn();
@@ -561,8 +616,9 @@ async function setPick(gameId, teamId){
   if(error){
     if(prev) picks[gameId]=prev; else delete picks[gameId];
     paintPick(gameId); renderLock(); updatePip();
-    toast(/row-level|policy/i.test(error.message) ? 'Too late — the week just locked'
-                                                  : 'Could not save that pick');
+    toast(/row-level|policy/i.test(error.message)
+      ? (graceOpen() ? 'Your catch-up window just closed' : 'Too late — the week just locked')
+      : 'Could not save that pick');
   }
 }
 
@@ -592,11 +648,26 @@ function renderLock(){
   const bar=$('lockBar');
   if(!games.length){ bar.innerHTML=''; bar._built=false; return; }
 
+  // This ticks every second, so it is the natural place to notice a window
+  // running out: the cards have to shut and the week has to reappear.
+  if(myGrace && Date.now() >= myGrace.getTime()){
+    myGrace=null;
+    loadWeek();
+    toast('Your catch-up window has closed');
+    return;
+  }
+
   const made=games.filter(g=>picks[g.id]).length;
   const pct=Math.round(made/games.length*100);
   let t,s;
 
-  if(!windowOpen()){
+  if(graceOpen()){
+    const ms=myGrace.getTime()-Date.now();
+    const h=Math.floor(ms/36e5), m=Math.floor(ms%36e5/6e4), sec=Math.floor(ms%6e4/1000);
+    t='Catch-up: '+(h? h+'h '+m+'m' : m+'m '+sec+'s')+' left';
+    s='Every game this week is open to you. Picks made after kickoff show as Late, '+
+      'and nobody else\'s picks are visible to you until you\'re done.';
+  }else if(!windowOpen()){
     const ms=openAt.getTime()-Date.now();
     const d=Math.floor(ms/864e5), h=Math.floor(ms%864e5/36e5), m=Math.floor(ms%36e5/6e4);
     t='Picks open in '+(d? d+'d '+h+'h' : h+'h '+m+'m');
@@ -621,6 +692,7 @@ function renderLock(){
       '<div class="ring"><i></i></div></div>';
     bar._built=true;
   }
+  bar.querySelector('.lock').classList.toggle('grace', graceOpen());
   bar.querySelector('.lock-t').textContent=t;
   bar.querySelector('.lock-s').textContent=s;
   bar.querySelector('.ring i').textContent=made+'/'+games.length;
@@ -630,6 +702,21 @@ function renderLock(){
 
 // Toggling one dot does not require rebuilding the week strip, which also
 // resets its horizontal scroll.
+// Every open window is announced to the whole league. A quiet grant would be
+// worse than no grant at all.
+function renderGrace(){
+  const el=$('graceBar'); if(!el) return;
+  const others = grace.filter(g => g.user_id !== user.id);
+  if(!others.length){ el.innerHTML=''; return; }
+  const bits = others.map(g => {
+    const mins = Math.max(0, Math.round((new Date(g.expires_at).getTime()-Date.now())/6e4));
+    return '<b>'+esc(names[g.user_id]||'Someone')+'</b> ('+mins+'m left)';
+  });
+  el.innerHTML = '<div class="gbar">Catch-up window open for '+bits.join(', ')+
+    '. They can pick any game this week, including ones already played &mdash; those '+
+    'picks are marked <b>Late</b>. They can\'t see anyone\'s picks until their window closes.</div>';
+}
+
 function updatePip(){
   const chip=document.querySelector('.wk.on');
   if(!chip) return;
@@ -646,22 +733,26 @@ function renderGames(){
 
   $('games').innerHTML = games.map(g=>{
     const mine=picks[g.id], final=g.status==='final', live=g.status==='in';
-    // During a deadline extension the week is open but individual games that
-    // have already kicked off stay shut. The database enforces this; the card
-    // just has to stop inviting a tap it would refuse.
+    // During a week-wide deadline extension the week is open but individual
+    // games that have already kicked off stay shut. A personal catch-up window
+    // is the one thing that opens those too. The database enforces both; the
+    // card just has to stop inviting a tap it would refuse.
     const started = new Date(g.kickoff).getTime() <= Date.now();
-    const shut = lk || started;
+    const shut = lk || (started && !graceOpen());
 
     const when = new Date(g.kickoff)
       .toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 
     let flag, cls;
-    if(final){ flag='Final'; cls=''; }
+    // Inside a catch-up window an unpicked game is the thing to act on, even
+    // one already final -- the scores on the card say plainly that it is over,
+    // so the chip is better spent asking for the pick that is still missing.
+    if(shut===false && !mine){ flag='Needs you'; cls='todo'; }
+    else if(final){ flag='Final'; cls=''; }
     else if(live){ flag = g._clock || 'Live'; cls='in'; }
     else if(started){ flag='Started'; cls=''; }
     else if(lk){ flag='Locked'; cls=''; }
-    else if(mine){ flag='Picked'; cls='in'; }
-    else { flag='Needs you'; cls='todo'; }
+    else { flag='Picked'; cls='in'; }
 
     const box = side => {
       const id=g[side+'_id'], nm=g[side+'_name']||g[side+'_abbr']||'TBD';
@@ -682,7 +773,8 @@ function renderGames(){
       const pv = pointsFor(g, id);
       if(pv > 1) badge += '<span class="pts">'+pv+' PTS</span>';
       // Be upfront when a pick was assigned rather than chosen.
-      if(isMine && picksAuto[g.id]) badge += '<span class="auto">Auto</span>';
+      if(isMine && picksAuto[g.id])      badge += '<span class="auto">Auto</span>';
+      else if(isMine && picksLate[g.id]) badge += '<span class="late">Late</span>';
 
       const meta = [rank?'#'+rank:'', rec||''].filter(Boolean).join(' · ');
       const bottom = (final||live) && sc!=null
@@ -804,14 +896,16 @@ function renderBoard(){
     return '<div class="br'+(s.user_id===user.id?' me':'')+'">'+
       '<span class="bp">'+(tie?'':(i+1))+'</span>'+
       '<span class="bn">'+esc(s.display_name)+'</span>'+
-      '<span class="bw">+'+(weekly[s.user_id]||0)+' this wk</span>'+
+      '<span class="bw">+'+(weekly[s.user_id]||0)+' this wk'+
+        (s.late_picks ? ' · '+s.late_picks+' late' : '')+'</span>'+
       '<span class="bs">'+s.points+'<small> pts · '+s.correct+'/'+s.decided+'</small></span></div>';
   }).join('');
 
   $('boardBody').innerHTML='<div class="board"><div class="bh">Season standings</div>'+rows+'</div>'+
     '<p style="font-size:12.5px;color:var(--muted);margin:14px 19px;line-height:1.6">'+
     'Ranked by points. Picking a favorite is worth 1; correctly calling an underdog is worth '+
-    'more, up to 4. &ldquo;This wk&rdquo; counts only games already final in Week '+week+'.</p>';
+    'more, up to 4. &ldquo;This wk&rdquo; counts only games already final in Week '+week+'. '+
+    '&ldquo;Late&rdquo; counts picks made after a game kicked off, inside a catch-up window.</p>';
 }
 
 function showView(v){
@@ -826,7 +920,60 @@ function openProfile(){
   $('buildStamp').textContent = BUILD;
   $('nameIn').value=(player&&player.display_name)||'';
   $('notifySw').classList.toggle('on', !player || player.notify!==false);
+  renderAdmin();
   $('sheet').classList.add('on');
+}
+
+/* ===================== commissioner ===================== */
+function renderAdmin(){
+  const box=$('admBox'); if(!box) return;
+  box.style.display = isAdmin ? '' : 'none';
+  if(!isAdmin) return;
+
+  const others = standings.filter(p => p.user_id !== user.id)
+    .sort((a,b)=>a.display_name.localeCompare(b.display_name));
+  $('admWho').innerHTML = others.length
+    ? others.map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join('')
+    : '<option value="">Nobody else in the league yet</option>';
+
+  $('admMins').innerHTML = [15,30,60,120].map(m =>
+    '<button class="'+(m===graceMins?'on':'')+'" onclick="setGraceMins('+m+')">'+
+    (m<60 ? m+'m' : (m/60)+'h')+'</button>').join('');
+
+  $('admLive').innerHTML = grace.length
+    ? '<div style="margin-bottom:6px">Open right now, week '+week+':</div>'+
+      grace.map(g=>{
+        const mins=Math.max(0,Math.round((new Date(g.expires_at).getTime()-Date.now())/6e4));
+        return '<div><b>'+esc(names[g.user_id]||'Someone')+'</b> — '+mins+'m left'+
+          '<button onclick="revokeGrace(\''+esc(g.user_id)+'\')">Close it</button></div>';
+      }).join('')
+    : '<div>No windows open for week '+week+'.</div>';
+}
+function setGraceMins(m){ graceMins=m; renderAdmin(); }
+
+async function grantGrace(){
+  const uid=$('admWho').value;
+  if(!uid) return toast('Nobody to give it to');
+  const { error } = await supa.from('pickem_grace').upsert({
+    user_id:uid, season, week,
+    expires_at:new Date(Date.now()+graceMins*60000).toISOString(),
+    granted_by:user.id
+  },{ onConflict:'user_id,season,week' });
+  if(error) return toast(/row-level|policy/i.test(error.message)
+    ? 'Only a commissioner can do that' : 'Could not open the window');
+  await loadWeek();
+  renderAdmin();
+  toast((names[uid]||'They')+' has '+graceMins+' minutes');
+}
+
+async function revokeGrace(uid){
+  const { error } = await supa.from('pickem_grace').delete()
+    .eq('user_id',uid).eq('season',season).eq('week',week);
+  // Picks already made stand, stamped Late. This only stops any more.
+  if(error) return toast('Could not close it');
+  await loadWeek();
+  renderAdmin();
+  toast('Window closed');
 }
 function closeProfile(){ $('sheet').classList.remove('on'); }
 
@@ -929,6 +1076,9 @@ function realtime(){
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'pickem_picks'},()=>{
       if(revealed()) loadWeek();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'pickem_grace'},()=>{
+      loadWeek();
     })
     .subscribe();
 }

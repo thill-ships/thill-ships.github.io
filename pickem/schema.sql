@@ -55,6 +55,33 @@ create table if not exists pickem_locks (
   primary key (user_id, season, week)
 );
 
+-- Commissioners. Seeded by hand in the SQL editor; there is deliberately no
+-- insert, update or delete policy, so nobody can promote themselves from the
+-- browser. Readable by everyone, because the app has to know whose screen
+-- shows the grant controls.
+create table if not exists pickem_admins (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+-- A catch-up window for one person, one week. Inside it that person may pick
+-- every game in the week, including games already kicked off or finished --
+-- which is the whole point, and why it is per-person, short, and visible to
+-- the entire league rather than a quiet edit to the week's deadline.
+--
+-- Two things stop it being a back door, both enforced below rather than here:
+-- while your window is open you cannot see anybody else's picks, and every
+-- pick you make after a kickoff is stamped `late` for all to see.
+create table if not exists pickem_grace (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  season     int  not null,
+  week       int  not null,
+  expires_at timestamptz not null,
+  granted_by uuid references auth.users(id) on delete set null,
+  granted_at timestamptz not null default now(),
+  primary key (user_id, season, week)
+);
+
 -- A deadline extension, used when someone misses the window and the league
 -- agrees to reopen it. Only ever pushes a deadline later, never earlier.
 -- Delete the row to put the normal deadline back.
@@ -85,6 +112,9 @@ create table if not exists pickem_picks (
 -- True when the deadline passed with this game unpicked and the favourite was
 -- assigned on that player's behalf. Shown in the app so nobody is surprised.
 alter table pickem_picks add column if not exists auto boolean not null default false;
+-- True when the pick was made after that game's kickoff, which can only happen
+-- inside a catch-up window. Stamped by a trigger, not by the client.
+alter table pickem_picks add column if not exists late boolean not null default false;
 
 -- Bookkeeping so the reminder job never nags the same person twice in a week.
 create table if not exists pickem_reminders (
@@ -169,25 +199,84 @@ language sql stable security definer set search_path = public as $$
   );
 $$;
 
+-- Is this person a commissioner?
+create or replace function pickem_is_admin(p_user uuid)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from pickem_admins where user_id = p_user);
+$$;
+
+-- Is this person inside an open catch-up window for the week?
+create or replace function pickem_has_grace(p_user uuid, p_season int, p_week int)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from pickem_grace
+    where user_id = p_user and season = p_season and week = p_week
+      and now() < expires_at
+  );
+$$;
+
 -- Fails closed: an unknown game counts as locked.
 -- True whenever a pick may NOT be made right now: before the window opens,
 -- after the deadline, or because this person locked themselves in early.
+--
+-- A catch-up window lifts the deadline and the kickoff bar for one person, but
+-- not the other two:
+--   * The window opening Sunday at 6am still holds. Lines are frozen at that
+--     moment, so letting anyone reach a later week early would hand them picks
+--     against numbers nobody else has seen.
+--   * Locking yourself in is still final. By the time you lock in you may have
+--     seen the picks of everyone else who locked in, so reopening yours would
+--     let you answer them.
 create or replace function pickem_game_locked(p_game_id text)
 returns boolean
 language sql stable security definer set search_path = public as $$
   select coalesce(
-    (select now() <  pickem_open_at(g.season, g.week)
-          or now() >= pickem_lock_at(g.season, g.week)
-          -- Belt and braces, and the whole point during an extension: a game
-          -- that has already kicked off is never pickable, whatever the
-          -- week's deadline says. Without an override this never fires,
-          -- because the week locks at the earliest kickoff anyway.
-          or now() >= g.kickoff
+    (select now() < pickem_open_at(g.season, g.week)
           or pickem_is_locked_in(auth.uid(), g.season, g.week)
+          or (
+            not pickem_has_grace(auth.uid(), g.season, g.week)
+            and (
+              now() >= pickem_lock_at(g.season, g.week)
+              -- Belt and braces, and the whole point during a week-wide
+              -- extension: a game already under way is not pickable, whatever
+              -- the week's deadline says. Without an override this never
+              -- fires, because the week locks at the earliest kickoff anyway.
+              or now() >= g.kickoff
+            )
+          )
      from pickem_games g where g.id = p_game_id),
     true
   );
 $$;
+
+-- Stamp a pick `late` when it lands after that game's kickoff, which only a
+-- catch-up window allows. A trigger rather than a column the client sets,
+-- because the honesty of the badge is the whole point of it. Assigned
+-- favourites are already marked `auto` and are not anybody's late pick.
+create or replace function pickem_flag_late()
+returns trigger
+language plpgsql security definer set search_path = public as $$
+declare k timestamptz;
+begin
+  -- Only a change of mind is re-judged. An update that leaves the pick alone
+  -- keeps whatever stamp it already had, so a later housekeeping write cannot
+  -- retroactively brand a whole week of on-time picks as late.
+  if tg_op = 'UPDATE' and new.team_id is not distinct from old.team_id then
+    new.late := old.late;
+    return new;
+  end if;
+  select g.kickoff into k from pickem_games g where g.id = new.game_id;
+  new.late := coalesce(not new.auto and now() >= k, false);
+  return new;
+end;
+$$;
+
+drop trigger if exists pickem_picks_flag_late on pickem_picks;
+create trigger pickem_picks_flag_late
+  before insert or update on pickem_picks
+  for each row execute function pickem_flag_late();
 
 
 -- ---------------------------------------------------------------------------
@@ -202,6 +291,8 @@ alter table pickem_games     enable row level security;
 alter table pickem_picks     enable row level security;
 alter table pickem_reminders enable row level security;
 alter table pickem_locks     enable row level security;
+alter table pickem_admins    enable row level security;
+alter table pickem_grace     enable row level security;
 
 drop policy if exists players_read   on pickem_players;
 drop policy if exists players_insert on pickem_players;
@@ -228,6 +319,12 @@ drop policy if exists picks_delete on pickem_picks;
 -- You always see your own picks. You see someone else's when either the week
 -- has locked, or you have BOTH locked in early -- mutual disclosure, so nobody
 -- can peek at picks the other person could still change.
+--
+-- And one exception that runs the other way: while your own catch-up window is
+-- open you still owe picks, so the week closes to you however late it is.
+-- Without this the grant would be worth more than the picks -- the week is
+-- public by then, and you would be choosing with everyone's answers in front
+-- of you.
 create policy picks_read on pickem_picks
   for select to authenticated
   using (
@@ -235,6 +332,7 @@ create policy picks_read on pickem_picks
     or exists (
       select 1 from pickem_games g
       where g.id = pickem_picks.game_id
+        and not pickem_has_grace(auth.uid(), g.season, g.week)
         and (
           now() >= pickem_lock_at(g.season, g.week)
           or (
@@ -283,6 +381,47 @@ create policy locks_insert on pickem_locks
     )
   );
 
+drop policy if exists admins_read on pickem_admins;
+
+-- Who the commissioners are is public. Becoming one is not: no insert, update
+-- or delete policy exists, so it can only be done with the service key.
+create policy admins_read on pickem_admins
+  for select to authenticated using (true);
+
+drop policy if exists grace_read   on pickem_grace;
+drop policy if exists grace_insert on pickem_grace;
+drop policy if exists grace_update on pickem_grace;
+drop policy if exists grace_delete on pickem_grace;
+
+-- Every open window is visible to the whole league. A quiet grant would be
+-- worse than no grant at all.
+create policy grace_read on pickem_grace
+  for select to authenticated using (true);
+
+-- Only a commissioner grants one, only in their own name, and never longer
+-- than a day: this is for somebody who missed the window, not a second season.
+create policy grace_insert on pickem_grace
+  for insert to authenticated
+  with check (
+    pickem_is_admin(auth.uid())
+    and granted_by = auth.uid()
+    and expires_at >  now()
+    and expires_at <= now() + interval '24 hours'
+  );
+create policy grace_update on pickem_grace
+  for update to authenticated
+  using (pickem_is_admin(auth.uid()))
+  with check (
+    pickem_is_admin(auth.uid())
+    and granted_by = auth.uid()
+    and expires_at >  now()
+    and expires_at <= now() + interval '24 hours'
+  );
+-- Revoking early is allowed; the picks already made stand, stamped `late`.
+create policy grace_delete on pickem_grace
+  for delete to authenticated
+  using (pickem_is_admin(auth.uid()));
+
 -- Reminder bookkeeping is service-job only: no policies means no client access.
 
 
@@ -317,6 +456,8 @@ select pl.user_id,
        ), 0)::int                                                                   as points,
        count(*) filter (where g.status = 'final' and pk.team_id = g.winner_id)::int as correct,
        count(*) filter (where g.status = 'final')::int                              as decided,
+       -- Surfaced on the leaderboard so a catch-up week is never invisible.
+       count(*) filter (where pk.late)::int                                         as late_picks,
        coalesce(max(g.season), 0)                                                   as season
 from pickem_players pl
 left join pickem_picks pk on pk.user_id = pl.user_id
@@ -340,6 +481,12 @@ begin
   -- So someone else locking in reveals their picks to you without a reload.
   begin
     alter publication supabase_realtime add table pickem_locks;
+  exception when duplicate_object then null;
+  end;
+  -- So a catch-up window opens on the recipient's phone the moment it is
+  -- granted, rather than whenever they next happen to reload.
+  begin
+    alter publication supabase_realtime add table pickem_grace;
   exception when duplicate_object then null;
   end;
   begin
