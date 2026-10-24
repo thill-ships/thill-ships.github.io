@@ -26,7 +26,7 @@ import java.lang.ref.WeakReference;
  * page it showed, or else the scores board. If the page fails to load (the
  * Wi-Fi drops), it tries again every 15 seconds.
  *
- * Also starts the floating button (BubbleService) that switches between the
+ * Also puts up the floating button (Bubble) that switches between the
  * calendar and the scores without a computer, if it has been allowed.
  */
 public class MainActivity extends Activity {
@@ -118,15 +118,16 @@ public class MainActivity extends Activity {
         super.onResume();
         web.onResume();
         hideBars();
-        BubbleService.scores = new WeakReference<>(this);
-        BubbleService.refresh();
+        Bubble.scores = new WeakReference<>(this);
+        Bubble.show(this);
+        Bubble.refresh();
     }
 
     @Override
     protected void onPause() {
         web.onPause();
-        BubbleService.scores = new WeakReference<>(null);
-        BubbleService.refresh();
+        Bubble.scores = new WeakReference<>(null);
+        Bubble.refresh();
         super.onPause();
     }
 
