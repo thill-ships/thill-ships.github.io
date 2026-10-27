@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Board</title>
+<meta name="theme-color" content="#0E0E0D" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%230E0E0D'/%3E%3Cpath%20d='M16%206v20M10%2012h12'%20stroke='%23F0EFEC'%20stroke-width='3.2'%20stroke-linecap='round'/%3E%3Cpath%20d='M5%2024l6-5%204%203%2011-11'%20stroke='%230ca30c'%20stroke-width='2.4'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E" />
+<script src="../cross/core.js"></script>
+<style>
+  /* ---------------------------------------------------------------------------
+     The daily board for the kitchen calendar: 1280x695 CSS px landscape,
+     Chromium 74. Sized in vh like the scores wall, so it fills the screen.
+     No flex `gap`, clamp(), min()/max(), aspect-ratio, :is(), ?. or ?? --
+     none of them exist in Chromium 74.
+
+     Open it with the link from the phone app (Settings -> Kitchen wall link).
+     The key in that link is remembered, so after the first time plain
+     /daily/ works too.
+     --------------------------------------------------------------------------- */
+  :root{
+    --bg:#0E0E0D; --card:#1a1a19; --card2:#232321; --line:#2c2c2a; --axis:#383835;
+    --ink:#f0efec; --dim:#c3c2b7; --mute:#8d8c84;
+    --up:#0ca30c; --down:#e5484d;
+    --num:'Barlow Condensed','Roboto Condensed','Arial Narrow',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);}
+  body{
+    font-family:Barlow,Roboto,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-weight:500;
+    font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;padding:2.4vh 1.8vw 2.4vh;
+    cursor:none;user-select:none;-webkit-user-select:none;
+  }
+
+  /* ---- header ---- */
+  .hd{flex:none;display:flex;align-items:baseline;height:7vh;margin-bottom:2vh;}
+  .hd .hi{font-size:4.4vh;font-weight:800;letter-spacing:-.02em;}
+  .hd .vow{font-size:2.5vh;font-weight:600;color:var(--mute);margin-left:1.4vw;}
+  .hd .rt{margin-left:auto;display:flex;align-items:baseline;}
+  .hd .stamp{font-size:1.9vh;font-weight:600;color:var(--mute);margin-right:1.8vw;}
+  .hd .stamp.bad{color:var(--down);}
+  .hd .date{font-size:2.8vh;font-weight:700;color:var(--dim);margin-right:1.2vw;}
+  .hd .clock{font-family:var(--num);font-size:6vh;font-weight:700;letter-spacing:-.01em;}
+
+  .main{flex:1;min-height:0;display:flex;}
+
+  /* ---- the stock ---- */
+  .stock{flex:none;width:57%;margin-right:1.6vw;background:var(--card);border-radius:1.8vh;padding:2.4vh 1.6vw 1.6vh;
+    display:flex;flex-direction:column;min-width:0;}
+  .tk{font-size:2.2vh;font-weight:800;letter-spacing:.12em;color:var(--mute);}
+  .tk b{color:var(--ink);}
+  .pr{display:flex;align-items:baseline;margin-top:.6vh;}
+  .pr .v{font-family:var(--num);font-weight:700;font-size:11vh;line-height:1;letter-spacing:-.02em;}
+  .pr .c{margin-left:1.4vw;font-size:3.2vh;font-weight:800;}
+  .pr .c .w{color:var(--mute);font-weight:600;margin-left:.5vw;font-size:2.4vh;}
+  .up{color:var(--up);} .down{color:var(--down);} .flat{color:var(--dim);}
+  .arr{display:inline-block;width:0;height:0;border-left:1vh solid transparent;border-right:1vh solid transparent;margin-right:.5vw;vertical-align:.4vh;}
+  .up .arr{border-bottom:1.4vh solid var(--up);} .down .arr{border-top:1.4vh solid var(--down);} .flat .arr{display:none;}
+  .cw{position:relative;flex:1;min-height:0;margin-top:1.4vh;color:var(--mute);}
+  .cw .chart{display:block;}
+  .dot{position:absolute;width:1.6vh;height:1.6vh;margin:-.8vh 0 0 -.8vh;border-radius:50%;box-shadow:0 0 0 .35vh var(--card);}
+  .xa{flex:none;display:flex;justify-content:space-between;font-size:1.9vh;font-weight:600;color:var(--mute);margin-top:.8vh;}
+  .facts{flex:none;display:flex;border-top:1px solid var(--line);margin-top:1.2vh;padding-top:1.4vh;}
+  .fact{flex:1;}
+  .fact .l{font-size:1.8vh;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
+  .fact .n{font-family:var(--num);font-size:4.2vh;font-weight:700;line-height:1.1;}
+  .fact .n small{font-size:2.2vh;color:var(--mute);font-weight:600;margin-left:.4vw;}
+
+  /* ---- today ---- */
+  .today{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .today .th{flex:none;display:flex;align-items:baseline;height:4.4vh;}
+  .today .th h2{font-size:3vh;font-weight:800;}
+  .today .th .ct{margin-left:auto;font-size:2.4vh;font-weight:700;color:var(--dim);}
+  .hb{flex:1;min-height:0;display:flex;align-items:center;background:var(--card);border-radius:1.6vh;padding:0 1.2vw;margin-top:1.1vh;
+    cursor:pointer;transition:background .15s ease;}
+  .hb .ic{flex:none;width:6.6vh;height:6.6vh;border-radius:1.4vh;display:flex;align-items:center;justify-content:center;background:var(--card2);margin-right:1.1vw;}
+  .hb .ic .ico{width:3.8vh;height:3.8vh;}
+  .hb .tx{flex:1;min-width:0;}
+  .hb .nm{font-size:3.3vh;font-weight:800;letter-spacing:-.01em;white-space:nowrap;}
+  .hb .mn{font-size:2vh;color:var(--mute);margin-top:.2vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hb .sk{flex:none;text-align:right;margin-right:1.2vw;font-size:1.7vh;font-weight:600;color:var(--mute);line-height:1.1;}
+  .hb .sk b{display:block;font-family:var(--num);font-size:3.2vh;color:var(--dim);}
+  .hb .ck{flex:none;width:5vh;height:5vh;border-radius:50%;border:.35vh solid var(--axis);display:flex;align-items:center;justify-content:center;}
+  .hb .ck svg{width:3vh;height:3vh;opacity:0;}
+  .hb.on{background:var(--card2);}
+  .hb.on .ic{color:#fff !important;}
+  .hb.on .ck{background:var(--ink);border-color:var(--ink);}
+  .hb.on .ck svg{opacity:1;}
+  .hb.busy{opacity:.6;}
+
+  /* ---- two weeks, habit by habit ---- */
+  .wk{flex:none;height:21vh;margin-top:1.8vh;background:var(--card);border-radius:1.8vh;padding:1.6vh 1.6vw;display:flex;}
+  .wk .lab{flex:none;width:12vw;display:flex;flex-direction:column;justify-content:space-between;}
+  .wk .lab .l{font-size:1.8vh;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
+  .wk .lab .big{font-family:var(--num);font-size:6vh;font-weight:700;line-height:1;}
+  .wk .lab .s{font-size:1.9vh;color:var(--mute);font-weight:600;}
+  .grid{flex:1;min-width:0;display:grid;grid-template-columns:3vh repeat(14,1fr);grid-template-rows:repeat(5,1fr) 2.4vh;grid-gap:.5vh .35vw;}
+  .grid .rl{display:flex;align-items:center;}
+  .grid .rl .ico{width:2.3vh;height:2.3vh;}
+  .grid .c{border-radius:.5vh;background:var(--line);}
+  .grid .c.td{box-shadow:inset 0 0 0 .25vh var(--mute);}
+  .grid .dl{font-size:1.7vh;font-weight:700;color:var(--mute);text-align:center;line-height:2.4vh;}
+  .grid .dl.td{color:var(--ink);}
+
+  .msg{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:var(--bg);
+    font-size:3vh;color:var(--dim);text-align:center;line-height:1.5;padding:0 12vw;}
+  .msg b{display:block;font-size:4.4vh;color:var(--ink);margin-bottom:1.6vh;}
+</style>
+</head>
+<body>
+  <div class="hd">
+    <div id="hi" class="hi">Good morning</div>
+    <div class="vow">Take up your cross</div>
+    <div class="rt"><span id="stamp" class="stamp"></span><span id="date" class="date"></span><span id="clock" class="clock"></span></div>
+  </div>
+
+  <div class="main">
+    <div class="stock">
+      <div class="tk"><b>$CROSS</b> · LAST 60 DAYS</div>
+      <div class="pr"><span id="price" class="v">—</span><span id="chg" class="c flat"></span></div>
+      <div id="cw" class="cw"></div>
+      <div id="xa" class="xa"></div>
+      <div id="facts" class="facts"></div>
+    </div>
+    <div class="today">
+      <div class="th"><h2>Today</h2><span id="count" class="ct"></span></div>
+      <div id="habits" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
+    </div>
+  </div>
+
+  <div class="wk">
+    <div class="lab">
+      <div class="l">Perfect streak</div>
+      <div id="streak" class="big">0</div>
+      <div id="best" class="s"></div>
+    </div>
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <div id="msg" class="msg" style="display:none"></div>
+
+<script>
+/* Same Supabase project as the phone app. The wall never signs in: it holds
+   the wall key from its link, and the two database functions check it. */
+var CFG = {
+  url: 'https://yehpygarkxdopdvugifk.supabase.co',
+  key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
+};
+var POLL = 60000;               // a minute, so a tap on the phone shows up soon
+var SPAN = 60;                  // days of chart
+var BOOT = Date.now();
+var HABITS = Cross.HABITS;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// The key: from the link, else remembered from last time.
+var KEY = (function(){
+  var m = /[?&]k=([A-Za-z0-9]+)/.exec(location.search), k = m ? m[1] : null;
+  try{
+    if(k) localStorage.setItem('cross-wall-key', k);
+    else k = localStorage.getItem('cross-wall-key');
+  }catch(e){}
+  return k;
+})();
+
+var byDay = {}, startDay = null, lastOk = 0, failures = 0, busy = {};
+
+function rpc(name, body){
+  var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  var kill = ctl ? setTimeout(function(){ ctl.abort(); }, 20000) : null;
+  return fetch(CFG.url + '/rest/v1/rpc/' + name, {
+    method:'POST', cache:'no-store', signal: ctl ? ctl.signal : undefined,
+    headers:{ 'apikey':CFG.key, 'Content-Type':'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r){
+    if(kill) clearTimeout(kill);
+    return r.json().then(function(j){
+      if(!r.ok){ var e = new Error((j && j.message) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+      return j;
+    });
+  });
+}
+
+function showMessage(html){ $('msg').innerHTML = '<div>' + html + '</div>'; $('msg').style.display = ''; }
+function hideMessage(){ $('msg').style.display = 'none'; }
+
+async function pull(){
+  try{
+    var data = await rpc('cross_wall', { k:KEY });
+    byDay = {};
+    (data.days || []).forEach(function(r){ byDay[r.day] = r.done || []; });
+    startDay = data.start_day || null;
+    lastOk = Date.now(); failures = 0;
+    hideMessage();
+    render();
+    // Reload now and then so a long-running browser stays healthy and picks
+    // up changes to this page. Only right after a good fetch, and at night.
+    var h = new Date().getHours();
+    if(Date.now() - BOOT > 6 * 3600000 && (h >= 1 && h < 5)) { location.reload(); return; }
+  }catch(err){
+    failures++;
+    console.warn('cross_wall failed', err);
+    if(err.status === 401 || err.status === 403 || /not allowed/.test(err.message))
+      showMessage('<b>This wall link has expired</b>Open the newest one from the phone app: Settings → Kitchen wall link.');
+    else if(/does not exist|Could not find/.test(err.message))
+      showMessage('<b>Almost there</b>Run cross/schema.sql in Supabase, then this board fills in.');
+    else if(!lastOk)
+      showMessage('<b>Can\'t reach the database</b>Trying again in a minute. Check the calendar\'s Wi-Fi if this stays up.');
+    stamp();
+  }
+  setTimeout(pull, failures ? Math.min(POLL * (failures + 1), 600000) : POLL);
+}
+
+async function toggle(key){
+  var day = Cross.today();
+  if(busy[key]) return;
+  var list = (byDay[day] || []).slice();
+  var on = list.indexOf(key) < 0;
+  busy[key] = true;
+  byDay[day] = on ? list.concat([key]) : list.filter(function(k){ return k !== key; });
+  render();
+  try{
+    var done = await rpc('cross_set_habit', { d:day, habit:key, val:on, k:KEY });
+    byDay[day] = done || [];
+  }catch(err){
+    console.warn('cross_set_habit failed', err);
+    byDay[day] = list;
+  }
+  busy[key] = false;
+  render();
+}
+
+/* ------------------------------- drawing ------------------------------- */
+function fmtDay(k, o){ return Cross.dateOf(k).toLocaleDateString([], o || { month:'short', day:'numeric' }); }
+function timeText(d){ return d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' }).replace(/\s?([AP])M/i, function(_, a){ return a.toLowerCase() + 'm'; }); }
+
+function stamp(){
+  var now = new Date(), h = now.getHours();
+  $('clock').textContent = timeText(now).replace(/(am|pm)$/, '');
+  $('date').textContent = now.toLocaleDateString([], { weekday:'long', month:'long', day:'numeric' });
+  $('hi').textContent = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  // A wall screen that quietly stops updating looks exactly like one that works.
+  var stale = lastOk && Date.now() - lastOk > 10 * 60000;
+  $('stamp').className = 'stamp' + (stale ? ' bad' : '');
+  $('stamp').textContent = stale ? 'No update since ' + timeText(new Date(lastOk)) : '';
+}
+
+var renderedDay = null;
+function render(){
+  var now = Cross.today();
+  renderedDay = now;
+  var series = Cross.build(byDay, startDay, now);
+  var st = Cross.stats(series);
+  var days = series.days;
+  var shown = days.length > SPAN ? days.slice(-SPAN) : days;
+  var idx = days.indexOf(shown[0]);
+  var base = idx === 0 ? series.open : days[idx - 1].close;
+
+  // price, and how today is going
+  $('price').textContent = Cross.money(st.price);
+  var t = st.todayChange, cls = t > 0.000001 ? 'up' : t < -0.000001 ? 'down' : 'flat';
+  $('chg').className = 'c ' + cls;
+  $('chg').innerHTML = '<span class="arr"></span>' + Cross.signed(st.price - st.prevClose) + ' (' + Cross.pct(t) + ')<span class="w">today</span>';
+
+  // the line
+  var pts = [{ v:base }].concat(shown.map(function(d){ return { v:d.close }; }));
+  var cw = $('cw'), W = cw.clientWidth, H = cw.clientHeight;
+  var c = Cross.chart(pts, base, W, H, { padT:12, padB:6, padR:12, stroke:3 });
+  cw.innerHTML = c.svg + (c.last ? '<span class="dot" style="left:' + c.last.x + 'px;top:' + c.last.y + 'px;background:' + c.color + '"></span>' : '');
+  $('xa').innerHTML = '<span>' + (idx === 0 ? 'IPO · ' + fmtDay(series.start) : fmtDay(days[idx - 1].day)) + '</span><span>Today</span>';
+
+  var range = st.price / base - 1;
+  $('facts').innerHTML =
+    fact(SPAN + ' days', '<span class="' + (range >= 0 ? 'up' : 'down') + '">' + Cross.pct(range, 1) + '</span>') +
+    fact('Since the IPO', '<span class="' + (st.allTime >= 0 ? 'up' : 'down') + '">' + Cross.pct(st.allTime, 1) + '</span>') +
+    fact('All-time high', Cross.money(st.high) + (st.price >= st.high - 1e-9 ? '<small>now</small>' : ''));
+
+  // today's five
+  var done = byDay[now] || [];
+  var n = done.filter(function(k){ return HABITS.some(function(h){ return h.key === k; }); }).length;
+  $('count').innerHTML = n + ' of 5 · closes <span class="' + (Cross.dayChange(n, false) >= 0 ? 'up' : 'down') + '">' +
+    Cross.pct(Cross.dayChange(n, false)) + '</span>';
+  $('habits').innerHTML = HABITS.map(function(h, i){
+    var on = done.indexOf(h.key) >= 0;
+    var hs = st.habits[i];
+    return '<div class="hb' + (on ? ' on' : '') + (busy[h.key] ? ' busy' : '') + '" data-k="' + h.key + '"' + (i === 0 ? ' style="margin-top:0"' : '') + '>' +
+      '<span class="ic" style="color:' + h.color + (on ? ';background:' + h.color : '') + '">' + Cross.icon(h.icon) + '</span>' +
+      '<span class="tx"><div class="nm">' + esc(h.name) + '</div><div class="mn">' + esc(h.meaning) + '</div></span>' +
+      (hs.streak > 1 ? '<span class="sk"><b>' + hs.streak + '</b>in a row</span>' : '') +
+      '<span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#0E0E0D" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>' +
+      '</div>';
+  }).join('');
+
+  // two weeks
+  $('streak').textContent = st.perfectStreak;
+  $('best').textContent = (st.perfectStreak === 1 ? 'day' : 'days') + ' · best ' + st.bestPerfect;
+  var cols = [];
+  for(var j = 13; j >= 0; j--) cols.push(Cross.addDays(now, -j));
+  var g = '';
+  HABITS.forEach(function(h){
+    g += '<span class="rl" style="color:' + h.color + '">' + Cross.icon(h.icon) + '</span>';
+    cols.forEach(function(k){
+      var on = (byDay[k] || []).indexOf(h.key) >= 0;
+      g += '<span class="c' + (k === now ? ' td' : '') + '"' + (on ? ' style="background:' + h.color + '"' : '') + '></span>';
+    });
+  });
+  g += '<span></span>' + cols.map(function(k){
+    return '<span class="dl' + (k === now ? ' td' : '') + '">' + Cross.dateOf(k).toLocaleDateString([], { weekday:'narrow' }) + '</span>';
+  }).join('');
+  $('grid').innerHTML = g;
+  stamp();
+}
+function fact(l, v){ return '<div class="fact"><div class="l">' + l + '</div><div class="n">' + v + '</div></div>'; }
+
+$('habits').addEventListener('click', function(e){
+  var el = e.target; while(el && !(el.classList && el.classList.contains('hb'))) el = el.parentNode;
+  if(el) toggle(el.getAttribute('data-k'));
+});
+
+// The clock, and the new day at midnight.
+setInterval(function(){
+  if(lastOk && Cross.today() !== renderedDay) render(); else stamp();
+}, 15000);
+window.addEventListener('resize', function(){ if(lastOk) render(); });
+
+if(!KEY){
+  showMessage('<b>This board needs its link</b>On the phone, open the Cross app → Settings → Kitchen wall link, and open that link here.');
+  stamp();
+} else {
+  stamp();
+  pull();
+}
+</script>
+</body>
+</html>

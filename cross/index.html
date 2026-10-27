@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Take Up My Cross</title>
+<meta name="theme-color" content="#0E0E0D" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Cross" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%230E0E0D'/%3E%3Cpath%20d='M16%206v20M10%2012h12'%20stroke='%23F0EFEC'%20stroke-width='3.2'%20stroke-linecap='round'/%3E%3Cpath%20d='M5%2024l6-5%204%203%2011-11'%20stroke='%230ca30c'%20stroke-width='2.4'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%230E0E0D'/%3E%3Cpath%20d='M16%206v20M10%2012h12'%20stroke='%23F0EFEC'%20stroke-width='3.2'%20stroke-linecap='round'/%3E%3Cpath%20d='M5%2024l6-5%204%203%2011-11'%20stroke='%230ca30c'%20stroke-width='2.4'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="core.js"></script>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0E0E0D; --card:#1a1a19; --card2:#232321; --line:#2c2c2a; --axis:#383835;
+    --ink:#f0efec; --dim:#c3c2b7; --mute:#8d8c84;
+    --up:#0ca30c; --down:#e5484d;
+    --num:'Archivo',Inter,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);}
+  body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;}
+  button{font:inherit;color:inherit;}
+  .wrap{max-width:560px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));}
+  .hidden{display:none !important;}
+
+  /* ---- sign in ---- */
+  .gate{min-height:80vh;display:flex;align-items:center;justify-content:center;}
+  .gate form{width:100%;max-width:360px;background:var(--card);border-radius:20px;padding:26px 22px;}
+  .gate h1{font-family:var(--num);font-size:26px;margin:0 0 6px;letter-spacing:-.01em;}
+  .gate p{color:var(--dim);font-size:14px;line-height:1.5;margin:0 0 18px;}
+  input[type=password],input[type=date]{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--bg);
+    border:1px solid var(--axis);border-radius:12px;padding:13px 14px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:13px 16px;
+    font-weight:700;font-size:15px;background:var(--ink);color:var(--bg);cursor:pointer;}
+  .btn.full{width:100%;margin-top:12px;}
+  .btn.ghost{background:var(--card2);color:var(--ink);}
+  .btn.sm{padding:8px 12px;font-size:13px;border-radius:10px;}
+  .msg{font-size:13px;color:var(--down);margin-top:10px;line-height:1.5;}
+
+  /* ---- ticker header ---- */
+  .top{display:flex;align-items:center;margin-bottom:4px;}
+  .tick{font-family:var(--num);font-weight:800;font-size:15px;letter-spacing:.06em;color:var(--dim);}
+  .tick b{color:var(--ink);}
+  .top .sync{margin-left:auto;font-size:12px;color:var(--mute);}
+  .price{font-family:var(--num);font-weight:900;font-size:46px;letter-spacing:-.025em;line-height:1.05;}
+  .chg{display:flex;align-items:center;font-weight:700;font-size:15px;margin-top:4px;}
+  .chg .arr{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;margin-right:7px;}
+  .chg.up{color:var(--up);} .chg.up .arr{border-bottom:8px solid var(--up);}
+  .chg.down{color:var(--down);} .chg.down .arr{border-top:8px solid var(--down);}
+  .chg.flat{color:var(--dim);} .chg.flat .arr{display:none;}
+  .chg .when{color:var(--mute);font-weight:500;margin-left:8px;}
+
+  /* ---- chart ---- */
+  .chartbox{position:relative;height:210px;margin:14px -4px 0;color:var(--mute);touch-action:pan-y;}
+  .chartbox .chart{display:block;}
+  .dot{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;box-shadow:0 0 0 2px var(--bg);pointer-events:none;}
+  .xhair{position:absolute;top:0;bottom:0;width:1px;background:var(--dim);opacity:.5;pointer-events:none;}
+  .tip{position:absolute;top:-6px;transform:translateX(-50%);background:var(--card2);border:1px solid var(--line);border-radius:10px;
+    padding:6px 10px;font-size:12px;white-space:nowrap;pointer-events:none;color:var(--ink);}
+  .tip b{font-family:var(--num);font-size:14px;}
+  .tip span{color:var(--dim);}
+  .ranges{display:flex;justify-content:space-between;margin:8px 0 22px;}
+  .ranges button{flex:1;border:0;background:none;color:var(--mute);font-weight:700;font-size:13px;padding:8px 0;border-radius:9px;cursor:pointer;}
+  .ranges button.on{background:var(--card2);color:var(--ink);}
+
+  /* ---- the day ---- */
+  .dayhd{display:flex;align-items:center;margin-bottom:10px;}
+  .dayhd h2{font-family:var(--num);font-size:21px;margin:0;letter-spacing:-.01em;}
+  .dayhd .sub{color:var(--mute);font-size:13px;margin-left:8px;}
+  .dayhd .nav{margin-left:auto;display:flex;}
+  .nav button{width:38px;height:38px;border:0;border-radius:50%;background:var(--card);margin-left:8px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;}
+  .nav button:disabled{opacity:.3;}
+  .nav svg{width:18px;height:18px;}
+  .habits{display:grid;grid-template-columns:1fr;gap:8px;}
+  .h{display:flex;align-items:center;width:100%;text-align:left;border:0;background:var(--card);border-radius:16px;
+    padding:13px 14px;cursor:pointer;transition:transform .1s ease, background .15s ease;}
+  .h:active{transform:scale(.985);}
+  .h .ic{flex:none;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    background:var(--card2);margin-right:13px;}
+  .h .ic .ico{width:24px;height:24px;}
+  .h .tx{flex:1;min-width:0;}
+  .h .nm{font-weight:800;font-size:16px;}
+  .h .mn{color:var(--mute);font-size:13px;margin-top:2px;}
+  .h .ck{flex:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--axis);display:flex;align-items:center;justify-content:center;}
+  .h .ck svg{width:16px;height:16px;opacity:0;}
+  .h.on{background:var(--card2);}
+  .h.on .ic{color:#fff !important;}
+  .h.on .ck{border-color:var(--ink);background:var(--ink);}
+  .h.on .ck svg{opacity:1;}
+  .h .st{flex:none;font-size:12px;color:var(--mute);margin-right:12px;text-align:right;line-height:1.25;}
+  .h .st b{display:block;font-family:var(--num);font-size:15px;color:var(--dim);}
+  .daysum{display:flex;align-items:center;margin:12px 2px 26px;font-size:14px;color:var(--dim);}
+  .pips{display:flex;margin-right:10px;}
+  .pips i{width:18px;height:6px;border-radius:3px;background:var(--line);margin-right:3px;}
+  .daysum .proj{margin-left:auto;font-weight:700;}
+  .up{color:var(--up);} .down{color:var(--down);}
+
+  /* ---- ledger: four weeks, habit by habit ---- */
+  .card{background:var(--card);border-radius:18px;padding:16px 14px;margin-bottom:14px;}
+  .card h3{margin:0 0 12px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
+  .ledger{display:grid;grid-template-columns:22px repeat(28,1fr);gap:2px;align-items:center;}
+  .ledger .rl{color:var(--mute);display:flex;align-items:center;}
+  .ledger .rl .ico{width:15px;height:15px;}
+  .ledger .c{height:16px;border-radius:3px;background:var(--line);cursor:pointer;}
+  .ledger .c.fut{background:transparent;}
+  .ledger .c.sel{box-shadow:0 0 0 1.5px var(--ink);}
+  .ledger .dl{font-size:10px;color:var(--mute);text-align:center;height:14px;}
+  .ledger .tot{height:22px;display:flex;align-items:flex-end;justify-content:center;cursor:pointer;}
+  .ledger .tot i{display:block;width:100%;border-radius:2px 2px 0 0;background:var(--axis);}
+  .ledger .tot i.full{background:var(--ink);}
+
+  /* ---- numbers ---- */
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+  .kpi{background:var(--card);border-radius:16px;padding:13px 12px;}
+  .kpi .l{font-size:12px;color:var(--mute);font-weight:600;}
+  .kpi .v{font-family:var(--num);font-size:24px;font-weight:900;margin-top:3px;letter-spacing:-.01em;}
+  .kpi .s{font-size:12px;color:var(--mute);margin-top:1px;}
+  .rate{display:flex;align-items:center;margin-bottom:11px;font-size:14px;}
+  .rate:last-child{margin-bottom:0;}
+  .rate .ico{width:17px;height:17px;flex:none;margin-right:9px;}
+  .rate .n{width:118px;flex:none;font-weight:600;}
+  .rate .bar{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-right:10px;}
+  .rate .bar i{display:block;height:100%;border-radius:4px;}
+  .rate .p{width:44px;flex:none;text-align:right;color:var(--dim);font-size:13px;}
+
+  /* ---- settings ---- */
+  details.card summary{list-style:none;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
+  details.card summary::-webkit-details-marker{display:none;}
+  .set{margin-top:16px;font-size:14px;color:var(--dim);line-height:1.5;}
+  .set label{display:block;font-weight:700;color:var(--ink);margin-bottom:6px;}
+  .set .row{display:flex;align-items:center;}
+  .set .row > *{margin-right:8px;}
+  .set code{display:block;word-break:break-all;background:var(--bg);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--ink);margin:6px 0 8px;}
+  .set table{border-collapse:collapse;margin-top:6px;}
+  .set td{padding:2px 14px 2px 0;}
+  .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;
+    background:var(--ink);color:var(--bg);font-weight:700;font-size:14px;padding:10px 16px;border-radius:12px;transition:all .2s ease;pointer-events:none;}
+  .toast.on{opacity:1;transform:translate(-50%,0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="gate" class="gate hidden">
+    <form onsubmit="signIn(event)">
+      <h1>Take up my cross</h1>
+      <p>Five things, every day. Sign in once on this phone and it stays signed in.</p>
+      <input id="pw" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="goBtn" class="btn full" type="submit">Open</button>
+      <div id="gateMsg" class="msg hidden"></div>
+    </form>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="top">
+      <div class="tick"><b>$CROSS</b> · TAKE UP MY CROSS</div>
+      <div id="sync" class="sync"></div>
+    </div>
+    <div id="price" class="price">—</div>
+    <div id="chg" class="chg flat"><span class="arr"></span><span id="chgTxt"></span><span id="chgWhen" class="when"></span></div>
+
+    <div id="chartbox" class="chartbox"></div>
+    <div id="ranges" class="ranges"></div>
+
+    <div class="dayhd">
+      <h2 id="dayName">Today</h2><span id="daySub" class="sub"></span>
+      <div class="nav">
+        <button id="prev" aria-label="Day before"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button id="next" aria-label="Day after"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>
+    <div id="habits" class="habits"></div>
+    <div id="daysum" class="daysum"></div>
+
+    <div class="card">
+      <h3>The last four weeks</h3>
+      <div id="ledger" class="ledger"></div>
+    </div>
+
+    <div id="kpis" class="kpis"></div>
+
+    <div class="card">
+      <h3>Last 30 days</h3>
+      <div id="rates"></div>
+    </div>
+
+    <details class="card">
+      <summary>Settings &amp; how the stock works</summary>
+      <div class="set">
+        <label>How the price moves</label>
+        Every day closes at midnight. Each habit done is <b class="up">+0.25%</b>, each one missed is
+        <b class="down">−0.30%</b>, and all five earns another <b class="up">+0.25%</b>:
+        <table id="rules"></table>
+        A day with nothing logged is a 0 of 5 day. Today only counts what is done so far; the misses
+        are charged at the close. It went public at <b>100.00</b>.
+      </div>
+      <div class="set">
+        <label for="startDay">IPO day</label>
+        The first day that counts. Leave it empty to start from the first day you logged.
+        <div class="row" style="margin-top:8px"><input id="startDay" type="date" style="max-width:190px" />
+          <button class="btn ghost sm" onclick="saveStart()">Save</button></div>
+      </div>
+      <div class="set">
+        <label>Kitchen wall link</label>
+        Open this on the wall calendar to put the board there. It lets anyone holding it check
+        things off, so keep it to the wall.
+        <code id="wallLink">—</code>
+        <div class="row"><button class="btn ghost sm" onclick="copyWall()">Copy</button>
+          <button class="btn ghost sm" onclick="newKey()">Make a new link</button></div>
+      </div>
+      <div class="set"><button class="btn ghost sm" onclick="sb.auth.signOut()">Sign out</button></div>
+    </details>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ==========================================================================
+   Same Supabase project as the pick'em and the war room. The publishable key
+   belongs in public code; Row Level Security is what protects the data (see
+   schema.sql). Setup in SETUP.md.
+   ========================================================================== */
+const CFG = {
+  url:     'https://yehpygarkxdopdvugifk.supabase.co',
+  key:     'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo',
+  account: 'cross@thill-ships.app'   // the one login. Must match schema.sql.
+};
+const WALL = location.origin + '/daily/';
+const RANGES = [ ['1W',7], ['1M',30], ['3M',91], ['1Y',365], ['ALL',0] ];
+const { HABITS } = Cross;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2200); }
+
+let sb = null, user = null;
+let byDay = {};               // 'YYYY-MM-DD' -> ['her', ...]
+let settings = { start_day:null, wall_key:null };
+let series = null, st = null;
+let sel = Cross.today();      // the day being checked off
+let range = (() => { try{ return localStorage.getItem('cross-range') || '1M'; }catch(e){ return '1M'; } })();
+let saving = 0;
+
+/* ========================= sign in ========================= */
+(function boot(){
+  sb = window.supabase.createClient(CFG.url, CFG.key, { auth:{ storageKey:'sb-cross-auth' } });
+  sb.auth.getSession().then(({ data }) => { if(data && data.session) signedIn(data.session.user); else showGate(); });
+  sb.auth.onAuthStateChange((_e, s) => {
+    if(s && s.user){ if(!user || user.id !== s.user.id) signedIn(s.user); }
+    else { user = null; showGate(); }
+  });
+})();
+
+function showGate(){ $('gate').classList.remove('hidden'); $('app').classList.add('hidden'); }
+
+async function signIn(ev){
+  ev.preventDefault();
+  const pw = $('pw').value || '';
+  const msg = $('gateMsg');
+  if(pw.length < 6){ msg.textContent = 'The password is at least 6 characters.'; msg.classList.remove('hidden'); return; }
+  $('goBtn').disabled = true; $('goBtn').textContent = 'Opening…';
+  const { error } = await sb.auth.signInWithPassword({ email:CFG.account, password:pw });
+  $('goBtn').disabled = false; $('goBtn').textContent = 'Open';
+  if(!error) return;
+  msg.classList.remove('hidden');
+  msg.innerHTML = /invalid login/i.test(error.message || '')
+    ? 'That password did not work. If nobody has set one yet, <button type="button" class="btn ghost sm" onclick="claim()">set this as the password</button>'
+    : esc(error.message);
+}
+
+// First run only: creates the login with whatever is in the box.
+async function claim(){
+  const { error } = await sb.auth.signUp({ email:CFG.account, password:$('pw').value || '' });
+  $('gateMsg').innerHTML = error
+    ? (/already registered/i.test(error.message) ? 'The login already exists, so that password is just wrong.' : esc(error.message))
+    : 'Password set. Opening…';
+}
+
+async function signedIn(u){
+  user = u;
+  $('gate').classList.add('hidden'); $('app').classList.remove('hidden');
+  await load();
+}
+
+/* ========================= data ========================= */
+async function load(){
+  $('sync').textContent = 'Loading…';
+  const [d, s] = await Promise.all([
+    sb.from('cross_days').select('day,done'),
+    sb.from('cross_settings').select('start_day,wall_key').eq('id', 1).maybeSingle()
+  ]);
+  if(d.error || s.error){
+    const e = d.error || s.error;
+    $('sync').textContent = '';
+    toast(/relation|does not exist/i.test(e.message) ? 'Run cross/schema.sql in Supabase first' : 'Could not load: ' + e.message);
+    return;
+  }
+  byDay = {};
+  (d.data || []).forEach(r => { byDay[r.day] = r.done || []; });
+  if(s.data) settings = s.data;
+  $('sync').textContent = '';
+  render();
+}
+
+async function toggle(key){
+  const list = (byDay[sel] || []).slice();
+  const on = list.indexOf(key) < 0;
+  byDay[sel] = on ? list.concat([key]) : list.filter(k => k !== key);
+  if(on && navigator.vibrate) navigator.vibrate(12);
+  render();
+  saving++; $('sync').textContent = 'Saving…';
+  const day = sel;
+  const { data, error } = await sb.rpc('cross_set_habit', { d:day, habit:key, val:on });
+  saving--;
+  if(error){
+    byDay[day] = list; render();
+    $('sync').textContent = '';
+    return toast('Not saved: ' + error.message);
+  }
+  if(!saving){ byDay[day] = data || []; $('sync').textContent = 'Saved'; setTimeout(() => { if(!saving) $('sync').textContent = ''; }, 1200); render(); }
+}
+
+async function saveStart(){
+  const v = $('startDay').value || null;
+  const { error } = await sb.from('cross_settings').update({ start_day:v, updated_at:new Date().toISOString() }).eq('id', 1);
+  if(error) return toast('Not saved: ' + error.message);
+  settings.start_day = v; render(); toast(v ? 'IPO day saved' : 'Starting from the first day logged');
+}
+
+async function newKey(){
+  if(!confirm('Make a new wall link? The old one stops working, so the wall will need the new one.')) return;
+  const k = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
+  const { error } = await sb.from('cross_settings').update({ wall_key:k, updated_at:new Date().toISOString() }).eq('id', 1);
+  if(error) return toast('Not saved: ' + error.message);
+  settings.wall_key = k; renderSettings(); toast('New wall link made');
+}
+
+function copyWall(){
+  const t = $('wallLink').textContent;
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied'), () => toast('Press and hold the link to copy it'));
+}
+
+/* ========================= drawing ========================= */
+function render(){
+  const now = Cross.today();
+  if(sel > now) sel = now;
+  series = Cross.build(byDay, settings.start_day, now);
+  st = Cross.stats(series);
+  renderTicker();
+  renderChart();
+  renderDay();
+  renderLedger();
+  renderStats();
+  renderSettings();
+}
+
+function setChange(el, abs, rel, when){
+  el.className = 'chg ' + (rel > 0.000001 ? 'up' : rel < -0.000001 ? 'down' : 'flat');
+  $('chgTxt').textContent = Cross.signed(abs) + ' (' + Cross.pct(rel) + ')';
+  $('chgWhen').textContent = when;
+}
+
+function rangeDays(){
+  const r = RANGES.find(x => x[0] === range) || RANGES[1];
+  const days = series.days;
+  return r[1] && days.length > r[1] ? days.slice(-r[1]) : days;
+}
+
+function renderTicker(scrub){
+  const days = rangeDays();
+  const first = days[0];
+  const base = first && first === series.days[0] ? series.open : series.days[series.days.indexOf(first) - 1].close;
+  if(scrub){
+    $('price').textContent = Cross.money(scrub.v);
+    setChange($('chg'), scrub.v - base, scrub.v / base - 1, scrub.label);
+    return;
+  }
+  $('price').textContent = Cross.money(st.price);
+  const label = range === 'ALL' ? 'since the IPO' : { '1W':'past week', '1M':'past month', '3M':'past 3 months', '1Y':'past year' }[range];
+  setChange($('chg'), st.price - base, st.price / base - 1, label);
+}
+
+function fmtDay(k, opts){ return Cross.dateOf(k).toLocaleDateString([], opts || { weekday:'short', month:'short', day:'numeric' }); }
+
+function renderChart(){
+  const days = rangeDays();
+  const idx = series.days.indexOf(days[0]);
+  const base = idx === 0 ? series.open : series.days[idx - 1].close;
+  // The line starts from the close before the range (the IPO, for the very start).
+  const pts = [{ v:base, label: idx === 0 ? 'IPO' : fmtDay(series.days[idx - 1].day), n:null }]
+    .concat(days.map(d => ({ v:d.close, label: d.live ? 'Today, so far' : fmtDay(d.day), n:d.n, live:d.live })));
+  const box = $('chartbox');
+  const W = Math.max(280, box.clientWidth), H = box.clientHeight;
+  const c = Cross.chart(pts, base, W, H, { padT:22, padB:8, padR:8 });
+  box.innerHTML = c.svg + (c.last ? '<span class="dot" style="left:' + c.last.x + 'px;top:' + c.last.y + 'px;background:' + c.color + '"></span>' : '') +
+    '<div id="xh" class="xhair hidden"></div><div id="tip" class="tip hidden"></div>';
+  box._pts = pts; box._c = c; box._W = W;
+
+  $('ranges').innerHTML = RANGES.map(r => '<button class="' + (r[0] === range ? 'on' : '') + '" data-r="' + r[0] + '">' + r[0] + '</button>').join('');
+}
+
+$('ranges').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  range = b.dataset.r; try{ localStorage.setItem('cross-range', range); }catch(err){}
+  renderTicker(); renderChart();
+});
+
+// Drag a finger (or the mouse) across the chart to read any day.
+(function scrub(){
+  const box = $('chartbox');
+  function at(clientX){
+    const pts = box._pts, c = box._c; if(!pts || pts.length < 2) return;
+    const r = box.getBoundingClientRect();
+    const x = clientX - r.left;
+    let i = 0, best = Infinity;
+    for(let j = 0; j < pts.length; j++){ const dx = Math.abs(c.X(j) - x); if(dx < best){ best = dx; i = j; } }
+    const p = pts[i], px = c.X(i);
+    $('xh').style.left = px + 'px'; $('xh').classList.remove('hidden');
+    const tip = $('tip');
+    tip.innerHTML = '<b>' + Cross.money(p.v) + '</b> <span>· ' + esc(p.label) + (p.n == null ? '' : ' · ' + p.n + ' of 5') + '</span>';
+    tip.classList.remove('hidden');
+    const half = tip.offsetWidth / 2;
+    tip.style.left = Math.min(box._W - half, Math.max(half, px)) + 'px';
+    renderTicker({ v:p.v, label:p.label });
+  }
+  function end(){ $('xh') && $('xh').classList.add('hidden'); $('tip') && $('tip').classList.add('hidden'); renderTicker(); }
+  box.addEventListener('pointerdown', e => { box.setPointerCapture && box.setPointerCapture(e.pointerId); at(e.clientX); });
+  box.addEventListener('pointermove', e => { if(e.pointerType === 'mouse' || e.buttons) at(e.clientX); });
+  box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end); box.addEventListener('pointerleave', end);
+})();
+
+function renderDay(){
+  const now = Cross.today();
+  const gap = Cross.daysBetween(sel, now);
+  $('dayName').textContent = gap === 0 ? 'Today' : gap === 1 ? 'Yesterday' : fmtDay(sel, { weekday:'long' });
+  $('daySub').textContent = fmtDay(sel, { month:'short', day:'numeric' });
+  $('next').disabled = gap <= 0;
+  $('prev').disabled = gap >= 365;
+  const done = byDay[sel] || [];
+  $('habits').innerHTML = HABITS.map(h => {
+    const on = done.indexOf(h.key) >= 0;
+    const hs = st.habits.find(x => x.key === h.key);
+    const streak = gap === 0 && hs.streak > 1 ? '<div class="st"><b>' + hs.streak + '</b>days</div>' : '';
+    return '<button class="h' + (on ? ' on' : '') + '" data-k="' + h.key + '" aria-pressed="' + on + '">' +
+      '<span class="ic" style="color:' + h.color + (on ? ';background:' + h.color : '') + '">' + Cross.icon(h.icon) + '</span>' +
+      '<span class="tx"><div class="nm">' + esc(h.name) + '</div><div class="mn">' + esc(h.meaning) + '</div></span>' +
+      streak +
+      '<span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>' +
+      '</button>';
+  }).join('');
+  const n = done.filter(k => HABITS.some(h => h.key === k)).length;
+  const close = Cross.dayChange(n, false);
+  const inSeries = series.days.some(d => d.day === sel);
+  $('daysum').innerHTML = '<span class="pips">' + HABITS.map((h, i) => '<i style="' + (i < n ? 'background:var(--ink)' : '') + '"></i>').join('') + '</span>' +
+    '<span>' + n + ' of 5' + (n === 5 ? ' — perfect day' : '') + '</span>' +
+    (inSeries ? '<span class="proj ' + (close >= 0 ? 'up' : 'down') + '">' + (gap === 0 ? 'Closes ' : 'Closed ') + Cross.pct(close) + '</span>'
+              : '<span class="proj" style="color:var(--mute)">Before the IPO</span>');
+}
+
+$('habits').addEventListener('click', e => { const b = e.target.closest('.h'); if(b) toggle(b.dataset.k); });
+$('prev').addEventListener('click', () => { sel = Cross.addDays(sel, -1); renderDay(); renderLedger(); });
+$('next').addEventListener('click', () => { if(sel < Cross.today()){ sel = Cross.addDays(sel, 1); renderDay(); renderLedger(); } });
+
+// Four weeks ending this Saturday: a row per habit, a column per day, and a
+// bar on top for how many of the five got done. Tap any day to edit it.
+function renderLedger(){
+  const now = Cross.today();
+  const dow = Cross.dateOf(now).getDay();
+  const end = Cross.addDays(now, 6 - dow);
+  const cols = [];
+  for(let i = 27; i >= 0; i--) cols.push(Cross.addDays(end, -i));
+  let h = '<span></span>' + cols.map(k => {
+    if(k > now) return '<span class="tot"></span>';
+    const n = (byDay[k] || []).filter(x => HABITS.some(hb => hb.key === x)).length;
+    return '<span class="tot" data-d="' + k + '" title="' + fmtDay(k) + ': ' + n + ' of 5"><i class="' + (n === 5 ? 'full' : '') + '" style="height:' + (n ? 4 + n * 3.6 : 2) + 'px"></i></span>';
+  }).join('');
+  HABITS.forEach(hb => {
+    h += '<span class="rl" style="color:' + hb.color + '" title="' + esc(hb.name) + '">' + Cross.icon(hb.icon) + '</span>';
+    h += cols.map(k => {
+      if(k > now) return '<span class="c fut"></span>';
+      const on = (byDay[k] || []).indexOf(hb.key) >= 0;
+      return '<span class="c' + (k === sel ? ' sel' : '') + '" data-d="' + k + '" title="' + esc(hb.name) + ', ' + fmtDay(k) + (on ? ': done' : ': missed') + '"' +
+             (on ? ' style="background:' + hb.color + '"' : '') + '></span>';
+    }).join('');
+  });
+  h += '<span></span>' + cols.map(k => '<span class="dl">' + (Cross.dateOf(k).getDay() === 0 ? Cross.dateOf(k).getDate() : '') + '</span>').join('');
+  $('ledger').innerHTML = h;
+}
+$('ledger').addEventListener('click', e => {
+  const c = e.target.closest('[data-d]'); if(!c) return;
+  sel = c.dataset.d; renderDay(); renderLedger();
+  document.querySelector('.dayhd').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+
+function renderStats(){
+  const kpi = (l, v, s) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>';
+  $('kpis').innerHTML =
+    kpi('Perfect streak', st.perfectStreak, 'best ' + st.bestPerfect) +
+    kpi('Since the IPO', '<span class="' + (st.allTime >= 0 ? 'up' : 'down') + '">' + Cross.pct(st.allTime, 1) + '</span>', fmtDay(series.start, { month:'short', day:'numeric', year:'numeric' })) +
+    kpi('All-time high', Cross.money(st.high), st.price >= st.high - 1e-9 ? 'at it now' : Cross.pct(st.price / st.high - 1, 1) + ' off');
+  $('rates').innerHTML = HABITS.map(h => {
+    const r = st.habits.find(x => x.key === h.key);
+    const p = r.rate == null ? null : r.rate;
+    return '<div class="rate"><span style="color:' + h.color + '">' + Cross.icon(h.icon) + '</span><span class="n">' + esc(h.name) + '</span>' +
+      '<span class="bar"><i style="width:' + (p == null ? 0 : Math.round(p * 100)) + '%;background:' + h.color + '"></i></span>' +
+      '<span class="p" title="' + r.hit + ' of ' + r.of + ' days">' + (p == null ? '—' : Math.round(p * 100) + '%') + '</span></div>';
+  }).join('');
+}
+
+function renderSettings(){
+  if(document.activeElement !== $('startDay')) $('startDay').value = settings.start_day || '';
+  $('wallLink').textContent = settings.wall_key ? WALL + '?k=' + settings.wall_key : '—';
+  $('rules').innerHTML = [5,4,3,2,1,0].map(n => '<tr><td>' + n + ' of 5</td><td class="' + (Cross.dayChange(n) >= 0 ? 'up' : 'down') + '">' + Cross.pct(Cross.dayChange(n)) + '</td></tr>').join('');
+}
+
+// Coming back to the app: the day may have rolled over, or the wall may have
+// checked something off.
+document.addEventListener('visibilitychange', () => { if(!document.hidden && user) load(); });
+window.addEventListener('resize', () => { if(series) renderChart(); });
+</script>
+</body>
+</html>
