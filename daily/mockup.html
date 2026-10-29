@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Board Mockup</title>
+<meta name="theme-color" content="#0E0E0D" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,500;0,600;0,700;0,800;1,500&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="../cross/core.js"></script>
+<style>
+  /* ---------------------------------------------------------------------------
+     MOCKUP of the full daily board: every panel, sample data only. Nothing
+     here talks to a real calendar, inbox or sheet. Same rules as the real
+     board: 1280x695, Chromium 74, sized in vh, no flex gap.
+     --------------------------------------------------------------------------- */
+  :root{
+    --bg:#0E0E0D; --card:#1a1a19; --card2:#232321; --line:#2c2c2a; --axis:#383835;
+    --ink:#f0efec; --dim:#c3c2b7; --mute:#8d8c84;
+    --up:#0ca30c; --down:#e5484d; --warn:#fab219; --info:#3987e5;
+    --num:'Barlow Condensed','Roboto Condensed','Arial Narrow',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);}
+  body{font-family:Barlow,Roboto,Helvetica,Arial,sans-serif;font-weight:500;font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;padding:2.2vh 1.6vw 2vh;cursor:none;}
+
+  .hd{flex:none;display:flex;align-items:baseline;height:6.6vh;margin-bottom:1.6vh;}
+  .hd .hi{font-size:4.2vh;font-weight:800;letter-spacing:-.02em;}
+  .hd .rt{margin-left:auto;display:flex;align-items:baseline;}
+  .hd .date{font-size:2.7vh;font-weight:700;color:var(--dim);margin-right:1.2vw;}
+  .hd .clock{font-family:var(--num);font-size:5.8vh;font-weight:700;}
+  .tag{font-size:1.6vh;font-weight:800;letter-spacing:.12em;color:var(--bg);background:var(--warn);border-radius:.6vh;padding:.3vh .6vw;margin-left:1.2vw;vertical-align:.6vh;}
+
+  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1.08fr;grid-template-rows:1fr 1fr;grid-gap:1.5vh 1.1vw;}
+  .p{background:var(--card);border-radius:1.6vh;padding:1.7vh 1.1vw 1.5vh;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
+  .p .ph{flex:none;display:flex;align-items:baseline;margin-bottom:1.2vh;}
+  .p .ph h2{font-size:1.85vh;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);}
+  .p .ph .aux{margin-left:auto;font-size:1.8vh;font-weight:600;color:var(--mute);}
+  .tall{grid-row:span 2;}
+
+  /* ---- what to wear ---- */
+  .wear{flex:none;display:flex;align-items:center;margin-bottom:1.3vh;}
+  .wear .big{font-family:var(--num);font-size:7.4vh;font-weight:700;line-height:.9;margin-right:1vw;}
+  .wear .say{font-size:2.5vh;font-weight:700;line-height:1.2;}
+  .wear .say span{display:block;font-size:1.9vh;color:var(--mute);font-weight:600;margin-top:.3vh;}
+  .hrs{flex:1;min-height:0;display:flex;align-items:flex-end;border-top:1px solid var(--line);padding-top:1vh;}
+  .hr{flex:1;text-align:center;font-size:1.7vh;color:var(--mute);font-weight:600;}
+  .hr b{display:block;font-family:var(--num);font-size:3vh;color:var(--ink);font-weight:600;}
+  .hr .bar{width:.6vw;margin:.6vh auto .5vh;border-radius:.4vh;background:var(--axis);}
+  .hr.you{color:var(--ink);}
+  .hr.you .bar{background:var(--info);}
+
+  /* ---- rows: calendar, inbox, upkeep ---- */
+  .row{flex:none;display:flex;align-items:center;padding:.85vh 0;border-bottom:1px solid var(--line);}
+  .row:last-of-type{border-bottom:0;}
+  .row .t{flex:none;width:5.2vw;font-family:var(--num);font-size:2.6vh;font-weight:600;color:var(--dim);}
+  .row .w{flex:1;min-width:0;}
+  .row .w b{display:block;font-size:2.2vh;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row .w span{display:block;font-size:1.75vh;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.15vh;}
+  .chip{flex:none;font-size:1.55vh;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:.6vh;padding:.35vh .5vw;margin-left:.6vw;
+    background:var(--card2);color:var(--dim);}
+  .chip.warn{background:rgba(250,178,25,.16);color:var(--warn);}
+  .chip.bad{background:rgba(229,72,77,.16);color:#ff8a8d;}
+  .chip.info{background:rgba(57,135,229,.18);color:#86b6ef;}
+  .foot{margin-top:auto;padding-top:.8vh;font-size:1.75vh;color:var(--mute);font-weight:600;}
+  .who{flex:none;width:3.4vh;height:3.4vh;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;
+    font-size:1.6vh;font-weight:800;color:var(--dim);margin-right:.8vw;}
+
+  /* ---- $CROSS ---- */
+  .tk{font-size:1.85vh;font-weight:800;letter-spacing:.12em;color:var(--mute);}
+  .tk b{color:var(--ink);}
+  .pr{display:flex;align-items:baseline;margin-top:.3vh;}
+  .pr .v{font-family:var(--num);font-weight:700;font-size:7.6vh;line-height:1;}
+  .pr .c{margin-left:.9vw;font-size:2.4vh;font-weight:800;}
+  .up{color:var(--up);} .down{color:var(--down);}
+  .arr{display:inline-block;width:0;height:0;border-left:.8vh solid transparent;border-right:.8vh solid transparent;border-bottom:1.1vh solid var(--up);margin-right:.4vw;vertical-align:.3vh;}
+  .cw{position:relative;flex:none;height:15vh;margin:1vh 0 1.2vh;color:var(--mute);}
+  .dot{position:absolute;width:1.3vh;height:1.3vh;margin:-.65vh 0 0 -.65vh;border-radius:50%;box-shadow:0 0 0 .3vh var(--card);}
+  .hb{flex:1;min-height:0;display:flex;align-items:center;background:var(--card2);border-radius:1.2vh;padding:0 .8vw;margin-top:.8vh;}
+  .hb:first-of-type{margin-top:0;}
+  .hb .ic{flex:none;width:4.6vh;height:4.6vh;border-radius:1vh;display:flex;align-items:center;justify-content:center;background:var(--card);margin-right:.8vw;}
+  .hb .ic .ico{width:2.7vh;height:2.7vh;}
+  .hb .nm{flex:1;font-size:2.5vh;font-weight:800;}
+  .hb .sk{font-size:1.6vh;color:var(--mute);font-weight:600;margin-right:.8vw;text-align:right;line-height:1.1;}
+  .hb .sk b{display:block;font-family:var(--num);font-size:2.5vh;color:var(--dim);}
+  .hb .ck{flex:none;width:3.8vh;height:3.8vh;border-radius:50%;border:.3vh solid var(--axis);display:flex;align-items:center;justify-content:center;}
+  .hb .ck svg{width:2.3vh;height:2.3vh;opacity:0;}
+  .hb.on .ic{color:#fff !important;}
+  .hb.on .ck{background:var(--ink);border-color:var(--ink);}
+  .hb.on .ck svg{opacity:1;}
+  .hstats{flex:none;display:flex;font-size:1.8vh;color:var(--mute);font-weight:600;margin-top:1vh;}
+  .hstats b{color:var(--ink);} .hstats b.up{color:var(--up);} .hstats b.down{color:var(--down);} .hstats b{font-family:var(--num);font-size:2.3vh;margin-left:.3vw;}
+  .hstats .r{margin-left:auto;}
+
+  .quote{flex:none;display:flex;align-items:center;justify-content:center;height:5vh;margin-top:1.4vh;font-size:2.2vh;font-style:italic;color:var(--dim);}
+  .quote span{font-style:normal;color:var(--mute);font-weight:600;margin-left:.8vw;font-size:1.9vh;}
+</style>
+</head>
+<body>
+  <div class="hd">
+    <div class="hi">Good morning, Tyler</div><span class="tag">MOCKUP · SAMPLE DATA</span>
+    <div class="rt"><span class="date">Thursday, October 29</span><span class="clock">6:52</span></div>
+  </div>
+
+  <div class="board">
+
+    <!-- 1. What to wear -->
+    <div class="p">
+      <div class="ph"><h2>What to wear</h2><span class="aux">Salt Lake City</span></div>
+      <div class="wear">
+        <div class="big">34°</div>
+        <div class="say">Coat this morning, layer under it
+          <span>Cold start, 58° by 3. Shed the coat for lunch. Dry all day.</span></div>
+      </div>
+      <div class="hrs" id="hrs"></div>
+    </div>
+
+    <!-- 2. Inbox -->
+    <div class="p">
+      <div class="ph"><h2>Needs you</h2><span class="aux">3 of 15 new</span></div>
+      <div class="row"><span class="who">LM</span><div class="w"><b>Lease renewal: sign by Friday</b><span>Lakeside Property Mgmt · needs a signature</span></div><span class="chip warn">Fri</span></div>
+      <div class="row"><span class="who">M</span><div class="w"><b>Sunday dinner, 5 or 6?</b><span>Mom · asks you a question</span></div><span class="chip">Reply</span></div>
+      <div class="row"><span class="who">D</span><div class="w"><b>Schedule change: Nov 14 SLC→ATL</b><span>Delta · departure moved 1h 10m earlier</span></div><span class="chip info">Review</span></div>
+      <div class="foot">Filed away: 7 newsletters · 4 receipts · 1 shipping</div>
+    </div>
+
+    <!-- 3. $CROSS, tall -->
+    <div class="p tall">
+      <div class="tk"><b>$CROSS</b> · TAKE UP YOUR CROSS</div>
+      <div class="pr"><span id="price" class="v">—</span><span id="chg" class="c"></span></div>
+      <div id="cw" class="cw"></div>
+      <div id="habits" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
+      <div class="hstats"><span>Perfect streak <b id="streak">0</b></span><span class="r">If the day ended now <b id="close" class="up"></b></span></div>
+    </div>
+
+    <!-- 4. Today, only what's different -->
+    <div class="p">
+      <div class="ph"><h2>Today, only what's different</h2></div>
+      <div class="row"><span class="t">7:30</span><div class="w"><b>Board prep, leave by 6:55</b><span>Research Park · an hour earlier than usual</span></div><span class="chip warn">Early</span></div>
+      <div class="row"><span class="t">12:00</span><div class="w"><b>Lunch with Kenzie</b><span>Café Zupas, Sugar House</span></div><span class="chip info">One-off</span></div>
+      <div class="row"><span class="t">7:00p</span><div class="w"><b>You're on dinner</b><span>Kenzie has book club</span></div><span class="chip">Home</span></div>
+      <div class="foot">Hidden: 6 routine events · work 8–5 as usual</div>
+    </div>
+
+    <!-- 5. Life upkeep -->
+    <div class="p">
+      <div class="ph"><h2>Upkeep</h2><span class="aux">from the life tracker</span></div>
+      <div class="row"><span class="who">T</span><div class="w"><b>Dental cleaning</b><span>Last done Apr 21 · every 6 months</span></div><span class="chip bad">3 days over</span></div>
+      <div class="row"><span class="who">T</span><div class="w"><b>Oil change · Civic</b><span>About 48,700 mi, ~400 to go</span></div><span class="chip warn">~9 days</span></div>
+      <div class="row"><span class="who">⚑</span><div class="w"><b>Decide: keep Sam's Club?</b><span>Renews Nov 10 · $50</span></div><span class="chip warn">12 days</span></div>
+      <div class="row"><span class="who">K</span><div class="w"><b>Passport heads-up</b><span>Expires Apr 2027: renew now</span></div><span class="chip">Heads-up</span></div>
+    </div>
+
+  </div>
+
+  <div class="quote">“Whosoever will come after me, let him deny himself, and take up his cross, and follow me.”<span>Matthew 16:24</span></div>
+
+<script>
+// Sample weather, by hour. The blue bars are the hours you are out.
+var HRS = [['7a',34,1],['9a',41,0],['11a',50,0],['12p',53,1],['1p',56,0],['3p',58,0],['5p',54,1],['7p',46,0],['9p',40,0]];
+(function(){
+  var lo = 30, hi = 60, h = '';
+  HRS.forEach(function(r){
+    var lab = r[0];
+    h += '<div class="hr' + (r[2] ? ' you' : '') + '"><b>' + r[1] + '°</b><div class="bar" style="height:' + (2 + (r[1] - lo) / (hi - lo) * 13).toFixed(1) + 'vh"></div>' + lab + '</div>';
+  });
+  document.getElementById('hrs').innerHTML = h;
+})();
+
+// Sample habit history, run through the real stock math.
+(function(){
+  var keys = ['her','him','own','sweat','serve'], byDay = {}, seed = 11;
+  function rnd(){ seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+  var now = Cross.today();
+  for(var i = 70; i >= 1; i--){
+    var p = i > 35 ? 0.55 : 0.82;
+    byDay[Cross.addDays(now, -i)] = keys.filter(function(){ return rnd() < p; });
+  }
+  byDay[now] = ['him','sweat'];
+  var s = Cross.build(byDay, null, now), st = Cross.stats(s);
+  var days = s.days.slice(-60), base = s.days[s.days.length - 61] ? s.days[s.days.length - 61].close : s.open;
+  document.getElementById('price').textContent = Cross.money(st.price);
+  document.getElementById('chg').innerHTML = '<span class="arr"></span><span class="up">' + Cross.pct(st.price / base - 1, 1) + '</span> <span style="color:var(--mute);font-weight:600;font-size:1.9vh">60 days</span>';
+  var cw = document.getElementById('cw');
+  var c = Cross.chart([{ v:base }].concat(days.map(function(d){ return { v:d.close }; })), base, cw.clientWidth, cw.clientHeight, { padT:8, padB:4, padR:8, stroke:2.5 });
+  cw.innerHTML = c.svg + '<span class="dot" style="left:' + c.last.x + 'px;top:' + c.last.y + 'px;background:' + c.color + '"></span>';
+  var done = byDay[now];
+  document.getElementById('habits').innerHTML = Cross.HABITS.map(function(h, i){
+    var on = done.indexOf(h.key) >= 0, sk = st.habits[i].streak;
+    return '<div class="hb' + (on ? ' on' : '') + '"><span class="ic" style="color:' + h.color + (on ? ';background:' + h.color : '') + '">' + Cross.icon(h.icon) + '</span>' +
+      '<span class="nm">' + h.name + '</span>' + (sk > 1 ? '<span class="sk"><b>' + sk + '</b>in a row</span>' : '') +
+      '<span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#0E0E0D" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>';
+  }).join('');
+  document.getElementById('streak').textContent = st.perfectStreak;
+  document.getElementById('close').textContent = Cross.pct(Cross.dayChange(done.length, false));
+  document.getElementById('close').className = Cross.dayChange(done.length, false) >= 0 ? 'up' : 'down';
+})();
+</script>
+</body>
+</html>
