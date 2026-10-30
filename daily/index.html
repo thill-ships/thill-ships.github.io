@@ -16,8 +16,9 @@
      min()/max(), aspect-ratio, :is(), ?. or ?? -- Chromium 74 has none.
 
      Five panels: what to wear (Open-Meteo, live), the day's calendar, a
-     heads-up list (inbox + life tracker), Garmin, and $CROSS. Everything but
-     the weather arrives through Supabase from the feeds; see SETUP.md.
+     heads-up list, Garmin, and $CROSS. The calendar, heads-up and the
+     weather's wording come from the Claude morning brief, once a day; Garmin
+     every 30 minutes. Both arrive through Supabase; see SETUP.md.
 
      Open it with the wall link from the phone app (Settings -> Kitchen wall
      link). The key is remembered, so after the first time /daily/ works too.
@@ -47,8 +48,9 @@
 
   .p{background:var(--card);border-radius:1.6vh;padding:1.7vh 1.1vw 1.5vh;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
   .p .ph{flex:none;display:flex;align-items:baseline;margin-bottom:1.1vh;}
-  .p .ph h2{font-size:1.85vh;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);}
-  .p .ph .aux{margin-left:auto;font-size:1.8vh;font-weight:600;color:var(--mute);white-space:nowrap;}
+  .p .ph h2{min-width:0;font-size:1.85vh;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .p .ph .aux{flex:none;margin-left:auto;padding-left:.8vw;font-size:1.8vh;font-weight:600;color:var(--mute);white-space:nowrap;}
   .p .ph .aux.old{color:var(--warn);}
   .empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:2vh;color:var(--mute);line-height:1.45;padding:0 1vw;}
   .empty b{display:block;color:var(--dim);font-size:2.3vh;margin-bottom:.4vh;}
@@ -162,7 +164,7 @@
   <div class="board">
     <div id="wear" class="p"><div class="ph"><h2>What to wear</h2><span class="aux" id="wearAux"></span></div><div class="empty" id="wearBody">Checking the forecast…</div></div>
     <div id="body" class="p"><div class="ph"><h2>Body</h2><span class="aux" id="bodyAux"></span></div><div id="bodyBody" class="empty"></div></div>
-    <div id="today" class="p"><div class="ph"><h2>Today, only what's different</h2><span class="aux" id="todayAux"></span></div><div id="todayBody" class="empty"></div></div>
+    <div id="today" class="p"><div class="ph"><h2 id="todayTitle">Today, only what's different</h2><span class="aux" id="todayAux"></span></div><div id="todayBody" class="empty"></div></div>
     <div id="heads" class="p"><div class="ph"><h2>Heads-up</h2><span class="aux" id="headsAux"></span></div><div id="headsBody" class="empty"></div></div>
     <div id="cross" class="p">
       <div class="tk"><b>$CROSS</b> · TAKE UP YOUR CROSS</div>
@@ -186,7 +188,8 @@ var CFG = {
   name:  'Tyler',
   place: { name:'Provo', lat:40.2338, lon:-111.6585 },
   leave: 7.25,     // a normal day: out the door at 7:15...
-  home:  17.5      // ...and home at 5:30. The weather is read for those hours.
+  home:  17.5,     // ...and home at 5:30. The weather is read for those hours.
+  evening: 19      // from 7pm the board looks ahead: tomorrow's weather and calendar
 };
 
 // One a day, in order, starting over at the end. Add or remove freely.
@@ -207,7 +210,7 @@ var QUOTES = [
 
 var POLL = 60000;                 // feeds and habits: a minute
 var WEATHER_EVERY = 30 * 60000;   // weather: half an hour
-var STALE = { calendar:90, gmail:90, upkeep:2 * 1440, garmin:18 * 60 };   // minutes before a feed is "old"
+var STALE = { brief:26 * 60, garmin:18 * 60 };   // minutes before a feed is "old"
 var BOOT = Date.now();
 var HABITS = Cross.HABITS;
 
@@ -316,7 +319,7 @@ async function toggle(key){
 }
 
 /* ================================ drawing ================================ */
-function render(){ renderCross(); renderBody(); renderToday(); renderHeads(); stamp(); }
+function render(){ renderCross(); renderBody(); renderToday(); renderHeads(); renderWear(); stamp(); }
 
 function stamp(){
   var now = new Date(), h = now.getHours();
@@ -340,6 +343,8 @@ function feed(name, auxId, label){
   var old = (Date.now() - new Date(f.updated_at)) / 60000 > STALE[name];
   aux.className = 'aux' + (old ? ' old' : '');
   aux.textContent = (label ? label + ' · ' : '') + (old ? 'last synced ' : 'synced ') + ago(f.updated_at);
+  // The brief comes once a day; its age is only worth showing when it's late.
+  if(name === 'brief' && !old) aux.textContent = '';
   return f.payload || {};
 }
 function notYet(id, what){
@@ -353,14 +358,16 @@ function wearFor(f){ for(var i = 0; i < WEAR.length; i++) if(f <= WEAR[i][0]) re
 
 function renderWear(){
   var w = state.weather; if(!w || !w.hourly) return;
-  var today = Cross.today(), H = w.hourly, hours = [];
+  // In the evening, tomorrow: read the whole day as if it hadn't started.
+  var tmrw = evening(), day = tmrw ? Cross.addDays(Cross.today(), 1) : Cross.today();
+  var H = w.hourly, hours = [];
   for(var i = 0; i < H.time.length; i++){
-    if(H.time[i].slice(0, 10) !== today) continue;
+    if(H.time[i].slice(0, 10) !== day) continue;
     hours.push({ h:+H.time[i].slice(11, 13), t:H.temperature_2m[i], f:H.apparent_temperature[i],
                  pop:H.precipitation_probability[i] || 0, snow:H.snowfall[i] || 0, gust:H.wind_gusts_10m[i] || 0 });
   }
   if(!hours.length) return;
-  var nowH = new Date().getHours();
+  var nowH = tmrw ? 0 : new Date().getHours();
   var at = function(h){ for(var j = 0; j < hours.length; j++) if(hours[j].h === h) return hours[j]; return hours[hours.length - 1]; };
   var lv = Math.floor(CFG.leave), hm = Math.ceil(CFG.home);
   // Read the hours still ahead of you; after you're home, the evening.
@@ -380,9 +387,9 @@ function renderWear(){
   var lc = function(s){ return s.charAt(0).toLowerCase() + s.slice(1); };
   if(wearFor(maxF) > a && maxF - cold.f >= 12 && cold.h <= first.h + 1){
     var shed = win.filter(function(x){ return wearFor(x.f) > a; })[0];
-    head = WEAR[a][1] + (from < 12 ? ' this morning' : ' to start') + (shed ? ', shed it by ' + hourLabel(shed.h) : '');
+    head = WEAR[a][1] + (tmrw ? ' in the morning' : from < 12 ? ' this morning' : ' to start') + (shed ? ', shed it by ' + hourLabel(shed.h) : '');
   } else if(wearFor(first.f) > a && cold.h >= last.h - 1){
-    head = WEAR[wearFor(first.f)][1] + (from < 12 ? ' this morning, ' : ' now, ') + lc(WEAR[a][1]) + ' by ' + hourLabel(cold.h);
+    head = WEAR[wearFor(first.f)][1] + (tmrw ? ' in the morning, ' : from < 12 ? ' this morning, ' : ' now, ') + lc(WEAR[a][1]) + ' by ' + hourLabel(cold.h);
   } else {
     head = WEAR[a][1] + (nowH >= hm ? ' tonight' : ' all day');
   }
@@ -391,7 +398,10 @@ function renderWear(){
   bits.push(Math.round(start.t) + '° ' + (from === lv ? 'when you leave' : 'now') + (maxAt > from && maxT - start.t >= 4 ? ', ' + Math.round(maxT) + '° by ' + hourLabel(maxAt) : ''));
   bits.push(wet ? ((wet.t <= 34 || wet.snow > 0) ? 'Snow' : 'Rain') + ' likely from ' + hourLabel(wet.h) + ' (' + wet.pop + '%)' : 'Dry');
   if(gust >= 25) bits.push('Gusts to ' + Math.round(gust) + ' mph');
-  var cur = at(nowH);
+  var cur = at(tmrw ? lv : nowH), detail = bits.join('. ') + '.';
+  // The morning brief's wording wins while it's today's; the rules are the fallback.
+  var b = brief();
+  if(b && b.wear && b.wear.headline && !tmrw){ head = b.wear.headline; detail = b.wear.detail || ''; }
 
   var cols = [6,8,10,12,14,16,18,20,22], lo = Infinity, hi = -Infinity;
   cols.forEach(function(h){ var x = at(h); if(x.t < lo) lo = x.t; if(x.t > hi) hi = x.t; });
@@ -404,8 +414,8 @@ function renderWear(){
 
   var el = $('wearBody'); el.className = ''; el.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column';
   el.innerHTML = '<div class="wear"><div class="big">' + Math.round(cur.t) + '°</div><div class="say">' + esc(head) +
-    '<span>' + esc(bits.join('. ')) + '.</span></div></div><div class="hrs">' + strip + '</div>';
-  $('wearAux').textContent = CFG.place.name;
+    (detail ? '<span>' + esc(detail) + '</span>' : '') + '</div></div><div class="hrs">' + strip + '</div>';
+  $('wearAux').textContent = (tmrw ? 'Tomorrow · ' : '') + CFG.place.name;
 }
 
 /* ---- Garmin ---- */
@@ -448,72 +458,56 @@ function renderBody(){
 }
 function readyWords(s){ return s >= 75 ? 'Ready for a hard session' : s >= 50 ? 'Good for a normal workout' : s >= 25 ? 'Go easy today' : 'Rest and recover'; }
 
-/* ---- calendar: only what's different ---- */
+/* ---- the morning brief: calendar and heads-up ---- */
+function evening(){ return new Date().getHours() >= CFG.evening; }
+// Today's brief, or null. A brief from an earlier day is shown as old, not as today's.
+function brief(){
+  var f = state.feeds.brief, p = f && f.payload;
+  return p && p.day === Cross.today() ? p : null;
+}
+// When the brief is missing or old, say so plainly in the panel.
+function noBrief(id){
+  var f = state.feeds.brief, el = $(id);
+  el.className = 'empty';
+  el.innerHTML = f ? '<div><b>No brief yet today</b>The morning run last reported ' + esc(ago(f.updated_at)) + '.</div>'
+                   : '<div><b>Morning brief not connected yet</b>See daily/SETUP.md</div>';
+}
+function asList(x, n){ return Object.prototype.toString.call(x) === '[object Array]' ? x.slice(0, n) : []; }
+
 function renderToday(){
-  var c = feed('calendar', 'todayAux');
-  if(!c) return notYet('todayBody', 'Calendar');
+  var tmrw = evening();
+  $('todayTitle').textContent = (tmrw ? 'Tomorrow' : 'Today') + ", only what's different";
+  var b = brief(); feed('brief', 'todayAux');
+  if(!b) return noBrief('todayBody');
   var el = $('todayBody'); el.className = ''; el.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column';
-  if(c.day !== Cross.today()){ el.className = 'empty'; el.innerHTML = '<div>Waiting for today\'s calendar…</div>'; return; }
-  var evs = (c.events || []).slice(), now = Date.now(), MAX = 4;
-  // All-day first, then by time. Anything over an hour ago drops off.
-  evs = evs.filter(function(e){ return e.allDay || new Date(e.end) > now - 3600000; });
-  evs.sort(function(a, b){ return (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) || new Date(a.start) - new Date(b.start); });
-  var shown = evs.slice(0, MAX), more = evs.length - shown.length;
-  var h = shown.map(function(e){
-    var s = new Date(e.start), early = !e.allDay && s.getHours() < 8;
-    var done = !e.allDay && new Date(e.end) < now;
-    var chip = e.allDay ? '' : early ? '<span class="chip warn">Early</span>' : '';
-    var sub = [e.location, e.cal].filter(Boolean).join(' · ');
-    return '<div class="row' + (done ? ' done' : '') + '"><span class="t' + (e.allDay ? ' allday' : '') + '">' + (e.allDay ? 'All day' : shortTime(s)) + '</span>' +
-      '<div class="w"><b>' + esc(e.title) + '</b>' + (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' + chip + '</div>';
+  var evs = asList(tmrw ? b.tomorrow : b.today, 4);
+  var h = evs.map(function(e){
+    var t = String(e.time || ''), allday = /all\s*day/i.test(t), chip = String(e.chip || '');
+    var cls = /early|late|moved|cancel/i.test(chip) ? 'warn' : /kenzie|one-off|travel/i.test(chip) ? 'info' : '';
+    return '<div class="row"><span class="t' + (allday ? ' allday' : '') + '">' + esc(allday ? 'All day' : t) + '</span>' +
+      '<div class="w"><b>' + esc(e.title) + '</b>' + (e.note ? '<span>' + esc(e.note) + '</span>' : '') + '</div>' +
+      (chip ? '<span class="chip ' + cls + '">' + esc(chip) + '</span>' : '') + '</div>';
   }).join('');
-  if(!evs.length) h = '<div class="empty"><div><b>Nothing out of the ordinary</b>Just the usual today.</div></div>';
-  var foot = [];
-  if(more > 0) foot.push('+' + more + ' more');
-  if(c.hidden) foot.push('Hidden: ' + c.hidden + ' routine event' + (c.hidden === 1 ? '' : 's'));
-  el.innerHTML = h + (foot.length ? '<div class="foot">' + esc(foot.join(' · ')) + '</div>' : '');
+  if(!evs.length) h = '<div class="empty"><div><b>Nothing out of the ordinary</b>Just the usual ' + (tmrw ? 'tomorrow' : 'today') + '.</div></div>';
+  var hidden = +b.today_hidden || 0;
+  el.innerHTML = h + (!tmrw && hidden ? '<div class="foot">Hidden: ' + hidden + ' routine event' + (hidden === 1 ? '' : 's') + '</div>' : '');
 }
 
-/* ---- heads-up: inbox + upkeep, merged ---- */
 var MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>';
 var WRENCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.5-7.5a4 4 0 0 0-2-2z"/><path d="M14.5 6.5L17 4l3 3-2.5 2.5"/></svg>';
+var PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/></svg>';
 function renderHeads(){
-  var m = feed('gmail', 'headsAux'), u = state.feeds.upkeep ? state.feeds.upkeep.payload || {} : null;
-  if(!m && !u){ $('headsAux').textContent = ''; return notYet('headsBody', 'Inbox and upkeep'); }
-  if(!m && state.feeds.upkeep) feed('upkeep', 'headsAux');
+  var b = brief(); feed('brief', 'headsAux');
+  if(!b) return noBrief('headsBody');
   var el = $('headsBody'); el.className = ''; el.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column';
-  var rows = [];
-  // Upkeep that is due or late beats email; email that matters beats upkeep
-  // that is merely coming up.
-  ((u && u.items) || []).forEach(function(it){
-    var d = it.days_until, st = it.state, chip, cls, rank;
-    if(st === 'overdue'){ chip = Math.abs(d) + 'd over'; cls = 'bad'; rank = 0; }
-    else if(st === 'due'){ chip = 'Today'; cls = 'warn'; rank = 1; }
-    else if(st === 'upcoming'){ chip = d + 'd'; cls = d <= 7 ? 'warn' : ''; rank = 4 + d / 100; }
-    else if(st === 'nudge'){ chip = 'Nudge'; cls = ''; rank = 6; }
-    else return;
-    var sub = [it.owner && it.owner !== 'tyler' ? (it.owner === 'shared' ? 'Both' : 'Kenzie') : null,
-               it.last_done ? 'last done ' + Cross.dateOf(it.last_done).toLocaleDateString([], { month:'short', day:'numeric' }) : null,
-               it.next_due && st !== 'overdue' ? 'due ' + Cross.dateOf(it.next_due).toLocaleDateString([], { month:'short', day:'numeric' }) : null].filter(Boolean).join(' · ');
-    rows.push({ rank:rank, icon:WRENCH, title:it.prompt || it.name, sub:sub, chip:chip, cls:cls });
-  });
-  ((m && m.emails) || []).forEach(function(e, i){
-    rows.push({ rank:(e.important ? 2 : 3) + i / 100, icon:MAIL, title:e.subject || '(no subject)', sub:e.from, chip:ago(e.at).replace(' ago', ''), cls:e.important ? 'info' : '' });
-  });
-  rows.sort(function(a, b){ return a.rank - b.rank; });
-  var shown = rows.slice(0, 4), foot = [];
-  var h = shown.map(function(r){
-    return '<div class="row"><span class="src">' + r.icon + '</span><div class="w"><b>' + esc(r.title) + '</b>' + (r.sub ? '<span>' + esc(r.sub) + '</span>' : '') + '</div>' +
-      (r.chip ? '<span class="chip ' + r.cls + '">' + esc(r.chip) + '</span>' : '') + '</div>';
+  var rows = asList(b.heads, 4);
+  var h = rows.map(function(r){
+    var icon = r.kind === 'email' ? MAIL : r.kind === 'upkeep' ? WRENCH : PIN;
+    return '<div class="row"><span class="src">' + icon + '</span><div class="w"><b>' + esc(r.title) + '</b>' + (r.why ? '<span>' + esc(r.why) + '</span>' : '') + '</div>' +
+      (r.chip ? '<span class="chip ' + (r.level === 'high' ? 'warn' : '') + '">' + esc(r.chip) + '</span>' : '') + '</div>';
   }).join('');
-  if(!rows.length) h = '<div class="empty"><div><b>All clear</b>Nothing in the inbox or the upkeep list needs you.</div></div>';
-  var moreMail = m ? (m.unread || 0) - shown.filter(function(r){ return r.icon === MAIL; }).length : 0;
-  if(moreMail > 0) foot.push(moreMail + ' more unread');
-  var restUp = rows.filter(function(r, i){ return i >= 4 && r.icon === WRENCH; });
-  if(restUp.length) foot.push(restUp[0].title + (restUp[0].chip ? ' in ' + restUp[0].chip : ''));
-  if(!m) foot.push('inbox not connected');
-  if(!u) foot.push('upkeep not connected');
-  el.innerHTML = h + (foot.length ? '<div class="foot">Also: ' + esc(foot.join(' · ')) + '</div>' : '');
+  if(!rows.length) h = '<div class="empty"><div><b>All clear</b>Nothing in the inbox needs you.</div></div>';
+  el.innerHTML = h + (b.also ? '<div class="foot">' + esc(b.also) + '</div>' : '');
 }
 
 /* ---- $CROSS ---- */

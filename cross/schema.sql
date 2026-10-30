@@ -56,7 +56,7 @@ insert into cross_settings (id) values (1) on conflict (id) do nothing;
 --             screens can say where a check came from.
 --   cleared:  habits you unchecked by hand that day. A feed never re-checks
 --             one of these, so your uncheck always wins.
---   feed_key: the secret the Google script and the Garmin sync write with.
+--   feed_key: the secret the morning brief and the Garmin sync write with.
 --             Separate from the wall key: the wall reads, feeds write.
 alter table cross_days     add column if not exists auto    text[] not null default '{}';
 alter table cross_days     add column if not exists cleared text[] not null default '{}';

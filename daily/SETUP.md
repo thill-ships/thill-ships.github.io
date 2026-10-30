@@ -2,17 +2,21 @@
 
 The board for the kitchen calendar. Five panels:
 
-| Panel | Comes from | Needs setup? |
-|---|---|---|
-| What to wear | Open-Meteo forecast for Provo | No: works as soon as the board opens |
-| $CROSS | The habit tracker (`cross/`) | Steps 1 and 2 |
-| Today, only what's different | Your Google calendars | Step 3 |
-| Heads-up | Your Gmail inbox + the life tracker Sheet | Step 3 (the Sheet part once it exists) |
-| Body | Garmin | Step 4 |
+| Panel | Comes from | How often | Needs setup? |
+|---|---|---|---|
+| What to wear | Open-Meteo for Provo, with the morning brief's wording on top | Every 30 min | No: the numbers work as soon as the board opens |
+| $CROSS | The habit tracker (`cross/`) | Live | Steps 1 and 2 |
+| Today, only what's different | The Claude morning brief, from your calendars | Once a day | Step 3 |
+| Heads-up | The Claude morning brief, from your inbox | Once a day | Step 3 |
+| Body | Garmin | Every 30 min | Step 4 |
 
-Each panel says "not connected yet" until its feed has reported in, and turns its corner text
-amber if a feed stops syncing. Nothing private is ever stored in this repo or on the public site.
-The feeds send short summaries to the database, and only the wall's link can read them.
+From 7pm the board looks ahead: tomorrow's weather and tomorrow's calendar.
+
+The brief is written once a day by a Claude scheduled task that reads your calendar and Gmail
+through the connectors you've already approved in Claude. The weather keeps working without it:
+if a morning run fails, "What to wear" falls back to the board's own rules, and the brief panels
+say when they last heard from it. Nothing private is stored in this repo or on the public site;
+the summaries go to the database, and only the wall's link can read them.
 
 ## 1. The habit tracker
 
@@ -29,31 +33,27 @@ of `daily/schema.sql` → **Run**. Then open the phone app → **Settings**:
 - **Feed key**: you'll paste this into steps 3 and 4. It can only *send* summaries; it cannot
   read anything.
 
-## 3. Calendar, inbox and upkeep (Google, about 5 minutes)
+## 3. The morning brief (Claude, about 5 minutes)
 
-Do this signed in to your **personal** Google account. The hillhq calendars come along because
-they're shared to it.
+A Claude scheduled task runs at about 4:37am Mountain. It reads the forecast, today's and
+tomorrow's events on every calendar your personal Google account can see (including the hillhq
+calendars shared to it), and the last two days of Primary mail. It decides what's different and
+what needs you, and sends one short summary to the board. Its instructions are in
+`daily/brief/PROMPT.md`; change them there and update the task to match.
 
-1. Go to [script.google.com](https://script.google.com) → **New project**. Name it "Daily board".
-2. Replace everything in `Code.gs` with `daily/google/Code.gs`.
-3. **Project Settings** (gear) → tick **Show "appsscript.json" manifest file** → back in the
-   editor, replace `appsscript.json` with `daily/google/appsscript.json`. This limits the script
-   to read-only access to your calendar, mail and Sheets.
-4. **Project Settings** → **Script properties** → add `FEED_KEY` = the feed key from the phone.
-5. Back in the editor, pick `setup` in the function menu and press **Run**. Google asks you to
-   allow access. Because it's your own unpublished script, it shows "Google hasn't verified this
-   app": click **Advanced → Go to Daily board**. After that it runs every 10 minutes by itself.
+It runs in a Claude cloud environment, which needs two settings (the environment menu in the
+session's title bar → **Edit**):
 
-Within a minute the calendar and inbox panels fill in on the wall.
+1. **Network access → Allowed domains:** add `yehpygarkxdopdvugifk.supabase.co` and
+   `api.open-meteo.com`.
+2. **Environment variables:** `DAILY_FEED_KEY` = the feed key from the phone app.
 
-**Tuning it** (top of `Code.gs`):
-- `SKIP_CALENDARS`: calendars to leave off entirely.
-- `ALWAYS_SHOW`: recurring events are treated as routine and hidden, except titles matching this.
-  It starts with Kenzie, date night, anniversaries and birthdays.
+Then ask Claude to create the task. It's a routine that starts a fresh session each morning with
+the Gmail and Google Calendar connectors. You'll see each run in your routines list.
 
-**When the life tracker Sheet exists:** add a second script property, `TRACKER_SHEET_ID` (the long
-id in the Sheet's URL). The script reads its `status` and `items` tabs exactly as the brief lays
-them out, and the upkeep items join the Heads-up list.
+**The life tracker:** once its Sheet exists, the same task can read the `status` tab through the
+Google Drive connector and put due and overdue upkeep into Heads-up. That's one line in the
+prompt plus the Drive connector on the task.
 
 ## 4. Garmin (about 10 minutes)
 

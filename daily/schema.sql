@@ -5,19 +5,24 @@
 --   Supabase Dashboard -> SQL Editor -> New query -> paste this whole file -> Run
 -- Safe to re-run.
 --
--- The board's panels are fed from outside, every few minutes:
---   calendar, gmail, upkeep  <- the Google Apps Script in your Google account
---   garmin                   <- the Garmin sync (daily/garmin/)
--- Each one sends a small summary here with the FEED key. The wall reads all
--- of them, plus the habits, with the WALL key. Nobody else can do either.
+-- Two feeds fill the board's panels from outside:
+--   brief   <- the Claude morning run, once a day: what to wear, what's
+--              different today and tomorrow, and what needs you (daily/brief/)
+--   garmin  <- the Garmin sync, every 30 minutes (daily/garmin/)
+-- Each sends a small summary here with the FEED key. The wall reads both,
+-- plus the habits, with the WALL key. Nobody else can do either.
 -- ============================================================================
 
 -- One row per feed: its latest summary, replaced each time it syncs.
 create table if not exists daily_feeds (
-  source     text primary key check (source in ('calendar','gmail','upkeep','garmin')),
+  source     text primary key,
   payload    jsonb not null,
   updated_at timestamptz not null default now()
 );
+
+-- Which feeds may write. Replaced on every run, so the list can change.
+alter table daily_feeds drop constraint if exists daily_feeds_source_check;
+alter table daily_feeds add constraint daily_feeds_source_check check (source in ('brief','garmin'));
 
 alter table daily_feeds enable row level security;
 drop policy if exists daily_feeds_owner on daily_feeds;
