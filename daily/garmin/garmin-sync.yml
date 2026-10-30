@@ -1,0 +1,28 @@
+# Garmin -> daily board. Copy this file to .github/workflows/ in a PRIVATE
+# repo, together with sync.py and requirements.txt at the repo root.
+# It must not run here: this site's repo is public, and so are its Action logs.
+#
+# Repo secrets (Settings -> Secrets and variables -> Actions):
+#   GARMIN_TOKENS  from make_tokens.py
+#   FEED_KEY       from the phone app's Settings
+name: Garmin sync
+
+on:
+  schedule:
+    - cron: '7,37 11-23,0-5 * * *'   # every 30 minutes, 5am to 11pm Mountain
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q -r requirements.txt
+      - run: python sync.py
+        env:
+          GARMIN_TOKENS: ${{ secrets.GARMIN_TOKENS }}
+          FEED_KEY: ${{ secrets.FEED_KEY }}

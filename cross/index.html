@@ -217,6 +217,13 @@
         <div class="row"><button class="btn ghost sm" onclick="copyWall()">Copy</button>
           <button class="btn ghost sm" onclick="newKey()">Make a new link</button></div>
       </div>
+      <div class="set">
+        <label>Feed key</label>
+        What the Google script and the Garmin sync use to send the wall its calendar, inbox,
+        upkeep and workouts. They can only write those summaries; they cannot read anything.
+        <code id="feedKey">—</code>
+        <div class="row"><button class="btn ghost sm" onclick="copyText($('feedKey').textContent)">Copy</button></div>
+      </div>
       <div class="set"><button class="btn ghost sm" onclick="sb.auth.signOut()">Sign out</button></div>
     </details>
   </div>
@@ -244,7 +251,7 @@ function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('on'
 
 let sb = null, user = null;
 let byDay = {};               // 'YYYY-MM-DD' -> ['her', ...]
-let settings = { start_day:null, wall_key:null };
+let settings = { start_day:null, wall_key:null, feed_key:null };
 let series = null, st = null;
 let sel = Cross.today();      // the day being checked off
 let range = (() => { try{ return localStorage.getItem('cross-range') || '1M'; }catch(e){ return '1M'; } })();
@@ -296,7 +303,7 @@ async function load(){
   $('sync').textContent = 'Loading…';
   const [d, s] = await Promise.all([
     sb.from('cross_days').select('day,done'),
-    sb.from('cross_settings').select('start_day,wall_key').eq('id', 1).maybeSingle()
+    sb.from('cross_settings').select('start_day,wall_key,feed_key').eq('id', 1).maybeSingle()
   ]);
   if(d.error || s.error){
     const e = d.error || s.error;
@@ -344,8 +351,8 @@ async function newKey(){
   settings.wall_key = k; renderSettings(); toast('New wall link made');
 }
 
-function copyWall(){
-  const t = $('wallLink').textContent;
+function copyWall(){ copyText($('wallLink').textContent); }
+function copyText(t){
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied'), () => toast('Press and hold the link to copy it'));
 }
 
@@ -519,6 +526,7 @@ function renderStats(){
 function renderSettings(){
   if(document.activeElement !== $('startDay')) $('startDay').value = settings.start_day || '';
   $('wallLink').textContent = settings.wall_key ? WALL + '?k=' + settings.wall_key : '—';
+  $('feedKey').textContent = settings.feed_key || '—';
   $('rules').innerHTML = [5,4,3,2,1,0].map(n => '<tr><td>' + n + ' of 5</td><td class="' + (Cross.dayChange(n) >= 0 ? 'up' : 'down') + '">' + Cross.pct(Cross.dayChange(n)) + '</td></tr>').join('');
 }
 

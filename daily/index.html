@@ -6,104 +6,147 @@
 <title>Daily Board</title>
 <meta name="theme-color" content="#0E0E0D" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,500;0,600;0,700;0,800;1,500&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%230E0E0D'/%3E%3Cpath%20d='M16%206v20M10%2012h12'%20stroke='%23F0EFEC'%20stroke-width='3.2'%20stroke-linecap='round'/%3E%3Cpath%20d='M5%2024l6-5%204%203%2011-11'%20stroke='%230ca30c'%20stroke-width='2.4'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E" />
 <script src="../cross/core.js"></script>
 <style>
   /* ---------------------------------------------------------------------------
      The daily board for the kitchen calendar: 1280x695 CSS px landscape,
-     Chromium 74. Sized in vh like the scores wall, so it fills the screen.
-     No flex `gap`, clamp(), min()/max(), aspect-ratio, :is(), ?. or ?? --
-     none of them exist in Chromium 74.
+     Chromium 74. Sized in vh like the scores wall. No flex `gap`, clamp(),
+     min()/max(), aspect-ratio, :is(), ?. or ?? -- Chromium 74 has none.
 
-     Open it with the link from the phone app (Settings -> Kitchen wall link).
-     The key in that link is remembered, so after the first time plain
-     /daily/ works too.
+     Five panels: what to wear (Open-Meteo, live), the day's calendar, a
+     heads-up list (inbox + life tracker), Garmin, and $CROSS. Everything but
+     the weather arrives through Supabase from the feeds; see SETUP.md.
+
+     Open it with the wall link from the phone app (Settings -> Kitchen wall
+     link). The key is remembered, so after the first time /daily/ works too.
      --------------------------------------------------------------------------- */
   :root{
     --bg:#0E0E0D; --card:#1a1a19; --card2:#232321; --line:#2c2c2a; --axis:#383835;
     --ink:#f0efec; --dim:#c3c2b7; --mute:#8d8c84;
-    --up:#0ca30c; --down:#e5484d;
+    --up:#0ca30c; --down:#e5484d; --warn:#fab219; --info:#3987e5;
     --num:'Barlow Condensed','Roboto Condensed','Arial Narrow',sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);}
-  body{
-    font-family:Barlow,Roboto,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-weight:500;
-    font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;
-    display:flex;flex-direction:column;padding:2.4vh 1.8vw 2.4vh;
-    cursor:none;user-select:none;-webkit-user-select:none;
-  }
+  body{font-family:Barlow,Roboto,Helvetica,Arial,sans-serif;font-weight:500;font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;padding:2.2vh 1.6vw 2vh;
+    cursor:none;user-select:none;-webkit-user-select:none;}
 
-  /* ---- header ---- */
-  .hd{flex:none;display:flex;align-items:baseline;height:7vh;margin-bottom:2vh;}
-  .hd .hi{font-size:4.4vh;font-weight:800;letter-spacing:-.02em;}
-  .hd .vow{font-size:2.5vh;font-weight:600;color:var(--mute);margin-left:1.4vw;}
+  .hd{flex:none;display:flex;align-items:baseline;height:6.6vh;margin-bottom:1.6vh;}
+  .hd .hi{font-size:4.2vh;font-weight:800;letter-spacing:-.02em;}
   .hd .rt{margin-left:auto;display:flex;align-items:baseline;}
-  .hd .stamp{font-size:1.9vh;font-weight:600;color:var(--mute);margin-right:1.8vw;}
-  .hd .stamp.bad{color:var(--down);}
-  .hd .date{font-size:2.8vh;font-weight:700;color:var(--dim);margin-right:1.2vw;}
-  .hd .clock{font-family:var(--num);font-size:6vh;font-weight:700;letter-spacing:-.01em;}
+  .hd .stamp{font-size:1.9vh;font-weight:600;color:var(--down);margin-right:1.6vw;}
+  .hd .date{font-size:2.7vh;font-weight:700;color:var(--dim);margin-right:1.2vw;}
+  .hd .clock{font-family:var(--num);font-size:5.8vh;font-weight:700;}
 
-  .main{flex:1;min-height:0;display:flex;}
+  .board{flex:1;min-height:0;display:grid;grid-gap:1.5vh 1.1vw;grid-template-rows:1fr 1fr;
+    grid-template-columns:1fr 1fr 1.08fr;grid-template-areas:"wear body cross" "today heads cross";}
+  #wear{grid-area:wear;} #today{grid-area:today;} #heads{grid-area:heads;} #body{grid-area:body;} #cross{grid-area:cross;}
 
-  /* ---- the stock ---- */
-  .stock{flex:none;width:57%;margin-right:1.6vw;background:var(--card);border-radius:1.8vh;padding:2.4vh 1.6vw 1.6vh;
-    display:flex;flex-direction:column;min-width:0;}
-  .tk{font-size:2.2vh;font-weight:800;letter-spacing:.12em;color:var(--mute);}
+  .p{background:var(--card);border-radius:1.6vh;padding:1.7vh 1.1vw 1.5vh;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
+  .p .ph{flex:none;display:flex;align-items:baseline;margin-bottom:1.1vh;}
+  .p .ph h2{font-size:1.85vh;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);}
+  .p .ph .aux{margin-left:auto;font-size:1.8vh;font-weight:600;color:var(--mute);white-space:nowrap;}
+  .p .ph .aux.old{color:var(--warn);}
+  .empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:2vh;color:var(--mute);line-height:1.45;padding:0 1vw;}
+  .empty b{display:block;color:var(--dim);font-size:2.3vh;margin-bottom:.4vh;}
+
+  /* ---- what to wear ---- */
+  .wear{flex:none;display:flex;align-items:center;margin-bottom:1.2vh;}
+  .wear .big{font-family:var(--num);font-size:7.4vh;font-weight:700;line-height:.9;margin-right:1vw;}
+  .wear .say{font-size:2.4vh;font-weight:700;line-height:1.2;}
+  .wear .say span{display:block;font-size:1.85vh;color:var(--mute);font-weight:600;margin-top:.3vh;}
+  .hrs{flex:1;min-height:0;display:flex;align-items:flex-end;border-top:1px solid var(--line);padding-top:1vh;}
+  .hr{flex:1;text-align:center;font-size:1.7vh;color:var(--mute);font-weight:600;}
+  .hr b{display:block;font-family:var(--num);font-size:2.8vh;color:var(--ink);font-weight:600;}
+  .hr .bar{width:.6vw;margin:.6vh auto .5vh;border-radius:.4vh;background:var(--axis);}
+  .hr .bar.wet{background:#86b6ef;opacity:.45;}
+  .hr.you{color:var(--ink);}
+  .hr.you .bar{background:var(--info);opacity:1;}
+  .hr.past{opacity:.4;}
+
+  /* ---- rows: calendar, heads-up ---- */
+  .row{flex:none;display:flex;align-items:center;padding:.8vh 0;border-bottom:1px solid var(--line);}
+  .row:last-of-type{border-bottom:0;}
+  .row .t{flex:none;width:5.4vw;font-family:var(--num);font-size:2.6vh;font-weight:600;color:var(--dim);white-space:nowrap;}
+  .row .t.allday{font-family:inherit;font-size:1.7vh;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
+  .row .w{flex:1;min-width:0;}
+  .row .w b{display:block;font-size:2.15vh;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row .w span{display:block;font-size:1.7vh;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1vh;}
+  .row.done{opacity:.45;}
+  .chip{flex:none;font-size:1.5vh;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:.6vh;padding:.35vh .5vw;margin-left:.6vw;
+    background:var(--card2);color:var(--dim);white-space:nowrap;}
+  .chip.warn{background:rgba(250,178,25,.16);color:var(--warn);}
+  .chip.bad{background:rgba(229,72,77,.16);color:#ff8a8d;}
+  .chip.info{background:rgba(57,135,229,.18);color:#86b6ef;}
+  .foot{margin-top:auto;padding-top:.6vh;font-size:1.7vh;color:var(--mute);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .src{flex:none;width:3.4vh;height:3.4vh;border-radius:.9vh;background:var(--card2);display:flex;align-items:center;justify-content:center;margin-right:.8vw;color:var(--dim);}
+  .src svg{width:2vh;height:2vh;}
+
+  /* ---- body (Garmin) ---- */
+  .stats{flex:none;display:flex;}
+  .st{flex:1;min-width:0;}
+  .st .l{font-size:1.6vh;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);white-space:nowrap;}
+  .st .n{font-family:var(--num);font-size:4.6vh;font-weight:700;line-height:1.05;}
+  .st .s{font-size:1.65vh;color:var(--mute);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .st .s.good{color:#4fc34f;}
+  .ready{flex:none;display:flex;align-items:center;margin-top:1.3vh;padding:1vh .8vw;background:var(--card2);border-radius:1.1vh;}
+  .ready .ring{flex:none;position:relative;width:5.4vh;height:5.4vh;margin-right:.9vw;}
+  .ready .ring svg{width:5.4vh;height:5.4vh;display:block;}
+  .ready .ring b{position:absolute;left:0;right:0;top:0;line-height:5.4vh;text-align:center;font-family:var(--num);font-size:2.4vh;}
+  .ready .w{min-width:0;}
+  .ready .w b{display:block;font-size:2.1vh;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ready .w span{display:block;font-size:1.7vh;color:var(--mute);}
+  .last{flex:none;display:flex;align-items:center;margin-top:1.2vh;}
+  .last .ic{flex:none;width:4.4vh;height:4.4vh;border-radius:1vh;background:#c98500;color:#fff;display:flex;align-items:center;justify-content:center;margin-right:.8vw;}
+  .last .ic .ico{width:2.6vh;height:2.6vh;}
+  .last .w{flex:1;min-width:0;}
+  .last .w b{display:block;font-size:2.1vh;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .last .w span{display:block;font-size:1.7vh;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wkm{flex:none;margin-top:auto;padding-top:1vh;}
+  .wkm .top{display:flex;font-size:1.7vh;font-weight:600;color:var(--mute);margin-bottom:.6vh;}
+  .wkm .top b{color:var(--ink);font-family:var(--num);font-size:2.2vh;margin-right:.3vw;}
+  .wkm .top .r{margin-left:auto;}
+  .meter{height:1vh;border-radius:.5vh;background:var(--line);overflow:hidden;}
+  .meter i{display:block;height:100%;border-radius:.5vh;background:#c98500;}
+
+  /* ---- $CROSS ---- */
+  .tk{font-size:1.85vh;font-weight:800;letter-spacing:.12em;color:var(--mute);}
   .tk b{color:var(--ink);}
-  .pr{display:flex;align-items:baseline;margin-top:.6vh;}
-  .pr .v{font-family:var(--num);font-weight:700;font-size:11vh;line-height:1;letter-spacing:-.02em;}
-  .pr .c{margin-left:1.4vw;font-size:3.2vh;font-weight:800;}
-  .pr .c .w{color:var(--mute);font-weight:600;margin-left:.5vw;font-size:2.4vh;}
+  .pr{display:flex;align-items:baseline;margin-top:.3vh;}
+  .pr .v{font-family:var(--num);font-weight:700;font-size:7.6vh;line-height:1;}
+  .pr .c{margin-left:.9vw;font-size:2.4vh;font-weight:800;}
+  .pr .c .w{color:var(--mute);font-weight:600;font-size:1.9vh;margin-left:.3vw;}
   .up{color:var(--up);} .down{color:var(--down);} .flat{color:var(--dim);}
-  .arr{display:inline-block;width:0;height:0;border-left:1vh solid transparent;border-right:1vh solid transparent;margin-right:.5vw;vertical-align:.4vh;}
-  .up .arr{border-bottom:1.4vh solid var(--up);} .down .arr{border-top:1.4vh solid var(--down);} .flat .arr{display:none;}
-  .cw{position:relative;flex:1;min-height:0;margin-top:1.4vh;color:var(--mute);}
-  .cw .chart{display:block;}
-  .dot{position:absolute;width:1.6vh;height:1.6vh;margin:-.8vh 0 0 -.8vh;border-radius:50%;box-shadow:0 0 0 .35vh var(--card);}
-  .xa{flex:none;display:flex;justify-content:space-between;font-size:1.9vh;font-weight:600;color:var(--mute);margin-top:.8vh;}
-  .facts{flex:none;display:flex;border-top:1px solid var(--line);margin-top:1.2vh;padding-top:1.4vh;}
-  .fact{flex:1;}
-  .fact .l{font-size:1.8vh;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
-  .fact .n{font-family:var(--num);font-size:4.2vh;font-weight:700;line-height:1.1;}
-  .fact .n small{font-size:2.2vh;color:var(--mute);font-weight:600;margin-left:.4vw;}
-
-  /* ---- today ---- */
-  .today{flex:1;min-width:0;display:flex;flex-direction:column;}
-  .today .th{flex:none;display:flex;align-items:baseline;height:4.4vh;}
-  .today .th h2{font-size:3vh;font-weight:800;}
-  .today .th .ct{margin-left:auto;font-size:2.4vh;font-weight:700;color:var(--dim);}
-  .hb{flex:1;min-height:0;display:flex;align-items:center;background:var(--card);border-radius:1.6vh;padding:0 1.2vw;margin-top:1.1vh;
-    cursor:pointer;transition:background .15s ease;}
-  .hb .ic{flex:none;width:6.6vh;height:6.6vh;border-radius:1.4vh;display:flex;align-items:center;justify-content:center;background:var(--card2);margin-right:1.1vw;}
-  .hb .ic .ico{width:3.8vh;height:3.8vh;}
-  .hb .tx{flex:1;min-width:0;}
-  .hb .nm{font-size:3.3vh;font-weight:800;letter-spacing:-.01em;white-space:nowrap;}
-  .hb .mn{font-size:2vh;color:var(--mute);margin-top:.2vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .hb .sk{flex:none;text-align:right;margin-right:1.2vw;font-size:1.7vh;font-weight:600;color:var(--mute);line-height:1.1;}
-  .hb .sk b{display:block;font-family:var(--num);font-size:3.2vh;color:var(--dim);}
-  .hb .ck{flex:none;width:5vh;height:5vh;border-radius:50%;border:.35vh solid var(--axis);display:flex;align-items:center;justify-content:center;}
-  .hb .ck svg{width:3vh;height:3vh;opacity:0;}
-  .hb.on{background:var(--card2);}
+  .arr{display:inline-block;width:0;height:0;border-left:.8vh solid transparent;border-right:.8vh solid transparent;margin-right:.4vw;vertical-align:.3vh;}
+  .up .arr{border-bottom:1.1vh solid var(--up);} .down .arr{border-top:1.1vh solid var(--down);} .flat .arr{display:none;}
+  .cw{position:relative;flex:none;height:15vh;margin:1vh 0 1.2vh;color:var(--mute);}
+  .dot{position:absolute;width:1.3vh;height:1.3vh;margin:-.65vh 0 0 -.65vh;border-radius:50%;box-shadow:0 0 0 .3vh var(--card);}
+  #habits{flex:1;min-height:0;display:flex;flex-direction:column;}
+  .hb{flex:1;min-height:0;display:flex;align-items:center;background:var(--card2);border-radius:1.2vh;padding:0 .8vw;margin-top:.8vh;cursor:pointer;}
+  .hb:first-child{margin-top:0;}
+  .hb .ic{flex:none;width:4.6vh;height:4.6vh;border-radius:1vh;display:flex;align-items:center;justify-content:center;background:var(--card);margin-right:.8vw;}
+  .hb .ic .ico{width:2.7vh;height:2.7vh;}
+  .hb .nm{flex:1;min-width:0;font-size:2.5vh;font-weight:800;}
+  .hb .nm small{display:block;font-size:1.6vh;font-weight:600;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hb .sk{font-size:1.6vh;color:var(--mute);font-weight:600;margin-right:.8vw;text-align:right;line-height:1.1;}
+  .hb .sk b{display:block;font-family:var(--num);font-size:2.5vh;color:var(--dim);}
+  .hb .ck{flex:none;width:3.8vh;height:3.8vh;border-radius:50%;border:.3vh solid var(--axis);display:flex;align-items:center;justify-content:center;}
+  .hb .ck svg{width:2.3vh;height:2.3vh;opacity:0;}
   .hb.on .ic{color:#fff !important;}
   .hb.on .ck{background:var(--ink);border-color:var(--ink);}
   .hb.on .ck svg{opacity:1;}
   .hb.busy{opacity:.6;}
+  .hstats{flex:none;display:flex;font-size:1.8vh;color:var(--mute);font-weight:600;margin-top:1vh;}
+  .hstats b{color:var(--ink);font-family:var(--num);font-size:2.3vh;margin-left:.3vw;}
+  .hstats b.up{color:var(--up);} .hstats b.down{color:var(--down);}
+  .hstats .r{margin-left:auto;}
 
-  /* ---- two weeks, habit by habit ---- */
-  .wk{flex:none;height:21vh;margin-top:1.8vh;background:var(--card);border-radius:1.8vh;padding:1.6vh 1.6vw;display:flex;}
-  .wk .lab{flex:none;width:12vw;display:flex;flex-direction:column;justify-content:space-between;}
-  .wk .lab .l{font-size:1.8vh;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
-  .wk .lab .big{font-family:var(--num);font-size:6vh;font-weight:700;line-height:1;}
-  .wk .lab .s{font-size:1.9vh;color:var(--mute);font-weight:600;}
-  .grid{flex:1;min-width:0;display:grid;grid-template-columns:3vh repeat(14,1fr);grid-template-rows:repeat(5,1fr) 2.4vh;grid-gap:.5vh .35vw;}
-  .grid .rl{display:flex;align-items:center;}
-  .grid .rl .ico{width:2.3vh;height:2.3vh;}
-  .grid .c{border-radius:.5vh;background:var(--line);}
-  .grid .c.td{box-shadow:inset 0 0 0 .25vh var(--mute);}
-  .grid .dl{font-size:1.7vh;font-weight:700;color:var(--mute);text-align:center;line-height:2.4vh;}
-  .grid .dl.td{color:var(--ink);}
+  .quote{flex:none;display:flex;align-items:center;justify-content:center;height:5vh;margin-top:1.4vh;font-size:2.2vh;font-style:italic;color:var(--dim);
+    white-space:nowrap;overflow:hidden;}
+  .quote span{font-style:normal;color:var(--mute);font-weight:600;margin-left:.8vw;font-size:1.9vh;}
 
   .msg{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:var(--bg);
     font-size:3vh;color:var(--dim);text-align:center;line-height:1.5;padding:0 12vw;}
@@ -113,75 +156,96 @@
 <body>
   <div class="hd">
     <div id="hi" class="hi">Good morning</div>
-    <div class="vow">Take up your cross</div>
     <div class="rt"><span id="stamp" class="stamp"></span><span id="date" class="date"></span><span id="clock" class="clock"></span></div>
   </div>
 
-  <div class="main">
-    <div class="stock">
-      <div class="tk"><b>$CROSS</b> · LAST 60 DAYS</div>
+  <div class="board">
+    <div id="wear" class="p"><div class="ph"><h2>What to wear</h2><span class="aux" id="wearAux"></span></div><div class="empty" id="wearBody">Checking the forecast…</div></div>
+    <div id="body" class="p"><div class="ph"><h2>Body</h2><span class="aux" id="bodyAux"></span></div><div id="bodyBody" class="empty"></div></div>
+    <div id="today" class="p"><div class="ph"><h2>Today, only what's different</h2><span class="aux" id="todayAux"></span></div><div id="todayBody" class="empty"></div></div>
+    <div id="heads" class="p"><div class="ph"><h2>Heads-up</h2><span class="aux" id="headsAux"></span></div><div id="headsBody" class="empty"></div></div>
+    <div id="cross" class="p">
+      <div class="tk"><b>$CROSS</b> · TAKE UP YOUR CROSS</div>
       <div class="pr"><span id="price" class="v">—</span><span id="chg" class="c flat"></span></div>
       <div id="cw" class="cw"></div>
-      <div id="xa" class="xa"></div>
-      <div id="facts" class="facts"></div>
-    </div>
-    <div class="today">
-      <div class="th"><h2>Today</h2><span id="count" class="ct"></span></div>
-      <div id="habits" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
+      <div id="habits"></div>
+      <div class="hstats"><span>Perfect streak <b id="streak">0</b></span><span class="r">If the day ended now <b id="close"></b></span></div>
     </div>
   </div>
 
-  <div class="wk">
-    <div class="lab">
-      <div class="l">Perfect streak</div>
-      <div id="streak" class="big">0</div>
-      <div id="best" class="s"></div>
-    </div>
-    <div id="grid" class="grid"></div>
-  </div>
-
+  <div class="quote" id="quote"></div>
   <div id="msg" class="msg" style="display:none"></div>
 
 <script>
-/* Same Supabase project as the phone app. The wall never signs in: it holds
-   the wall key from its link, and the two database functions check it. */
+/* ==========================================================================
+   SETTINGS -- edit freely.
+   ========================================================================== */
 var CFG = {
-  url: 'https://yehpygarkxdopdvugifk.supabase.co',
-  key: 'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo'
+  url:   'https://yehpygarkxdopdvugifk.supabase.co',
+  key:   'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo',
+  name:  'Tyler',
+  place: { name:'Provo', lat:40.2338, lon:-111.6585 },
+  leave: 7.25,     // a normal day: out the door at 7:15...
+  home:  17.5      // ...and home at 5:30. The weather is read for those hours.
 };
-var POLL = 60000;               // a minute, so a tap on the phone shows up soon
-var SPAN = 60;                  // days of chart
+
+// One a day, in order, starting over at the end. Add or remove freely.
+var QUOTES = [
+  ['Whosoever will come after me, let him deny himself, and take up his cross, and follow me.', 'Matthew 16:24'],
+  ['If any man will come after me, let him deny himself, and take up his cross daily, and follow me.', 'Luke 9:23'],
+  ['When ye are in the service of your fellow beings ye are only in the service of your God.', 'Mosiah 2:17'],
+  ['Let us not be weary in well doing: for in due season we shall reap, if we faint not.', 'Galatians 6:9'],
+  ['Trust in the Lord with all thine heart; and lean not unto thine own understanding.', 'Proverbs 3:5'],
+  ['Be strong and of a good courage; be not afraid, neither be thou dismayed.', 'Joshua 1:9'],
+  ['Whatsoever ye do, do it heartily, as to the Lord, and not unto men.', 'Colossians 3:23'],
+  ['Husbands, love your wives, even as Christ also loved the church, and gave himself for it.', 'Ephesians 5:25'],
+  ['I can do all things through Christ which strengtheneth me.', 'Philippians 4:13'],
+  ['And they that be wise shall shine as the brightness of the firmament.', 'Daniel 12:3'],
+  ['Be not weary in well-doing, for ye are laying the foundation of a great work.', 'D&C 64:33'],
+  ['Know ye not that your body is the temple of the Holy Ghost which is in you?', '1 Corinthians 6:19']
+];
+
+var POLL = 60000;                 // feeds and habits: a minute
+var WEATHER_EVERY = 30 * 60000;   // weather: half an hour
+var STALE = { calendar:90, gmail:90, upkeep:2 * 1440, garmin:18 * 60 };   // minutes before a feed is "old"
 var BOOT = Date.now();
 var HABITS = Cross.HABITS;
 
 function $(id){ return document.getElementById(id); }
-function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function pad(n){ return (n < 10 ? '0' : '') + n; }
+function hourLabel(h){ h = ((h % 24) + 24) % 24; return (h % 12 || 12) + (h < 12 ? 'a' : 'p'); }
+function timeText(d){ var h = d.getHours(), m = d.getMinutes(); return (h % 12 || 12) + ':' + pad(m) + (h < 12 ? 'am' : 'pm'); }
+function shortTime(d){ var h = d.getHours(), m = d.getMinutes(); return (h % 12 || 12) + (m ? ':' + pad(m) : '') + (h < 12 ? 'a' : 'p'); }
+function ago(iso){
+  var m = Math.round((Date.now() - new Date(iso)) / 60000);
+  return m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago';
+}
 
-// The key: from the link, else remembered from last time.
 var KEY = (function(){
   var m = /[?&]k=([A-Za-z0-9]+)/.exec(location.search), k = m ? m[1] : null;
-  try{
-    if(k) localStorage.setItem('cross-wall-key', k);
-    else k = localStorage.getItem('cross-wall-key');
-  }catch(e){}
+  try{ if(k) localStorage.setItem('cross-wall-key', k); else k = localStorage.getItem('cross-wall-key'); }catch(e){}
   return k;
 })();
 
-var byDay = {}, startDay = null, lastOk = 0, failures = 0, busy = {};
+var state = { byDay:{}, auto:{}, startDay:null, feeds:{}, weather:null, lastOk:0, failures:0, busy:{} };
 
-function rpc(name, body){
+/* ================================ network ================================ */
+function getJSON(url, opts){
   var ctl = typeof AbortController === 'function' ? new AbortController() : null;
   var kill = ctl ? setTimeout(function(){ ctl.abort(); }, 20000) : null;
-  return fetch(CFG.url + '/rest/v1/rpc/' + name, {
-    method:'POST', cache:'no-store', signal: ctl ? ctl.signal : undefined,
-    headers:{ 'apikey':CFG.key, 'Content-Type':'application/json' },
-    body: JSON.stringify(body)
-  }).then(function(r){
+  opts = opts || {}; opts.cache = 'no-store'; if(ctl) opts.signal = ctl.signal;
+  return fetch(url, opts).then(function(r){
     if(kill) clearTimeout(kill);
     return r.json().then(function(j){
-      if(!r.ok){ var e = new Error((j && j.message) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+      if(!r.ok){ var e = new Error((j && (j.message || j.reason)) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
       return j;
     });
+  });
+}
+function rpc(name, body){
+  return getJSON(CFG.url + '/rest/v1/rpc/' + name, {
+    method:'POST', headers:{ 'apikey':CFG.key, 'Content-Type':'application/json' }, body:JSON.stringify(body)
   });
 }
 
@@ -190,148 +254,316 @@ function hideMessage(){ $('msg').style.display = 'none'; }
 
 async function pull(){
   try{
-    var data = await rpc('cross_wall', { k:KEY });
-    byDay = {};
-    (data.days || []).forEach(function(r){ byDay[r.day] = r.done || []; });
-    startDay = data.start_day || null;
-    lastOk = Date.now(); failures = 0;
+    var data = await rpc('daily_wall', { k:KEY });
+    var cr = data.cross || {};
+    state.byDay = {}; state.auto = {};
+    (cr.days || []).forEach(function(r){ state.byDay[r.day] = r.done || []; state.auto[r.day] = r.auto || []; });
+    state.startDay = cr.start_day || null;
+    state.feeds = data.feeds || {};
+    state.lastOk = Date.now(); state.failures = 0;
     hideMessage();
     render();
-    // Reload now and then so a long-running browser stays healthy and picks
-    // up changes to this page. Only right after a good fetch, and at night.
+    // Reload now and then, overnight, so a long-running browser stays healthy
+    // and picks up changes to this page. Only right after a good fetch.
     var h = new Date().getHours();
-    if(Date.now() - BOOT > 6 * 3600000 && (h >= 1 && h < 5)) { location.reload(); return; }
+    if(Date.now() - BOOT > 6 * 3600000 && h >= 1 && h < 5){ location.reload(); return; }
   }catch(err){
-    failures++;
-    console.warn('cross_wall failed', err);
+    state.failures++;
+    console.warn('daily_wall failed', err);
     if(err.status === 401 || err.status === 403 || /not allowed/.test(err.message))
       showMessage('<b>This wall link has expired</b>Open the newest one from the phone app: Settings → Kitchen wall link.');
-    else if(/does not exist|Could not find/.test(err.message))
-      showMessage('<b>Almost there</b>Run cross/schema.sql in Supabase, then this board fills in.');
-    else if(!lastOk)
+    else if(/daily_wall|does not exist|Could not find/.test(err.message))
+      showMessage('<b>Almost there</b>Run cross/schema.sql and then daily/schema.sql in Supabase, and this board fills in.');
+    else if(!state.lastOk)
       showMessage('<b>Can\'t reach the database</b>Trying again in a minute. Check the calendar\'s Wi-Fi if this stays up.');
     stamp();
   }
-  setTimeout(pull, failures ? Math.min(POLL * (failures + 1), 600000) : POLL);
+  setTimeout(pull, state.failures ? Math.min(POLL * (state.failures + 1), 600000) : POLL);
+}
+
+async function pullWeather(){
+  try{
+    var u = 'https://api.open-meteo.com/v1/forecast?latitude=' + CFG.place.lat + '&longitude=' + CFG.place.lon +
+      '&hourly=temperature_2m,apparent_temperature,precipitation_probability,snowfall,wind_gusts_10m' +
+      '&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=America%2FDenver&forecast_days=2';
+    state.weather = await getJSON(u);
+    state.weatherAt = Date.now();
+    renderWear();
+  }catch(err){
+    console.warn('weather failed', err);
+    if(!state.weather) $('wearBody').innerHTML = '<b>No forecast right now</b>Trying again shortly.';
+  }
+  setTimeout(pullWeather, state.weather ? WEATHER_EVERY : 5 * 60000);
 }
 
 async function toggle(key){
   var day = Cross.today();
-  if(busy[key]) return;
-  var list = (byDay[day] || []).slice();
+  if(state.busy[key]) return;
+  var list = (state.byDay[day] || []).slice();
   var on = list.indexOf(key) < 0;
-  busy[key] = true;
-  byDay[day] = on ? list.concat([key]) : list.filter(function(k){ return k !== key; });
-  render();
+  state.busy[key] = true;
+  state.byDay[day] = on ? list.concat([key]) : list.filter(function(k){ return k !== key; });
+  state.auto[day] = (state.auto[day] || []).filter(function(k){ return k !== key; });
+  renderCross();
   try{
-    var done = await rpc('cross_set_habit', { d:day, habit:key, val:on, k:KEY });
-    byDay[day] = done || [];
+    state.byDay[day] = (await rpc('cross_set_habit', { d:day, habit:key, val:on, k:KEY })) || [];
   }catch(err){
     console.warn('cross_set_habit failed', err);
-    byDay[day] = list;
+    state.byDay[day] = list;
   }
-  busy[key] = false;
-  render();
+  state.busy[key] = false;
+  renderCross();
 }
 
-/* ------------------------------- drawing ------------------------------- */
-function fmtDay(k, o){ return Cross.dateOf(k).toLocaleDateString([], o || { month:'short', day:'numeric' }); }
-function timeText(d){ return d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' }).replace(/\s?([AP])M/i, function(_, a){ return a.toLowerCase() + 'm'; }); }
+/* ================================ drawing ================================ */
+function render(){ renderCross(); renderBody(); renderToday(); renderHeads(); stamp(); }
 
 function stamp(){
   var now = new Date(), h = now.getHours();
   $('clock').textContent = timeText(now).replace(/(am|pm)$/, '');
   $('date').textContent = now.toLocaleDateString([], { weekday:'long', month:'long', day:'numeric' });
-  $('hi').textContent = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  // A wall screen that quietly stops updating looks exactly like one that works.
-  var stale = lastOk && Date.now() - lastOk > 10 * 60000;
-  $('stamp').className = 'stamp' + (stale ? ' bad' : '');
-  $('stamp').textContent = stale ? 'No update since ' + timeText(new Date(lastOk)) : '';
+  $('hi').textContent = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', ' + CFG.name;
+  // A wall that quietly stops updating looks exactly like one that works.
+  var stale = state.lastOk && Date.now() - state.lastOk > 10 * 60000;
+  $('stamp').textContent = stale ? 'No update since ' + timeText(new Date(state.lastOk)) : '';
+  var doy = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  var q = QUOTES[doy % QUOTES.length];
+  $('quote').innerHTML = '“' + esc(q[0]) + '”<span>' + esc(q[1]) + '</span>';
 }
 
+// A feed's summary, or null when it has never reported. Sets the panel's
+// corner text to when it last synced, in amber once that is too long ago.
+function feed(name, auxId, label){
+  var f = state.feeds[name];
+  var aux = $(auxId);
+  if(!f){ aux.textContent = ''; aux.className = 'aux'; return null; }
+  var old = (Date.now() - new Date(f.updated_at)) / 60000 > STALE[name];
+  aux.className = 'aux' + (old ? ' old' : '');
+  aux.textContent = (label ? label + ' · ' : '') + (old ? 'last synced ' : 'synced ') + ago(f.updated_at);
+  return f.payload || {};
+}
+function notYet(id, what){
+  var el = $(id); el.className = 'empty';
+  el.innerHTML = '<div><b>' + what + ' not connected yet</b>See daily/SETUP.md</div>';
+}
+
+/* ---- what to wear ---- */
+var WEAR = [ [15,'Heavy coat, hat and gloves'], [32,'Winter coat'], [45,'Coat'], [55,'Jacket'], [65,'A light layer'], [80,'T-shirt weather'], [999,'Dress light: it\'s hot'] ];
+function wearFor(f){ for(var i = 0; i < WEAR.length; i++) if(f <= WEAR[i][0]) return i; return WEAR.length - 1; }
+
+function renderWear(){
+  var w = state.weather; if(!w || !w.hourly) return;
+  var today = Cross.today(), H = w.hourly, hours = [];
+  for(var i = 0; i < H.time.length; i++){
+    if(H.time[i].slice(0, 10) !== today) continue;
+    hours.push({ h:+H.time[i].slice(11, 13), t:H.temperature_2m[i], f:H.apparent_temperature[i],
+                 pop:H.precipitation_probability[i] || 0, snow:H.snowfall[i] || 0, gust:H.wind_gusts_10m[i] || 0 });
+  }
+  if(!hours.length) return;
+  var nowH = new Date().getHours();
+  var at = function(h){ for(var j = 0; j < hours.length; j++) if(hours[j].h === h) return hours[j]; return hours[hours.length - 1]; };
+  var lv = Math.floor(CFG.leave), hm = Math.ceil(CFG.home);
+  // Read the hours still ahead of you; after you're home, the evening.
+  var from = Math.max(lv, nowH), to = nowH >= hm ? 23 : hm;
+  var win = hours.filter(function(x){ return x.h >= from && x.h <= to; });
+  if(!win.length) win = hours.slice(-3);
+  var cold = win[0], maxF = -Infinity, maxT = -Infinity, maxAt = win[0].h, gust = 0, wet = null;
+  win.forEach(function(x){
+    if(x.f < cold.f) cold = x;
+    if(x.f > maxF) maxF = x.f;
+    if(x.t > maxT){ maxT = x.t; maxAt = x.h; }
+    if(x.gust > gust) gust = x.gust;
+    if(!wet && x.pop >= 40) wet = x;
+  });
+  // Dress for the coldest you'll be out in, and say which end of the day that is.
+  var a = wearFor(cold.f), first = win[0], last = win[win.length - 1], head;
+  var lc = function(s){ return s.charAt(0).toLowerCase() + s.slice(1); };
+  if(wearFor(maxF) > a && maxF - cold.f >= 12 && cold.h <= first.h + 1){
+    var shed = win.filter(function(x){ return wearFor(x.f) > a; })[0];
+    head = WEAR[a][1] + (from < 12 ? ' this morning' : ' to start') + (shed ? ', shed it by ' + hourLabel(shed.h) : '');
+  } else if(wearFor(first.f) > a && cold.h >= last.h - 1){
+    head = WEAR[wearFor(first.f)][1] + (from < 12 ? ' this morning, ' : ' now, ') + lc(WEAR[a][1]) + ' by ' + hourLabel(cold.h);
+  } else {
+    head = WEAR[a][1] + (nowH >= hm ? ' tonight' : ' all day');
+  }
+  if(wet) head += wet.t <= 34 || wet.snow > 0 ? ' · boots' : ' · umbrella';
+  var start = at(from), bits = [];
+  bits.push(Math.round(start.t) + '° ' + (from === lv ? 'when you leave' : 'now') + (maxAt > from && maxT - start.t >= 4 ? ', ' + Math.round(maxT) + '° by ' + hourLabel(maxAt) : ''));
+  bits.push(wet ? ((wet.t <= 34 || wet.snow > 0) ? 'Snow' : 'Rain') + ' likely from ' + hourLabel(wet.h) + ' (' + wet.pop + '%)' : 'Dry');
+  if(gust >= 25) bits.push('Gusts to ' + Math.round(gust) + ' mph');
+  var cur = at(nowH);
+
+  var cols = [6,8,10,12,14,16,18,20,22], lo = Infinity, hi = -Infinity;
+  cols.forEach(function(h){ var x = at(h); if(x.t < lo) lo = x.t; if(x.t > hi) hi = x.t; });
+  if(hi - lo < 1) hi = lo + 1;
+  var strip = cols.map(function(h){
+    var x = at(h), out = h >= lv && h <= hm, past = h < nowH - 1;
+    return '<div class="hr' + (out ? ' you' : '') + (past ? ' past' : '') + '"><b>' + Math.round(x.t) + '°</b>' +
+      '<div class="bar' + (x.pop >= 40 ? ' wet' : '') + '" style="height:' + (2 + (x.t - lo) / (hi - lo) * 12).toFixed(1) + 'vh"></div>' + hourLabel(h) + '</div>';
+  }).join('');
+
+  var el = $('wearBody'); el.className = ''; el.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column';
+  el.innerHTML = '<div class="wear"><div class="big">' + Math.round(cur.t) + '°</div><div class="say">' + esc(head) +
+    '<span>' + esc(bits.join('. ')) + '.</span></div></div><div class="hrs">' + strip + '</div>';
+  $('wearAux').textContent = CFG.place.name;
+}
+
+/* ---- Garmin ---- */
+function dur(s){ var h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h ? h + ':' + pad(m) : m + ' min'; }
+function renderBody(){
+  var g = feed('garmin', 'bodyAux', 'Garmin');
+  if(!g) return notYet('bodyBody', 'Garmin');
+  var el = $('bodyBody'); el.className = ''; el.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column';
+  var bat = g.battery || {}, sl = g.sleep || {}, rd = g.readiness || {}, wk = g.week || {}, last = g.last;
+  var stat = function(l, n, s, cls){ return '<div class="st"><div class="l">' + l + '</div><div class="n">' + (n == null ? '—' : esc(n)) + '</div><div class="s ' + (cls || '') + '">' + esc(s || '') + '</div></div>'; };
+  var h = '<div class="stats">' +
+    stat('Battery', bat.now, bat.charged ? '+' + bat.charged + ' overnight' : '', bat.charged ? 'good' : '') +
+    stat('Sleep', sl.seconds ? dur(sl.seconds) : null, sl.score ? 'score ' + sl.score : '') +
+    stat('Rest HR', g.rhr, g.hrv && g.hrv.status ? 'HRV ' + String(g.hrv.status).toLowerCase() : '') + '</div>';
+  if(rd.score != null){
+    var c = 2 * Math.PI * 15, col = rd.score >= 75 ? '#0ca30c' : rd.score >= 50 ? '#3987e5' : rd.score >= 25 ? '#fab219' : '#e5484d';
+    h += '<div class="ready"><div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="#383835" stroke-width="4"/>' +
+      '<circle cx="18" cy="18" r="15" fill="none" stroke="' + col + '" stroke-width="4" stroke-linecap="round" stroke-dasharray="' + (c * rd.score / 100).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 18 18)"/></svg>' +
+      '<b>' + rd.score + '</b></div><div class="w"><b>' + esc(rd.feedback || readyWords(rd.score)) + '</b><span>Training readiness' + (rd.level ? ' · ' + esc(String(rd.level).toLowerCase().replace(/_/g, ' ')) : '') + '</span></div></div>';
+  }
+  if(last){
+    var when = new Date(last.start), d = Cross.keyOf(when), td = Cross.today();
+    var day = d === td ? (when.getHours() < 12 ? 'This morning ' : 'Today ') : d === Cross.addDays(td, -1) ? 'Yesterday ' : when.toLocaleDateString([], { weekday:'short' }) + ' ';
+    var parts = [day + shortTime(when)];
+    if(last.miles && last.seconds && /run|walk|hik/i.test(last.type || '')){
+      var pace = last.seconds / last.miles; parts.push(Math.floor(pace / 60) + ':' + pad(Math.round(pace % 60)) + '/mi');
+    }
+    if(last.avg_hr) parts.push('avg HR ' + last.avg_hr);
+    h += '<div class="last"><span class="ic">' + Cross.icon('bolt') + '</span><div class="w"><b>' +
+      esc([last.name || last.type || 'Workout', last.miles ? (+last.miles).toFixed(1) + ' mi' : null, last.seconds ? dur(last.seconds) : null].filter(Boolean).join(' · ')) +
+      '</b><span>' + esc(parts.join(' · ')) + '</span></div></div>';
+  }
+  if(wk.intensity != null){
+    var goal = wk.goal || 150;
+    h += '<div class="wkm"><div class="top"><span><b>' + wk.intensity + '</b>of ' + goal + ' intensity min</span>' +
+      (wk.workouts != null ? '<span class="r">' + wk.workouts + ' workout' + (wk.workouts === 1 ? '' : 's') + ' this week</span>' : '') + '</div>' +
+      '<div class="meter"><i style="width:' + Math.min(100, wk.intensity / goal * 100).toFixed(1) + '%"></i></div></div>';
+  }
+  el.innerHTML = h;
+}
+function readyWords(s){ return s >= 75 ? 'Ready for a hard session' : s >= 50 ? 'Good for a normal workout' : s >= 25 ? 'Go easy today' : 'Rest and recover'; }
+
+/* ---- calendar: only what's different ---- */
+function renderToday(){
+  var c = feed('calendar', 'todayAux');
+  if(!c) return notYet('todayBody', 'Calendar');
+  var el = $('todayBody'); el.className = ''; el.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column';
+  if(c.day !== Cross.today()){ el.className = 'empty'; el.innerHTML = '<div>Waiting for today\'s calendar…</div>'; return; }
+  var evs = (c.events || []).slice(), now = Date.now(), MAX = 4;
+  // All-day first, then by time. Anything over an hour ago drops off.
+  evs = evs.filter(function(e){ return e.allDay || new Date(e.end) > now - 3600000; });
+  evs.sort(function(a, b){ return (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) || new Date(a.start) - new Date(b.start); });
+  var shown = evs.slice(0, MAX), more = evs.length - shown.length;
+  var h = shown.map(function(e){
+    var s = new Date(e.start), early = !e.allDay && s.getHours() < 8;
+    var done = !e.allDay && new Date(e.end) < now;
+    var chip = e.allDay ? '' : early ? '<span class="chip warn">Early</span>' : '';
+    var sub = [e.location, e.cal].filter(Boolean).join(' · ');
+    return '<div class="row' + (done ? ' done' : '') + '"><span class="t' + (e.allDay ? ' allday' : '') + '">' + (e.allDay ? 'All day' : shortTime(s)) + '</span>' +
+      '<div class="w"><b>' + esc(e.title) + '</b>' + (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' + chip + '</div>';
+  }).join('');
+  if(!evs.length) h = '<div class="empty"><div><b>Nothing out of the ordinary</b>Just the usual today.</div></div>';
+  var foot = [];
+  if(more > 0) foot.push('+' + more + ' more');
+  if(c.hidden) foot.push('Hidden: ' + c.hidden + ' routine event' + (c.hidden === 1 ? '' : 's'));
+  el.innerHTML = h + (foot.length ? '<div class="foot">' + esc(foot.join(' · ')) + '</div>' : '');
+}
+
+/* ---- heads-up: inbox + upkeep, merged ---- */
+var MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>';
+var WRENCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.5-7.5a4 4 0 0 0-2-2z"/><path d="M14.5 6.5L17 4l3 3-2.5 2.5"/></svg>';
+function renderHeads(){
+  var m = feed('gmail', 'headsAux'), u = state.feeds.upkeep ? state.feeds.upkeep.payload || {} : null;
+  if(!m && !u){ $('headsAux').textContent = ''; return notYet('headsBody', 'Inbox and upkeep'); }
+  if(!m && state.feeds.upkeep) feed('upkeep', 'headsAux');
+  var el = $('headsBody'); el.className = ''; el.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column';
+  var rows = [];
+  // Upkeep that is due or late beats email; email that matters beats upkeep
+  // that is merely coming up.
+  ((u && u.items) || []).forEach(function(it){
+    var d = it.days_until, st = it.state, chip, cls, rank;
+    if(st === 'overdue'){ chip = Math.abs(d) + 'd over'; cls = 'bad'; rank = 0; }
+    else if(st === 'due'){ chip = 'Today'; cls = 'warn'; rank = 1; }
+    else if(st === 'upcoming'){ chip = d + 'd'; cls = d <= 7 ? 'warn' : ''; rank = 4 + d / 100; }
+    else if(st === 'nudge'){ chip = 'Nudge'; cls = ''; rank = 6; }
+    else return;
+    var sub = [it.owner && it.owner !== 'tyler' ? (it.owner === 'shared' ? 'Both' : 'Kenzie') : null,
+               it.last_done ? 'last done ' + Cross.dateOf(it.last_done).toLocaleDateString([], { month:'short', day:'numeric' }) : null,
+               it.next_due && st !== 'overdue' ? 'due ' + Cross.dateOf(it.next_due).toLocaleDateString([], { month:'short', day:'numeric' }) : null].filter(Boolean).join(' · ');
+    rows.push({ rank:rank, icon:WRENCH, title:it.prompt || it.name, sub:sub, chip:chip, cls:cls });
+  });
+  ((m && m.emails) || []).forEach(function(e, i){
+    rows.push({ rank:(e.important ? 2 : 3) + i / 100, icon:MAIL, title:e.subject || '(no subject)', sub:e.from, chip:ago(e.at).replace(' ago', ''), cls:e.important ? 'info' : '' });
+  });
+  rows.sort(function(a, b){ return a.rank - b.rank; });
+  var shown = rows.slice(0, 4), foot = [];
+  var h = shown.map(function(r){
+    return '<div class="row"><span class="src">' + r.icon + '</span><div class="w"><b>' + esc(r.title) + '</b>' + (r.sub ? '<span>' + esc(r.sub) + '</span>' : '') + '</div>' +
+      (r.chip ? '<span class="chip ' + r.cls + '">' + esc(r.chip) + '</span>' : '') + '</div>';
+  }).join('');
+  if(!rows.length) h = '<div class="empty"><div><b>All clear</b>Nothing in the inbox or the upkeep list needs you.</div></div>';
+  var moreMail = m ? (m.unread || 0) - shown.filter(function(r){ return r.icon === MAIL; }).length : 0;
+  if(moreMail > 0) foot.push(moreMail + ' more unread');
+  var restUp = rows.filter(function(r, i){ return i >= 4 && r.icon === WRENCH; });
+  if(restUp.length) foot.push(restUp[0].title + (restUp[0].chip ? ' in ' + restUp[0].chip : ''));
+  if(!m) foot.push('inbox not connected');
+  if(!u) foot.push('upkeep not connected');
+  el.innerHTML = h + (foot.length ? '<div class="foot">Also: ' + esc(foot.join(' · ')) + '</div>' : '');
+}
+
+/* ---- $CROSS ---- */
 var renderedDay = null;
-function render(){
+function renderCross(){
   var now = Cross.today();
   renderedDay = now;
-  var series = Cross.build(byDay, startDay, now);
-  var st = Cross.stats(series);
-  var days = series.days;
-  var shown = days.length > SPAN ? days.slice(-SPAN) : days;
-  var idx = days.indexOf(shown[0]);
-  var base = idx === 0 ? series.open : days[idx - 1].close;
-
-  // price, and how today is going
+  var series = Cross.build(state.byDay, state.startDay, now), st = Cross.stats(series), days = series.days;
+  var shown = days.length > 60 ? days.slice(-60) : days, idx = days.indexOf(shown[0]);
+  var base = idx === 0 ? series.open : days[idx - 1].close, range = st.price / base - 1;
   $('price').textContent = Cross.money(st.price);
-  var t = st.todayChange, cls = t > 0.000001 ? 'up' : t < -0.000001 ? 'down' : 'flat';
-  $('chg').className = 'c ' + cls;
-  $('chg').innerHTML = '<span class="arr"></span>' + Cross.signed(st.price - st.prevClose) + ' (' + Cross.pct(t) + ')<span class="w">today</span>';
-
-  // the line
-  var pts = [{ v:base }].concat(shown.map(function(d){ return { v:d.close }; }));
-  var cw = $('cw'), W = cw.clientWidth, H = cw.clientHeight;
-  var c = Cross.chart(pts, base, W, H, { padT:12, padB:6, padR:12, stroke:3 });
+  $('chg').className = 'c ' + (range > 0.000001 ? 'up' : range < -0.000001 ? 'down' : 'flat');
+  $('chg').innerHTML = '<span class="arr"></span>' + Cross.pct(range, 1) + '<span class="w">' + (idx === 0 ? 'since the IPO' : '60 days') + '</span>';
+  var cw = $('cw');
+  var c = Cross.chart([{ v:base }].concat(shown.map(function(d){ return { v:d.close }; })), base, cw.clientWidth, cw.clientHeight, { padT:6, padB:4, padR:8, stroke:2.5 });
   cw.innerHTML = c.svg + (c.last ? '<span class="dot" style="left:' + c.last.x + 'px;top:' + c.last.y + 'px;background:' + c.color + '"></span>' : '');
-  $('xa').innerHTML = '<span>' + (idx === 0 ? 'IPO · ' + fmtDay(series.start) : fmtDay(days[idx - 1].day)) + '</span><span>Today</span>';
 
-  var range = st.price / base - 1;
-  $('facts').innerHTML =
-    fact(SPAN + ' days', '<span class="' + (range >= 0 ? 'up' : 'down') + '">' + Cross.pct(range, 1) + '</span>') +
-    fact('Since the IPO', '<span class="' + (st.allTime >= 0 ? 'up' : 'down') + '">' + Cross.pct(st.allTime, 1) + '</span>') +
-    fact('All-time high', Cross.money(st.high) + (st.price >= st.high - 1e-9 ? '<small>now</small>' : ''));
-
-  // today's five
-  var done = byDay[now] || [];
-  var n = done.filter(function(k){ return HABITS.some(function(h){ return h.key === k; }); }).length;
-  $('count').innerHTML = n + ' of 5 · closes <span class="' + (Cross.dayChange(n, false) >= 0 ? 'up' : 'down') + '">' +
-    Cross.pct(Cross.dayChange(n, false)) + '</span>';
+  var done = state.byDay[now] || [], auto = state.auto[now] || [];
+  var g = state.feeds.garmin && state.feeds.garmin.payload, last = g && g.last;
   $('habits').innerHTML = HABITS.map(function(h, i){
-    var on = done.indexOf(h.key) >= 0;
-    var hs = st.habits[i];
-    return '<div class="hb' + (on ? ' on' : '') + (busy[h.key] ? ' busy' : '') + '" data-k="' + h.key + '"' + (i === 0 ? ' style="margin-top:0"' : '') + '>' +
+    var on = done.indexOf(h.key) >= 0, sk = st.habits[i].streak;
+    var note = on && auto.indexOf(h.key) >= 0 ? '<small>from Garmin' + (last && Cross.keyOf(new Date(last.start)) === now ? ' · ' + esc(last.name || last.type || 'workout') : '') + '</small>' : '';
+    return '<div class="hb' + (on ? ' on' : '') + (state.busy[h.key] ? ' busy' : '') + '" data-k="' + h.key + '">' +
       '<span class="ic" style="color:' + h.color + (on ? ';background:' + h.color : '') + '">' + Cross.icon(h.icon) + '</span>' +
-      '<span class="tx"><div class="nm">' + esc(h.name) + '</div><div class="mn">' + esc(h.meaning) + '</div></span>' +
-      (hs.streak > 1 ? '<span class="sk"><b>' + hs.streak + '</b>in a row</span>' : '') +
-      '<span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#0E0E0D" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>' +
-      '</div>';
+      '<span class="nm">' + esc(h.name) + note + '</span>' + (sk > 1 ? '<span class="sk"><b>' + sk + '</b>in a row</span>' : '') +
+      '<span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#0E0E0D" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>';
   }).join('');
-
-  // two weeks
   $('streak').textContent = st.perfectStreak;
-  $('best').textContent = (st.perfectStreak === 1 ? 'day' : 'days') + ' · best ' + st.bestPerfect;
-  var cols = [];
-  for(var j = 13; j >= 0; j--) cols.push(Cross.addDays(now, -j));
-  var g = '';
-  HABITS.forEach(function(h){
-    g += '<span class="rl" style="color:' + h.color + '">' + Cross.icon(h.icon) + '</span>';
-    cols.forEach(function(k){
-      var on = (byDay[k] || []).indexOf(h.key) >= 0;
-      g += '<span class="c' + (k === now ? ' td' : '') + '"' + (on ? ' style="background:' + h.color + '"' : '') + '></span>';
-    });
-  });
-  g += '<span></span>' + cols.map(function(k){
-    return '<span class="dl' + (k === now ? ' td' : '') + '">' + Cross.dateOf(k).toLocaleDateString([], { weekday:'narrow' }) + '</span>';
-  }).join('');
-  $('grid').innerHTML = g;
-  stamp();
+  var n = done.filter(function(k){ return HABITS.some(function(h){ return h.key === k; }); }).length;
+  var cl = Cross.dayChange(n, false);
+  $('close').textContent = Cross.pct(cl);
+  $('close').className = cl >= 0 ? 'up' : 'down';
 }
-function fact(l, v){ return '<div class="fact"><div class="l">' + l + '</div><div class="n">' + v + '</div></div>'; }
 
 $('habits').addEventListener('click', function(e){
   var el = e.target; while(el && !(el.classList && el.classList.contains('hb'))) el = el.parentNode;
   if(el) toggle(el.getAttribute('data-k'));
 });
 
-// The clock, and the new day at midnight.
+// The clock, the quote, and the new day at midnight.
 setInterval(function(){
-  if(lastOk && Cross.today() !== renderedDay) render(); else stamp();
+  if(state.lastOk && Cross.today() !== renderedDay){ render(); renderWear(); } else stamp();
 }, 15000);
-window.addEventListener('resize', function(){ if(lastOk) render(); });
+window.addEventListener('resize', function(){ if(state.lastOk) renderCross(); });
 
+stamp();
+pullWeather();
 if(!KEY){
   showMessage('<b>This board needs its link</b>On the phone, open the Cross app → Settings → Kitchen wall link, and open that link here.');
-  stamp();
 } else {
-  stamp();
   pull();
 }
 </script>

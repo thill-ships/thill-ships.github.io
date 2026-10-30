@@ -51,6 +51,18 @@ create table if not exists cross_settings (
 );
 insert into cross_settings (id) values (1) on conflict (id) do nothing;
 
+-- Added for the daily board's feeds (see daily/schema.sql). Safe to re-run.
+--   auto:     habits a feed checked off by itself (Garmin -> Sweat), so the
+--             screens can say where a check came from.
+--   cleared:  habits you unchecked by hand that day. A feed never re-checks
+--             one of these, so your uncheck always wins.
+--   feed_key: the secret the Google script and the Garmin sync write with.
+--             Separate from the wall key: the wall reads, feeds write.
+alter table cross_days     add column if not exists auto    text[] not null default '{}';
+alter table cross_days     add column if not exists cleared text[] not null default '{}';
+alter table cross_settings add column if not exists feed_key text not null
+  default substr(replace(gen_random_uuid()::text, '-', ''), 1, 24);
+
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security: only the owner reads or writes, directly.
@@ -90,12 +102,17 @@ begin
     raise exception 'bad day' using errcode = '22023';
   end if;
 
-  insert into cross_days as c (day, done)
-  values (d, case when val then array[habit] else '{}'::text[] end)
+  insert into cross_days as c (day, done, cleared)
+  values (d, case when val then array[habit] else '{}'::text[] end,
+             case when val then '{}'::text[] else array[habit] end)
   on conflict (day) do update
     set done = case when val
                  then (case when habit = any (c.done) then c.done else c.done || habit end)
                  else array_remove(c.done, habit) end,
+        auto = array_remove(c.auto, habit),
+        cleared = case when val then array_remove(c.cleared, habit)
+                       when habit = any (c.cleared) then c.cleared
+                       else c.cleared || habit end,
         updated_at = now()
   returning done into out;
   return out;
@@ -103,6 +120,25 @@ end $$;
 
 revoke all on function cross_set_habit(date, text, boolean, text) from public;
 grant execute on function cross_set_habit(date, text, boolean, text) to anon, authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- A feed checking a habit off by itself. Never granted to anyone directly:
+-- only daily_put calls it, after checking the feed key. It never re-checks a
+-- habit you unchecked by hand that day.
+-- ---------------------------------------------------------------------------
+create or replace function cross_auto(d date, habit text)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into cross_days as c (day, done, auto)
+  values (d, array[habit], array[habit])
+  on conflict (day) do update
+    set done = c.done || habit, auto = c.auto || habit, updated_at = now()
+    where not (habit = any (c.done)) and not (habit = any (c.cleared));
+end $$;
+
+revoke all on function cross_auto(date, text) from public, anon, authenticated;
 
 
 -- ---------------------------------------------------------------------------
@@ -117,7 +153,7 @@ begin
   end if;
   return json_build_object(
     'start_day', (select start_day from cross_settings where id = 1),
-    'days', coalesce((select json_agg(json_build_object('day', day, 'done', done) order by day)
+    'days', coalesce((select json_agg(json_build_object('day', day, 'done', done, 'auto', auto) order by day)
                         from cross_days), '[]'::json)
   );
 end $$;
