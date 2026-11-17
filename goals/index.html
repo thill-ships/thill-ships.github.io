@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Take Up My Cross</title>
+<title>Daily Goals</title>
 <meta name="theme-color" content="#0E0E0D" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Cross" />
+<meta name="apple-mobile-web-app-title" content="Goals" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -130,7 +130,7 @@
   .rate .n{width:118px;flex:none;font-weight:600;}
   .rate .bar{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-right:10px;}
   .rate .bar i{display:block;height:100%;border-radius:4px;}
-  .rate .p{width:44px;flex:none;text-align:right;color:var(--dim);font-size:13px;}
+  .rate .p{width:64px;flex:none;text-align:right;color:var(--dim);font-size:13px;}
 
   /* ---- settings ---- */
   details.card summary{list-style:none;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
@@ -152,8 +152,8 @@
 
   <div id="gate" class="gate hidden">
     <form onsubmit="signIn(event)">
-      <h1>Take up my cross</h1>
-      <p>Five things, every day. Sign in once on this phone and it stays signed in.</p>
+      <h1>Daily goals</h1>
+      <p>Five goals, tracked like a stock. Sign in once on this phone and it stays signed in.</p>
       <input id="pw" type="password" placeholder="Password" autocomplete="current-password" />
       <button id="goBtn" class="btn full" type="submit">Open</button>
       <div id="gateMsg" class="msg hidden"></div>
@@ -162,7 +162,7 @@
 
   <div id="app" class="hidden">
     <div class="top">
-      <div class="tick"><b>$CROSS</b> · TAKE UP MY CROSS</div>
+      <div class="tick"><b>$HILL</b> · DAILY GOALS</div>
       <div id="sync" class="sync"></div>
     </div>
     <div id="price" class="price">—</div>
@@ -189,7 +189,7 @@
     <div id="kpis" class="kpis"></div>
 
     <div class="card">
-      <h3>Last 30 days</h3>
+      <h3>Hit rate · daily goals over 30 days, weekly over 8 weeks</h3>
       <div id="rates"></div>
     </div>
 
@@ -197,11 +197,11 @@
       <summary>Settings &amp; how the stock works</summary>
       <div class="set">
         <label>How the price moves</label>
-        Every day closes at midnight. Each habit done is <b class="up">+0.25%</b>, each one missed is
-        <b class="down">−0.30%</b>, and all five earns another <b class="up">+0.25%</b>:
+        Every day closes at midnight, and every week closes Sunday at midnight:
         <table id="rules"></table>
-        A day with nothing logged is a 0 of 5 day. Today only counts what is done so far; the misses
-        are charged at the close. It went public at <b>100.00</b>.
+        A day with nothing logged counts as nothing done. Today only counts what's done so far; misses are
+        charged at the close. Checking something off late still counts in full, because the price is
+        worked out from the whole history every time. It went public at <b>100.00</b>.
       </div>
       <div class="set">
         <label for="startDay">IPO day</label>
@@ -239,11 +239,11 @@
 const CFG = {
   url:     'https://yehpygarkxdopdvugifk.supabase.co',
   key:     'sb_publishable_sGJHMMHbmIyLcORXh2pauw_CePLfJDo',
-  account: 'cross@thill-ships.app'   // the one login. Must match schema.sql.
+  account: 'tyler@thill-ships.app'   // the one login. Must match schema.sql.
 };
 const WALL = location.origin + '/daily/';
 const RANGES = [ ['1W',7], ['1M',30], ['3M',91], ['1Y',365], ['ALL',0] ];
-const { HABITS } = Cross;
+const { GOALS, DAILY } = Goals;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -253,13 +253,13 @@ let sb = null, user = null;
 let byDay = {};               // 'YYYY-MM-DD' -> ['her', ...]
 let settings = { start_day:null, wall_key:null, feed_key:null };
 let series = null, st = null;
-let sel = Cross.today();      // the day being checked off
-let range = (() => { try{ return localStorage.getItem('cross-range') || '1M'; }catch(e){ return '1M'; } })();
+let sel = Goals.today();      // the day being checked off
+let range = (() => { try{ return localStorage.getItem('goals-range') || '1M'; }catch(e){ return '1M'; } })();
 let saving = 0;
 
 /* ========================= sign in ========================= */
 (function boot(){
-  sb = window.supabase.createClient(CFG.url, CFG.key, { auth:{ storageKey:'sb-cross-auth' } });
+  sb = window.supabase.createClient(CFG.url, CFG.key, { auth:{ storageKey:'sb-goals-auth' } });
   sb.auth.getSession().then(({ data }) => { if(data && data.session) signedIn(data.session.user); else showGate(); });
   sb.auth.onAuthStateChange((_e, s) => {
     if(s && s.user){ if(!user || user.id !== s.user.id) signedIn(s.user); }
@@ -302,13 +302,13 @@ async function signedIn(u){
 async function load(){
   $('sync').textContent = 'Loading…';
   const [d, s] = await Promise.all([
-    sb.from('cross_days').select('day,done'),
-    sb.from('cross_settings').select('start_day,wall_key,feed_key').eq('id', 1).maybeSingle()
+    sb.from('goals_days').select('day,done'),
+    sb.from('goals_settings').select('start_day,wall_key,feed_key').eq('id', 1).maybeSingle()
   ]);
   if(d.error || s.error){
     const e = d.error || s.error;
     $('sync').textContent = '';
-    toast(/relation|does not exist/i.test(e.message) ? 'Run cross/schema.sql in Supabase first' : 'Could not load: ' + e.message);
+    toast(/relation|does not exist/i.test(e.message) ? 'Run goals/schema.sql in Supabase first' : 'Could not load: ' + e.message);
     return;
   }
   byDay = {};
@@ -326,7 +326,7 @@ async function toggle(key){
   render();
   saving++; $('sync').textContent = 'Saving…';
   const day = sel;
-  const { data, error } = await sb.rpc('cross_set_habit', { d:day, habit:key, val:on });
+  const { data, error } = await sb.rpc('goals_check', { d:day, goal:key, val:on });
   saving--;
   if(error){
     byDay[day] = list; render();
@@ -338,7 +338,7 @@ async function toggle(key){
 
 async function saveStart(){
   const v = $('startDay').value || null;
-  const { error } = await sb.from('cross_settings').update({ start_day:v, updated_at:new Date().toISOString() }).eq('id', 1);
+  const { error } = await sb.from('goals_settings').update({ start_day:v, updated_at:new Date().toISOString() }).eq('id', 1);
   if(error) return toast('Not saved: ' + error.message);
   settings.start_day = v; render(); toast(v ? 'IPO day saved' : 'Starting from the first day logged');
 }
@@ -346,7 +346,7 @@ async function saveStart(){
 async function newKey(){
   if(!confirm('Make a new wall link? The old one stops working, so the wall will need the new one.')) return;
   const k = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
-  const { error } = await sb.from('cross_settings').update({ wall_key:k, updated_at:new Date().toISOString() }).eq('id', 1);
+  const { error } = await sb.from('goals_settings').update({ wall_key:k, updated_at:new Date().toISOString() }).eq('id', 1);
   if(error) return toast('Not saved: ' + error.message);
   settings.wall_key = k; renderSettings(); toast('New wall link made');
 }
@@ -358,10 +358,10 @@ function copyText(t){
 
 /* ========================= drawing ========================= */
 function render(){
-  const now = Cross.today();
+  const now = Goals.today();
   if(sel > now) sel = now;
-  series = Cross.build(byDay, settings.start_day, now);
-  st = Cross.stats(series);
+  series = Goals.build(byDay, settings.start_day, now);
+  st = Goals.stats(series);
   renderTicker();
   renderChart();
   renderDay();
@@ -372,7 +372,7 @@ function render(){
 
 function setChange(el, abs, rel, when){
   el.className = 'chg ' + (rel > 0.000001 ? 'up' : rel < -0.000001 ? 'down' : 'flat');
-  $('chgTxt').textContent = Cross.signed(abs) + ' (' + Cross.pct(rel) + ')';
+  $('chgTxt').textContent = Goals.signed(abs) + ' (' + Goals.pct(rel) + ')';
   $('chgWhen').textContent = when;
 }
 
@@ -387,16 +387,16 @@ function renderTicker(scrub){
   const first = days[0];
   const base = first && first === series.days[0] ? series.open : series.days[series.days.indexOf(first) - 1].close;
   if(scrub){
-    $('price').textContent = Cross.money(scrub.v);
+    $('price').textContent = Goals.money(scrub.v);
     setChange($('chg'), scrub.v - base, scrub.v / base - 1, scrub.label);
     return;
   }
-  $('price').textContent = Cross.money(st.price);
+  $('price').textContent = Goals.money(st.price);
   const label = range === 'ALL' ? 'since the IPO' : { '1W':'past week', '1M':'past month', '3M':'past 3 months', '1Y':'past year' }[range];
   setChange($('chg'), st.price - base, st.price / base - 1, label);
 }
 
-function fmtDay(k, opts){ return Cross.dateOf(k).toLocaleDateString([], opts || { weekday:'short', month:'short', day:'numeric' }); }
+function fmtDay(k, opts){ return Goals.dateOf(k).toLocaleDateString([], opts || { weekday:'short', month:'short', day:'numeric' }); }
 
 function renderChart(){
   const days = rangeDays();
@@ -407,7 +407,7 @@ function renderChart(){
     .concat(days.map(d => ({ v:d.close, label: d.live ? 'Today, so far' : fmtDay(d.day), n:d.n, live:d.live })));
   const box = $('chartbox');
   const W = Math.max(280, box.clientWidth), H = box.clientHeight;
-  const c = Cross.chart(pts, base, W, H, { padT:22, padB:8, padR:8 });
+  const c = Goals.chart(pts, base, W, H, { padT:22, padB:8, padR:8 });
   box.innerHTML = c.svg + (c.last ? '<span class="dot" style="left:' + c.last.x + 'px;top:' + c.last.y + 'px;background:' + c.color + '"></span>' : '') +
     '<div id="xh" class="xhair hidden"></div><div id="tip" class="tip hidden"></div>';
   box._pts = pts; box._c = c; box._W = W;
@@ -417,7 +417,7 @@ function renderChart(){
 
 $('ranges').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
-  range = b.dataset.r; try{ localStorage.setItem('cross-range', range); }catch(err){}
+  range = b.dataset.r; try{ localStorage.setItem('goals-range', range); }catch(err){}
   renderTicker(); renderChart();
 });
 
@@ -433,7 +433,7 @@ $('ranges').addEventListener('click', e => {
     const p = pts[i], px = c.X(i);
     $('xh').style.left = px + 'px'; $('xh').classList.remove('hidden');
     const tip = $('tip');
-    tip.innerHTML = '<b>' + Cross.money(p.v) + '</b> <span>· ' + esc(p.label) + (p.n == null ? '' : ' · ' + p.n + ' of 5') + '</span>';
+    tip.innerHTML = '<b>' + Goals.money(p.v) + '</b> <span>· ' + esc(p.label) + (p.n == null ? '' : ' · ' + p.n + ' of 5') + '</span>';
     tip.classList.remove('hidden');
     const half = tip.offsetWidth / 2;
     tip.style.left = Math.min(box._W - half, Math.max(half, px)) + 'px';
@@ -446,52 +446,62 @@ $('ranges').addEventListener('click', e => {
 })();
 
 function renderDay(){
-  const now = Cross.today();
-  const gap = Cross.daysBetween(sel, now);
+  const now = Goals.today();
+  const gap = Goals.daysBetween(sel, now);
   $('dayName').textContent = gap === 0 ? 'Today' : gap === 1 ? 'Yesterday' : fmtDay(sel, { weekday:'long' });
   $('daySub').textContent = fmtDay(sel, { month:'short', day:'numeric' });
   $('next').disabled = gap <= 0;
   $('prev').disabled = gap >= 365;
   const done = byDay[sel] || [];
-  $('habits').innerHTML = HABITS.map(h => {
+  $('habits').innerHTML = GOALS.map(h => {
     const on = done.indexOf(h.key) >= 0;
-    const hs = st.habits.find(x => x.key === h.key);
-    const streak = gap === 0 && hs.streak > 1 ? '<div class="st"><b>' + hs.streak + '</b>days</div>' : '';
+    const hs = st.goals.find(x => x.key === h.key);
+    let side = '';
+    if(h.per === 'week'){
+      // That week's count, through the end of the week or today.
+      const wkEnd = Goals.addDays(Goals.weekStart(sel), 6), upTo = wkEnd < now ? wkEnd : now;
+      const start = series.start <= sel ? series.start : sel;
+      side = '<div class="st"><b>' + Goals.sessions(byDay, h, upTo, start) + '/' + Goals.targetFor(h, upTo, start) + '</b>' +
+             (Goals.weekStart(sel) === Goals.weekStart(now) ? 'this week' : 'that week') + '</div>';
+    } else if(gap === 0 && hs.streak > 1){
+      side = '<div class="st"><b>' + hs.streak + '</b>days</div>';
+    }
     return '<button class="h' + (on ? ' on' : '') + '" data-k="' + h.key + '" aria-pressed="' + on + '">' +
-      '<span class="ic" style="color:' + h.color + (on ? ';background:' + h.color : '') + '">' + Cross.icon(h.icon) + '</span>' +
+      '<span class="ic" style="color:' + h.color + (on ? ';background:' + h.color : '') + '">' + Goals.icon(h.icon) + '</span>' +
       '<span class="tx"><div class="nm">' + esc(h.name) + '</div><div class="mn">' + esc(h.meaning) + '</div></span>' +
-      streak +
+      side +
       '<span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>' +
       '</button>';
   }).join('');
-  const n = done.filter(k => HABITS.some(h => h.key === k)).length;
-  const close = Cross.dayChange(n, false);
-  const inSeries = series.days.some(d => d.day === sel);
-  $('daysum').innerHTML = '<span class="pips">' + HABITS.map((h, i) => '<i style="' + (i < n ? 'background:var(--ink)' : '') + '"></i>').join('') + '</span>' +
-    '<span>' + n + ' of 5' + (n === 5 ? ' — perfect day' : '') + '</span>' +
-    (inSeries ? '<span class="proj ' + (close >= 0 ? 'up' : 'down') + '">' + (gap === 0 ? 'Closes ' : 'Closed ') + Cross.pct(close) + '</span>'
-              : '<span class="proj" style="color:var(--mute)">Before the IPO</span>');
+  const daily = DAILY.filter(g => done.indexOf(g.key) >= 0).length;
+  const day = series.days.find(d => d.day === sel);
+  const move = day ? (day.live ? day.ifClosed : day.change) : null;
+  $('daysum').innerHTML = '<span class="pips">' + DAILY.map((g, i) => '<i style="' + (i < daily ? 'background:var(--ink)' : '') + '"></i>').join('') + '</span>' +
+    '<span>' + daily + ' of ' + DAILY.length + ' daily' + (daily === DAILY.length ? ' — perfect day' : '') + '</span>' +
+    (day ? '<span class="proj ' + (move >= 0 ? 'up' : 'down') + '">' + (day.live ? 'If it closed now ' : 'Closed ') + Goals.pct(move) + '</span>'
+         : '<span class="proj" style="color:var(--mute)">Before the IPO</span>');
 }
 
 $('habits').addEventListener('click', e => { const b = e.target.closest('.h'); if(b) toggle(b.dataset.k); });
-$('prev').addEventListener('click', () => { sel = Cross.addDays(sel, -1); renderDay(); renderLedger(); });
-$('next').addEventListener('click', () => { if(sel < Cross.today()){ sel = Cross.addDays(sel, 1); renderDay(); renderLedger(); } });
+$('prev').addEventListener('click', () => { sel = Goals.addDays(sel, -1); renderDay(); renderLedger(); });
+$('next').addEventListener('click', () => { if(sel < Goals.today()){ sel = Goals.addDays(sel, 1); renderDay(); renderLedger(); } });
 
-// Four weeks ending this Saturday: a row per habit, a column per day, and a
-// bar on top for how many of the five got done. Tap any day to edit it.
+// Four weeks ending this Saturday: a row per goal, a column per day, and a
+// bar on top for how many goals got done. Tap any day to edit it.
 function renderLedger(){
-  const now = Cross.today();
-  const dow = Cross.dateOf(now).getDay();
-  const end = Cross.addDays(now, 6 - dow);
+  const now = Goals.today();
+  const dow = Goals.dateOf(now).getDay();
+  const end = Goals.addDays(now, 6 - dow);
   const cols = [];
-  for(let i = 27; i >= 0; i--) cols.push(Cross.addDays(end, -i));
+  for(let i = 27; i >= 0; i--) cols.push(Goals.addDays(end, -i));
   let h = '<span></span>' + cols.map(k => {
     if(k > now) return '<span class="tot"></span>';
-    const n = (byDay[k] || []).filter(x => HABITS.some(hb => hb.key === x)).length;
-    return '<span class="tot" data-d="' + k + '" title="' + fmtDay(k) + ': ' + n + ' of 5"><i class="' + (n === 5 ? 'full' : '') + '" style="height:' + (n ? 4 + n * 3.6 : 2) + 'px"></i></span>';
+    const n = (byDay[k] || []).filter(x => GOALS.some(hb => hb.key === x)).length;
+    const perfect = DAILY.every(g => (byDay[k] || []).indexOf(g.key) >= 0);
+    return '<span class="tot" data-d="' + k + '" title="' + fmtDay(k) + ': ' + n + ' done' + (perfect ? ', every daily goal' : '') + '"><i class="' + (perfect ? 'full' : '') + '" style="height:' + (n ? 4 + n * 3.6 : 2) + 'px"></i></span>';
   }).join('');
-  HABITS.forEach(hb => {
-    h += '<span class="rl" style="color:' + hb.color + '" title="' + esc(hb.name) + '">' + Cross.icon(hb.icon) + '</span>';
+  GOALS.forEach(hb => {
+    h += '<span class="rl" style="color:' + hb.color + '" title="' + esc(hb.name) + '">' + Goals.icon(hb.icon) + '</span>';
     h += cols.map(k => {
       if(k > now) return '<span class="c fut"></span>';
       const on = (byDay[k] || []).indexOf(hb.key) >= 0;
@@ -499,7 +509,7 @@ function renderLedger(){
              (on ? ' style="background:' + hb.color + '"' : '') + '></span>';
     }).join('');
   });
-  h += '<span></span>' + cols.map(k => '<span class="dl">' + (Cross.dateOf(k).getDay() === 0 ? Cross.dateOf(k).getDate() : '') + '</span>').join('');
+  h += '<span></span>' + cols.map(k => '<span class="dl">' + (Goals.dateOf(k).getDay() === 0 ? Goals.dateOf(k).getDate() : '') + '</span>').join('');
   $('ledger').innerHTML = h;
 }
 $('ledger').addEventListener('click', e => {
@@ -512,14 +522,14 @@ function renderStats(){
   const kpi = (l, v, s) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>';
   $('kpis').innerHTML =
     kpi('Perfect streak', st.perfectStreak, 'best ' + st.bestPerfect) +
-    kpi('Since the IPO', '<span class="' + (st.allTime >= 0 ? 'up' : 'down') + '">' + Cross.pct(st.allTime, 1) + '</span>', fmtDay(series.start, { month:'short', day:'numeric', year:'numeric' })) +
-    kpi('All-time high', Cross.money(st.high), st.price >= st.high - 1e-9 ? 'at it now' : Cross.pct(st.price / st.high - 1, 1) + ' off');
-  $('rates').innerHTML = HABITS.map(h => {
-    const r = st.habits.find(x => x.key === h.key);
+    kpi('Since the IPO', '<span class="' + (st.allTime >= 0 ? 'up' : 'down') + '">' + Goals.pct(st.allTime, 1) + '</span>', fmtDay(series.start, { month:'short', day:'numeric', year:'numeric' })) +
+    kpi('All-time high', Goals.money(st.high), st.price >= st.high - 1e-9 ? 'at it now' : Goals.pct(st.price / st.high - 1, 1) + ' off');
+  $('rates').innerHTML = GOALS.map(h => {
+    const r = st.goals.find(x => x.key === h.key);
     const p = r.rate == null ? null : r.rate;
-    return '<div class="rate"><span style="color:' + h.color + '">' + Cross.icon(h.icon) + '</span><span class="n">' + esc(h.name) + '</span>' +
+    return '<div class="rate"><span style="color:' + h.color + '">' + Goals.icon(h.icon) + '</span><span class="n">' + esc(h.name) + '</span>' +
       '<span class="bar"><i style="width:' + (p == null ? 0 : Math.round(p * 100)) + '%;background:' + h.color + '"></i></span>' +
-      '<span class="p" title="' + r.hit + ' of ' + r.of + ' days">' + (p == null ? '—' : Math.round(p * 100) + '%') + '</span></div>';
+      '<span class="p" title="' + r.hit + ' of ' + r.of + ' ' + r.unit + '">' + (p == null ? '—' : r.per === 'week' ? r.hit + '/' + r.of + ' wk' : Math.round(p * 100) + '%') + '</span></div>';
   }).join('');
 }
 
@@ -527,7 +537,12 @@ function renderSettings(){
   if(document.activeElement !== $('startDay')) $('startDay').value = settings.start_day || '';
   $('wallLink').textContent = settings.wall_key ? WALL + '?k=' + settings.wall_key : '—';
   $('feedKey').textContent = settings.feed_key || '—';
-  $('rules').innerHTML = [5,4,3,2,1,0].map(n => '<tr><td>' + n + ' of 5</td><td class="' + (Cross.dayChange(n) >= 0 ? 'up' : 'down') + '">' + Cross.pct(Cross.dayChange(n)) + '</td></tr>').join('');
+  const S = Goals.STOCK, row = (what, v) => '<tr><td>' + what + '</td><td class="' + (v >= 0 ? 'up' : 'down') + '">' + Goals.pct(v) + '</td></tr>';
+  $('rules').innerHTML =
+    row('Each daily goal done', S.gain) + row('Each daily goal missed', -S.loss) +
+    row('All ' + DAILY.length + ' daily goals', S.perfect) +
+    row('Each gym or cleaning session, up to the target', S.gain) +
+    row('Each session short when the week closes', -S.loss);
 }
 
 // Coming back to the app: the day may have rolled over, or the wall may have

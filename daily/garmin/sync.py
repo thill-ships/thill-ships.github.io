@@ -2,7 +2,7 @@
 
 Reads today's numbers from Garmin Connect and sends a short summary to the
 daily board. Any activity today (or yesterday, for a late workout) checks off
-Sweat, unless it was unchecked by hand that day.
+Gym, unless it was unchecked by hand that day.
 
 Garmin has no official API for individuals, so this uses the community
 `garminconnect` library, signed in with saved tokens (see make_tokens.py).

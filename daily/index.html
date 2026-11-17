@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,500;0,600;0,700;0,800;1,500&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%230E0E0D'/%3E%3Cpath%20d='M16%206v20M10%2012h12'%20stroke='%23F0EFEC'%20stroke-width='3.2'%20stroke-linecap='round'/%3E%3Cpath%20d='M5%2024l6-5%204%203%2011-11'%20stroke='%230ca30c'%20stroke-width='2.4'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E" />
-<script src="../cross/core.js"></script>
+<script src="../goals/core.js"></script>
 <style>
   /* ---------------------------------------------------------------------------
      The daily board for the kitchen calendar: 1280x695 CSS px landscape,
@@ -16,7 +16,7 @@
      min()/max(), aspect-ratio, :is(), ?. or ?? -- Chromium 74 has none.
 
      Five panels: what to wear (Open-Meteo, live), the day's calendar, a
-     heads-up list, Garmin, and $CROSS. The calendar, heads-up and the
+     heads-up list, Garmin, and the $HILL goals tracker. The calendar, heads-up and the
      weather's wording come from the Claude morning brief, once a day; Garmin
      every 30 minutes. Both arrive through Supabase; see SETUP.md.
 
@@ -43,8 +43,8 @@
   .hd .clock{font-family:var(--num);font-size:5.8vh;font-weight:700;}
 
   .board{flex:1;min-height:0;display:grid;grid-gap:1.5vh 1.1vw;grid-template-rows:1fr 1fr;
-    grid-template-columns:1fr 1fr 1.08fr;grid-template-areas:"wear body cross" "today heads cross";}
-  #wear{grid-area:wear;} #today{grid-area:today;} #heads{grid-area:heads;} #body{grid-area:body;} #cross{grid-area:cross;}
+    grid-template-columns:1fr 1fr 1.08fr;grid-template-areas:"wear body track" "today heads track";}
+  #wear{grid-area:wear;} #today{grid-area:today;} #heads{grid-area:heads;} #body{grid-area:body;} #track{grid-area:track;}
 
   .p{background:var(--card);border-radius:1.6vh;padding:1.7vh 1.1vw 1.5vh;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
   .p .ph{flex:none;display:flex;align-items:baseline;margin-bottom:1.1vh;}
@@ -114,7 +114,7 @@
   .meter{height:1vh;border-radius:.5vh;background:var(--line);overflow:hidden;}
   .meter i{display:block;height:100%;border-radius:.5vh;background:#c98500;}
 
-  /* ---- $CROSS ---- */
+  /* ---- the goals tracker ---- */
   .tk{font-size:1.85vh;font-weight:800;letter-spacing:.12em;color:var(--mute);}
   .tk b{color:var(--ink);}
   .pr{display:flex;align-items:baseline;margin-top:.3vh;}
@@ -166,8 +166,8 @@
     <div id="body" class="p"><div class="ph"><h2>Body</h2><span class="aux" id="bodyAux"></span></div><div id="bodyBody" class="empty"></div></div>
     <div id="today" class="p"><div class="ph"><h2 id="todayTitle">Today, only what's different</h2><span class="aux" id="todayAux"></span></div><div id="todayBody" class="empty"></div></div>
     <div id="heads" class="p"><div class="ph"><h2>Heads-up</h2><span class="aux" id="headsAux"></span></div><div id="headsBody" class="empty"></div></div>
-    <div id="cross" class="p">
-      <div class="tk"><b>$CROSS</b> · TAKE UP YOUR CROSS</div>
+    <div id="track" class="p">
+      <div class="tk"><b>$HILL</b> · DAILY GOALS</div>
       <div class="pr"><span id="price" class="v">—</span><span id="chg" class="c flat"></span></div>
       <div id="cw" class="cw"></div>
       <div id="habits"></div>
@@ -208,11 +208,11 @@ var QUOTES = [
   ['Know ye not that your body is the temple of the Holy Ghost which is in you?', '1 Corinthians 6:19']
 ];
 
-var POLL = 60000;                 // feeds and habits: a minute
+var POLL = 60000;                 // feeds and goals: a minute
 var WEATHER_EVERY = 30 * 60000;   // weather: half an hour
 var STALE = { brief:26 * 60, garmin:18 * 60 };   // minutes before a feed is "old"
 var BOOT = Date.now();
-var HABITS = Cross.HABITS;
+var GOALS = Goals.GOALS;
 
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -227,7 +227,7 @@ function ago(iso){
 
 var KEY = (function(){
   var m = /[?&]k=([A-Za-z0-9]+)/.exec(location.search), k = m ? m[1] : null;
-  try{ if(k) localStorage.setItem('cross-wall-key', k); else k = localStorage.getItem('cross-wall-key'); }catch(e){}
+  try{ if(k) localStorage.setItem('goals-wall-key', k); else k = localStorage.getItem('goals-wall-key'); }catch(e){}
   return k;
 })();
 
@@ -258,7 +258,7 @@ function hideMessage(){ $('msg').style.display = 'none'; }
 async function pull(){
   try{
     var data = await rpc('daily_wall', { k:KEY });
-    var cr = data.cross || {};
+    var cr = data.goals || {};
     state.byDay = {}; state.auto = {};
     (cr.days || []).forEach(function(r){ state.byDay[r.day] = r.done || []; state.auto[r.day] = r.auto || []; });
     state.startDay = cr.start_day || null;
@@ -276,7 +276,7 @@ async function pull(){
     if(err.status === 401 || err.status === 403 || /not allowed/.test(err.message))
       showMessage('<b>This wall link has expired</b>Open the newest one from the phone app: Settings → Kitchen wall link.');
     else if(/daily_wall|does not exist|Could not find/.test(err.message))
-      showMessage('<b>Almost there</b>Run cross/schema.sql and then daily/schema.sql in Supabase, and this board fills in.');
+      showMessage('<b>Almost there</b>Run goals/schema.sql and then daily/schema.sql in Supabase, and this board fills in.');
     else if(!state.lastOk)
       showMessage('<b>Can\'t reach the database</b>Trying again in a minute. Check the calendar\'s Wi-Fi if this stays up.');
     stamp();
@@ -294,32 +294,32 @@ async function pullWeather(){
     renderWear();
   }catch(err){
     console.warn('weather failed', err);
-    if(!state.weather) $('wearBody').innerHTML = '<b>No forecast right now</b>Trying again shortly.';
+    if(!state.weather) $('wearBody').innerHTML = '<div><b>No forecast right now</b>Trying again shortly.</div>';
   }
   setTimeout(pullWeather, state.weather ? WEATHER_EVERY : 5 * 60000);
 }
 
 async function toggle(key){
-  var day = Cross.today();
+  var day = Goals.today();
   if(state.busy[key]) return;
   var list = (state.byDay[day] || []).slice();
   var on = list.indexOf(key) < 0;
   state.busy[key] = true;
   state.byDay[day] = on ? list.concat([key]) : list.filter(function(k){ return k !== key; });
   state.auto[day] = (state.auto[day] || []).filter(function(k){ return k !== key; });
-  renderCross();
+  renderGoals();
   try{
-    state.byDay[day] = (await rpc('cross_set_habit', { d:day, habit:key, val:on, k:KEY })) || [];
+    state.byDay[day] = (await rpc('goals_check', { d:day, goal:key, val:on, k:KEY })) || [];
   }catch(err){
-    console.warn('cross_set_habit failed', err);
+    console.warn('goals_check failed', err);
     state.byDay[day] = list;
   }
   state.busy[key] = false;
-  renderCross();
+  renderGoals();
 }
 
 /* ================================ drawing ================================ */
-function render(){ renderCross(); renderBody(); renderToday(); renderHeads(); renderWear(); stamp(); }
+function render(){ renderGoals(); renderBody(); renderToday(); renderHeads(); renderWear(); stamp(); }
 
 function stamp(){
   var now = new Date(), h = now.getHours();
@@ -359,7 +359,7 @@ function wearFor(f){ for(var i = 0; i < WEAR.length; i++) if(f <= WEAR[i][0]) re
 function renderWear(){
   var w = state.weather; if(!w || !w.hourly) return;
   // In the evening, tomorrow: read the whole day as if it hadn't started.
-  var tmrw = evening(), day = tmrw ? Cross.addDays(Cross.today(), 1) : Cross.today();
+  var tmrw = evening(), day = tmrw ? Goals.addDays(Goals.today(), 1) : Goals.today();
   var H = w.hourly, hours = [];
   for(var i = 0; i < H.time.length; i++){
     if(H.time[i].slice(0, 10) !== day) continue;
@@ -437,14 +437,14 @@ function renderBody(){
       '<b>' + rd.score + '</b></div><div class="w"><b>' + esc(rd.feedback || readyWords(rd.score)) + '</b><span>Training readiness' + (rd.level ? ' · ' + esc(String(rd.level).toLowerCase().replace(/_/g, ' ')) : '') + '</span></div></div>';
   }
   if(last){
-    var when = new Date(last.start), d = Cross.keyOf(when), td = Cross.today();
-    var day = d === td ? (when.getHours() < 12 ? 'This morning ' : 'Today ') : d === Cross.addDays(td, -1) ? 'Yesterday ' : when.toLocaleDateString([], { weekday:'short' }) + ' ';
+    var when = new Date(last.start), d = Goals.keyOf(when), td = Goals.today();
+    var day = d === td ? (when.getHours() < 12 ? 'This morning ' : 'Today ') : d === Goals.addDays(td, -1) ? 'Yesterday ' : when.toLocaleDateString([], { weekday:'short' }) + ' ';
     var parts = [day + shortTime(when)];
     if(last.miles && last.seconds && /run|walk|hik/i.test(last.type || '')){
       var pace = last.seconds / last.miles; parts.push(Math.floor(pace / 60) + ':' + pad(Math.round(pace % 60)) + '/mi');
     }
     if(last.avg_hr) parts.push('avg HR ' + last.avg_hr);
-    h += '<div class="last"><span class="ic">' + Cross.icon('bolt') + '</span><div class="w"><b>' +
+    h += '<div class="last"><span class="ic">' + Goals.icon('gym') + '</span><div class="w"><b>' +
       esc([last.name || last.type || 'Workout', last.miles ? (+last.miles).toFixed(1) + ' mi' : null, last.seconds ? dur(last.seconds) : null].filter(Boolean).join(' · ')) +
       '</b><span>' + esc(parts.join(' · ')) + '</span></div></div>';
   }
@@ -463,7 +463,7 @@ function evening(){ return new Date().getHours() >= CFG.evening; }
 // Today's brief, or null. A brief from an earlier day is shown as old, not as today's.
 function brief(){
   var f = state.feeds.brief, p = f && f.payload;
-  return p && p.day === Cross.today() ? p : null;
+  return p && p.day === Goals.today() ? p : null;
 }
 // When the brief is missing or old, say so plainly in the panel.
 function noBrief(id){
@@ -510,35 +510,36 @@ function renderHeads(){
   el.innerHTML = h + (b.also ? '<div class="foot">' + esc(b.also) + '</div>' : '');
 }
 
-/* ---- $CROSS ---- */
+/* ---- the goals tracker ---- */
 var renderedDay = null;
-function renderCross(){
-  var now = Cross.today();
+function renderGoals(){
+  var now = Goals.today();
   renderedDay = now;
-  var series = Cross.build(state.byDay, state.startDay, now), st = Cross.stats(series), days = series.days;
+  var series = Goals.build(state.byDay, state.startDay, now), st = Goals.stats(series), days = series.days;
   var shown = days.length > 60 ? days.slice(-60) : days, idx = days.indexOf(shown[0]);
   var base = idx === 0 ? series.open : days[idx - 1].close, range = st.price / base - 1;
-  $('price').textContent = Cross.money(st.price);
+  $('price').textContent = Goals.money(st.price);
   $('chg').className = 'c ' + (range > 0.000001 ? 'up' : range < -0.000001 ? 'down' : 'flat');
-  $('chg').innerHTML = '<span class="arr"></span>' + Cross.pct(range, 1) + '<span class="w">' + (idx === 0 ? 'since the IPO' : '60 days') + '</span>';
+  $('chg').innerHTML = '<span class="arr"></span>' + Goals.pct(range, 1) + '<span class="w">' + (idx === 0 ? 'since the IPO' : '60 days') + '</span>';
   var cw = $('cw');
-  var c = Cross.chart([{ v:base }].concat(shown.map(function(d){ return { v:d.close }; })), base, cw.clientWidth, cw.clientHeight, { padT:6, padB:4, padR:8, stroke:2.5 });
+  var c = Goals.chart([{ v:base }].concat(shown.map(function(d){ return { v:d.close }; })), base, cw.clientWidth, cw.clientHeight, { padT:6, padB:4, padR:8, stroke:2.5 });
   cw.innerHTML = c.svg + (c.last ? '<span class="dot" style="left:' + c.last.x + 'px;top:' + c.last.y + 'px;background:' + c.color + '"></span>' : '');
 
   var done = state.byDay[now] || [], auto = state.auto[now] || [];
   var g = state.feeds.garmin && state.feeds.garmin.payload, last = g && g.last;
-  $('habits').innerHTML = HABITS.map(function(h, i){
-    var on = done.indexOf(h.key) >= 0, sk = st.habits[i].streak;
-    var note = on && auto.indexOf(h.key) >= 0 ? '<small>from Garmin' + (last && Cross.keyOf(new Date(last.start)) === now ? ' · ' + esc(last.name || last.type || 'workout') : '') + '</small>' : '';
+  $('habits').innerHTML = GOALS.map(function(h, i){
+    var on = done.indexOf(h.key) >= 0, gs = st.goals[i];
+    var note = on && auto.indexOf(h.key) >= 0 ? '<small>from Garmin' + (last && Goals.keyOf(new Date(last.start)) === now ? ' · ' + esc(last.name || last.type || 'workout') : '') + '</small>' : '';
     return '<div class="hb' + (on ? ' on' : '') + (state.busy[h.key] ? ' busy' : '') + '" data-k="' + h.key + '">' +
-      '<span class="ic" style="color:' + h.color + (on ? ';background:' + h.color : '') + '">' + Cross.icon(h.icon) + '</span>' +
-      '<span class="nm">' + esc(h.name) + note + '</span>' + (sk > 1 ? '<span class="sk"><b>' + sk + '</b>in a row</span>' : '') +
+      '<span class="ic" style="color:' + h.color + (on ? ';background:' + h.color : '') + '">' + Goals.icon(h.icon) + '</span>' +
+      '<span class="nm">' + esc(h.name) + note + '</span>' +
+      (h.per === 'week' ? '<span class="sk"><b>' + gs.week + '/' + gs.target + '</b>this week</span>'
+                        : gs.streak > 1 ? '<span class="sk"><b>' + gs.streak + '</b>in a row</span>' : '') +
       '<span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#0E0E0D" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>';
   }).join('');
   $('streak').textContent = st.perfectStreak;
-  var n = done.filter(function(k){ return HABITS.some(function(h){ return h.key === k; }); }).length;
-  var cl = Cross.dayChange(n, false);
-  $('close').textContent = Cross.pct(cl);
+  var cl = st.ifClosed;
+  $('close').textContent = Goals.pct(cl);
   $('close').className = cl >= 0 ? 'up' : 'down';
 }
 
@@ -549,14 +550,14 @@ $('habits').addEventListener('click', function(e){
 
 // The clock, the quote, and the new day at midnight.
 setInterval(function(){
-  if(state.lastOk && Cross.today() !== renderedDay){ render(); renderWear(); } else stamp();
+  if(state.lastOk && Goals.today() !== renderedDay){ render(); renderWear(); } else stamp();
 }, 15000);
-window.addEventListener('resize', function(){ if(state.lastOk) renderCross(); });
+window.addEventListener('resize', function(){ if(state.lastOk) renderGoals(); });
 
 stamp();
 pullWeather();
 if(!KEY){
-  showMessage('<b>This board needs its link</b>On the phone, open the Cross app → Settings → Kitchen wall link, and open that link here.');
+  showMessage('<b>This board needs its link</b>On the phone, open the Goals app → Settings → Kitchen wall link, and open that link here.');
 } else {
   pull();
 }

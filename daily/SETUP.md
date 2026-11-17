@@ -5,7 +5,7 @@ The board for the kitchen calendar. Five panels:
 | Panel | Comes from | How often | Needs setup? |
 |---|---|---|---|
 | What to wear | Open-Meteo for Provo, with the morning brief's wording on top | Every 30 min | No: the numbers work as soon as the board opens |
-| $CROSS | The habit tracker (`cross/`) | Live | Steps 1 and 2 |
+| Goals ($HILL) | The goals tracker (`goals/`) | Live | Steps 1 and 2 |
 | Today, only what's different | The Claude morning brief, from your calendars | Once a day | Step 3 |
 | Heads-up | The Claude morning brief, from your inbox | Once a day | Step 3 |
 | Body | Garmin | Every 30 min | Step 4 |
@@ -18,10 +18,9 @@ if a morning run fails, "What to wear" falls back to the board's own rules, and 
 say when they last heard from it. Nothing private is stored in this repo or on the public site;
 the summaries go to the database, and only the wall's link can read them.
 
-## 1. The habit tracker
+## 1. The goals tracker
 
-Follow `cross/SETUP.md` (schema, login, phone). If you ran `cross/schema.sql` before, **run it
-again**: it has gained columns for the feeds.
+Follow `goals/SETUP.md` (schema, login, phone).
 
 ## 2. The board's schema
 
@@ -35,7 +34,7 @@ of `daily/schema.sql` → **Run**. Then open the phone app → **Settings**:
 
 ## 3. The morning brief (Claude, about 5 minutes)
 
-A Claude scheduled task runs at about 4:37am Mountain. It reads the forecast, today's and
+A Claude scheduled task runs at 6:15am Mountain. It reads the forecast, today's and
 tomorrow's events on every calendar your personal Google account can see (including the hillhq
 calendars shared to it), and the last two days of Primary mail. It decides what's different and
 what needs you, and sends one short summary to the board. Its instructions are in
@@ -74,7 +73,7 @@ private repo:
 5. **Actions → Garmin sync → Run workflow** to try it. After that it runs every 30 minutes from
    5am to 11pm.
 
-**Sweat:** any activity Garmin logs today (or yesterday, for a late one) checks Sweat off. You can
+**Gym:** any activity Garmin logs today (or yesterday, for a late one) checks Gym off. You can
 still check it yourself on the phone or the wall. If you uncheck it by hand, Garmin leaves it
 unchecked for that day.
 
