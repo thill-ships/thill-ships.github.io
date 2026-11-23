@@ -1,0 +1,19 @@
+// Tyler's dashboard on the kitchen calendar: one full-screen web view, nothing else.
+// Switching to and from it is done by Gameday Wall's floating button.
+plugins { id 'com.android.application' version '8.5.2' }
+
+android {
+    namespace 'io.github.thillships.dashboard'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'io.github.thillships.dashboard'
+        minSdk 26          // the kitchen calendar runs Android 10 (29)
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

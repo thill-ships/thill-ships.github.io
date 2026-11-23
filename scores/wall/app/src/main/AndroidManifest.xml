@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- the other wall apps the floating button's menu can open (Android 11+ needs them named) -->
+    <queries>
+        <package android:name="io.github.thillships.dashboard" />
+    </queries>
     <application
         android:label="Gameday Wall"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
