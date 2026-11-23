@@ -24,6 +24,11 @@ on:
         description: 'Week range, e.g. 1-16'
         required: false
         default: '1-16'
+      live:
+        description: 'Scores only, as the game-day runs do (leave off for a full sync)'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: pickem-sync
@@ -48,6 +53,7 @@ jobs:
           WEEKS: ${{ inputs.weeks || '1-16' }}
           # The five-minute game-day crons only refresh scores. Everything else
           # -- a hand run, the two-hourly job, the Sunday odds freeze -- does the
-          # full sixteen-week sync.
-          LIVE: ${{ (github.event_name == 'schedule' && contains(github.event.schedule, '*/5')) && '1' || '0' }}
+          # full sixteen-week sync. A hand run can ask for the score-only path
+          # too, which is the only way to exercise it outside a game window.
+          LIVE: ${{ ((github.event_name == 'schedule' && contains(github.event.schedule, '*/5')) || inputs.live) && '1' || '0' }}
         run: python .github/scripts/pickem_sync.py
