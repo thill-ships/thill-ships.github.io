@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
 import android.provider.Settings;
@@ -13,13 +15,15 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
 
 /**
- * The floating button itself: tap it on the calendar to open the scores, tap
- * it on the scores to go back to the calendar, drag it anywhere.
+ * The floating button itself: tap it for a short menu of the wall's apps
+ * (the calendar, the scores, Tyler's dashboard, and any added to APPS), drag
+ * it anywhere. Apps in the list that aren't installed are left out.
  *
  * It is a window of its own, owned by the app rather than by any screen, so
  * it can be put up from anywhere: when the app opens, after a restart, or by
@@ -28,6 +32,19 @@ import java.lang.ref.WeakReference;
 final class Bubble {
     static final String TAG = "WallBubble";
 
+    /**
+     * The menu, top to bottom: label, and what to open. CALENDAR is the
+     * calendar (the home screen), SCORES is this app, anything else is another
+     * app's package name. To add an app, add a row.
+     */
+    static final String CALENDAR = "calendar", SCORES = "scores";
+    static final String[][] APPS = {
+            { "📅  Calendar", CALENDAR },
+            { "📊  Dashboard", "io.github.thillships.dashboard" },
+            { "🏈  Scores", SCORES },
+    };
+    private static final long MENU_CLOSE_MS = 10_000;
+
     // The scores screen, while it is in front; set by MainActivity.
     static WeakReference<Activity> scores = new WeakReference<>(null);
 
@@ -35,6 +52,12 @@ final class Bubble {
     private static WindowManager wm;
     private static TextView view;
     private static WindowManager.LayoutParams lp;
+    private static LinearLayout menu;
+    private static final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private static final Runnable closeMenu = Bubble::hideMenu;
+    // A tap on the button while the menu is open first closes the menu as a tap
+    // "outside" it; this keeps that same tap from opening the menu again.
+    private static long menuClosedAt;
 
     private Bubble() {}
 
@@ -54,9 +77,10 @@ final class Bubble {
         }
     }
 
-    /** The football on the calendar, the calendar on the scores. */
+    /** The button shows the menu sign; the menu marks the scores when they are in front. */
     static void refresh() {
-        if (view != null) view.setText(scores.get() != null ? "📅" : "🏈");
+        if (view != null) view.setText("☰");
+        if (menu != null) hideMenu();
     }
 
     private static void add(Context c) {
@@ -72,7 +96,8 @@ final class Bubble {
         TextView v = new TextView(c);
         v.setBackground(bg);
         v.setGravity(Gravity.CENTER);
-        v.setTextSize(28);
+        v.setTextSize(30);
+        v.setTextColor(Color.WHITE);
         v.setAlpha(0.85f);
 
         SharedPreferences prefs = c.getSharedPreferences("wall", Context.MODE_PRIVATE);
@@ -104,7 +129,8 @@ final class Bubble {
                         return true;
                     case MotionEvent.ACTION_UP:
                         if (dragged) prefs.edit().putInt("bubbleX", lp.x).putInt("bubbleY", lp.y).apply();
-                        else toggle();
+                        else if (menu != null) hideMenu();
+                        else if (System.currentTimeMillis() - menuClosedAt > 600) showMenu();
                         return true;
                 }
                 return false;
@@ -116,16 +142,92 @@ final class Bubble {
         refresh();
     }
 
-    // Scores showing: step back to whatever was under them (the calendar).
-    // Otherwise: bring the scores up.
-    private static void toggle() {
-        Activity a = scores.get();
-        if (a != null) {
-            if (!a.moveTaskToBack(true)) {
-                app.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    /** A dark card next to the button with one big row per installed app. */
+    private static void showMenu() {
+        Context c = app;
+        DisplayMetrics dm = c.getResources().getDisplayMetrics();
+        PackageManager pm = c.getPackageManager();
+        boolean scoresInFront = scores.get() != null;
+
+        LinearLayout m = new LinearLayout(c);
+        m.setOrientation(LinearLayout.VERTICAL);
+        int pad = Math.round(10 * dm.density);
+        m.setPadding(pad, pad, pad, pad);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(18 * dm.density);
+        bg.setColor(0xF2111827);
+        bg.setStroke(Math.round(2 * dm.density), 0x66FFFFFF);
+        m.setBackground(bg);
+
+        for (String[] row : APPS) {
+            final String target = row[1];
+            boolean here = SCORES.equals(target) && scoresInFront;
+            if (!CALENDAR.equals(target) && !SCORES.equals(target) && pm.getLaunchIntentForPackage(target) == null) continue;
+            TextView t = new TextView(c);
+            t.setText(here ? row[0] + "  ·  here" : row[0]);
+            t.setTextSize(26);
+            t.setTextColor(here ? 0x99FFFFFF : Color.WHITE);
+            t.setGravity(Gravity.CENTER_VERTICAL);
+            t.setMinHeight(Math.round(72 * dm.density));
+            t.setPadding(Math.round(18 * dm.density), 0, Math.round(28 * dm.density), 0);
+            t.setOnClickListener(b -> { hideMenu(); open(target); });
+            m.addView(t);
+        }
+
+        m.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int w = m.getMeasuredWidth(), h = m.getMeasuredHeight(), gap = Math.round(12 * dm.density);
+        WindowManager.LayoutParams mlp = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                // A tap anywhere outside the menu closes it (and still reaches the screen below).
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                PixelFormat.TRANSLUCENT);
+        mlp.gravity = Gravity.TOP | Gravity.LEFT;
+        // Beside the button, on whichever side has room, and kept on screen.
+        boolean right = lp.x + lp.width / 2 < dm.widthPixels / 2;
+        mlp.x = right ? lp.x + lp.width + gap : lp.x - w - gap;
+        mlp.y = Math.max(gap, Math.min(lp.y + lp.height / 2 - h / 2, dm.heightPixels - h - gap));
+        m.setOnTouchListener((b, e) -> {
+            if (e.getActionMasked() == MotionEvent.ACTION_OUTSIDE) { hideMenu(); return true; }
+            return false;
+        });
+        try {
+            wm.addView(m, mlp);
+            menu = m;
+            handler.postDelayed(closeMenu, MENU_CLOSE_MS);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "could not show the menu", e);
+        }
+    }
+
+    private static void hideMenu() {
+        handler.removeCallbacks(closeMenu);
+        if (menu == null) return;
+        try {
+            wm.removeView(menu);
+        } catch (RuntimeException ignored) {
+        }
+        menu = null;
+        menuClosedAt = System.currentTimeMillis();
+    }
+
+    private static void open(String target) {
+        try {
+            if (CALENDAR.equals(target)) {
+                // The calendar is the home screen. Stepping the scores back first keeps
+                // their page loaded, the way the old toggle did.
+                Activity a = scores.get();
+                if (a == null || !a.moveTaskToBack(true)) {
+                    app.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                }
+            } else if (SCORES.equals(target)) {
+                if (scores.get() == null) app.startActivity(new Intent(app, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } else {
+                Intent i = app.getPackageManager().getLaunchIntentForPackage(target);
+                if (i != null) app.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             }
-        } else {
-            app.startActivity(new Intent(app, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (RuntimeException e) {
+            Log.w(TAG, "could not open " + target, e);
         }
     }
 }

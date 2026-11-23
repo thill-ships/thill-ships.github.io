@@ -1,14 +1,18 @@
 name: Wall app — build the Android app
 
-# Builds the full-screen app for the kitchen calendar (scores/wall/app) and,
-# on main, publishes it as the latest release so it can always be downloaded from
+# Builds the kitchen calendar's full-screen apps and, on main, publishes both in
+# the latest release so they can always be downloaded from
 #   https://github.com/thill-ships/thill-ships.github.io/releases/latest/download/gameday-wall.apk
-# Builds on other branches only check that it compiles and keep the APK as a
+#   https://github.com/thill-ships/thill-ships.github.io/releases/latest/download/dashboard-wall.apk
+# Gameday Wall (scores/wall/app) is the scores and the floating button's app menu;
+# Dashboard Wall (scores/wall/dashboard-app) is Tyler's dashboard.
+# Builds on other branches only check that they compile and keep the APKs as a
 # workflow artifact.
 on:
   push:
     paths:
       - 'scores/wall/app/**'
+      - 'scores/wall/dashboard-app/**'
       - '.github/workflows/wall-app.yml'
   workflow_dispatch:
 
@@ -28,20 +32,26 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Build
+      - name: Build Gameday Wall
         run: gradle -p scores/wall/app assembleDebug
-      # The file is named after the project (GamedayWall-debug.apk); take whatever it built.
-      - run: cp scores/wall/app/build/outputs/apk/debug/*.apk gameday-wall.apk
+      - name: Build Dashboard Wall
+        run: gradle -p scores/wall/dashboard-app assembleDebug
+      # Each file is named after its project (GamedayWall-debug.apk); take whatever was built.
+      - run: |
+          cp scores/wall/app/build/outputs/apk/debug/*.apk gameday-wall.apk
+          cp scores/wall/dashboard-app/build/outputs/apk/debug/*.apk dashboard-wall.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: gameday-wall
-          path: gameday-wall.apk
+          name: wall-apps
+          path: |
+            gameday-wall.apk
+            dashboard-wall.apk
       - name: Publish as the latest release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "wall-app-${{ github.run_number }}" gameday-wall.apk \
-            --title "Gameday Wall app, build ${{ github.run_number }}" \
-            --notes "The full-screen app for the kitchen calendar. Install it with: .\wall install" \
+          gh release create "wall-app-${{ github.run_number }}" gameday-wall.apk dashboard-wall.apk \
+            --title "Wall apps, build ${{ github.run_number }}" \
+            --notes "The kitchen calendar's full-screen apps: gameday-wall.apk (scores and the floating app menu) and dashboard-wall.apk (Tyler's dashboard). Install with: .\wall install, or adb install -r <file>.apk" \
             --latest
